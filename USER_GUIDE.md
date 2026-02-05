@@ -78,6 +78,22 @@ To enable Tier 1 validation (Static Analysis):
    ```
    *Note*: The system will automatically skip validation if Batfish is not reachable.
 
+### Validation (Tier 3: GNS3)
+To enable Full Emulation:
+
+1. **Start GNS3 Server**:
+   Ensure the GNS3 server is running locally on port 3080.
+   
+2. **Configure Environment** (Optional):
+   Update `.env` if your GNS3 server is on a different host/port:
+   ```bash
+   GNS3_HOST=localhost
+   GNS3_PORT=3080
+   ```
+
+3. **Run Validation**:
+   The system automatically attempts to connect to GNS3. If connected, it will create a project and topology based on the intent.
+
 ## 4. Project Structure
 - `src/`: Core engine logic (Parser, RAG, Validation).
 - `ui/frontend/`: HTML/JS dashboard assets.
