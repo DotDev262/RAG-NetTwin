@@ -80,17 +80,23 @@ class VectorStore:
             n_results: Number of results to return
         """
         # Build where clause for filtering
-        where_clause = {}
+        where_conditions = []
         if os_version:
-            where_clause["os_version"] = os_version
+            where_conditions.append({"os_version": os_version})
         if tier:
-            where_clause["tier"] = tier
+            where_conditions.append({"tier": tier})
+        
+        where_clause = None
+        if len(where_conditions) == 1:
+            where_clause = where_conditions[0]
+        elif len(where_conditions) > 1:
+            where_clause = {"$and": where_conditions}
         
         # Query collection
         results = self.collection.query(
             query_texts=[query],
             n_results=n_results,
-            where=where_clause if where_clause else None
+            where=where_clause
         )
         
         # Format results

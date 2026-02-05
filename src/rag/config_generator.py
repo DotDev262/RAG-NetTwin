@@ -33,6 +33,11 @@ class ConfigGenerator:
         configs = {}
         
         for device in structured_intent.devices:
+            # Normalize OS version for retrieval
+            search_version = device.os_version
+            if search_version == "17.6" and device.os_type == "ios-xe":
+                search_version = "ios-xe-17.6"
+                
             # 1. Retrieve relevant context (Tier 1 & 2)
             query = f"{structured_intent.protocol} {structured_intent.action} " + \
                     " ".join(structured_intent.parameters.keys())
@@ -40,7 +45,7 @@ class ConfigGenerator:
             # Retrieve from Tier 1 (Syntax)
             context_tier1 = self.vector_store.retrieve(
                 query=query, 
-                os_version=device.os_version,
+                os_version=search_version,
                 tier=1,
                 n_results=3
             )
@@ -48,7 +53,7 @@ class ConfigGenerator:
             # Retrieve from Tier 2 (Patterns)
             context_tier2 = self.vector_store.retrieve(
                 query=query,
-                os_version=device.os_version,
+                os_version=search_version,
                 tier=2,
                 n_results=2
             )
