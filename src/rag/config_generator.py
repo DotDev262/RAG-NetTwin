@@ -1,0 +1,126 @@
+import os
+from typing import List, Dict, Any
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from dotenv import load_dotenv
+import json
+
+from rag.vector_store import VectorStore
+from parser.intent_parser import StructuredIntent
+
+load_dotenv()
+
+class ConfigGenerator:
+    """Generates network configurations using RAG and LLM."""
+    
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key or api_key == "your_api_key_here":
+            raise ValueError("GROQ_API_KEY not found in environment. Please set it in .env")
+            
+        self.llm = ChatGroq(
+            model=model_name,
+            temperature=0.1,  # Low temperature for consistency
+            api_key=api_key
+        )
+        self.vector_store = VectorStore()
+        
+    def generate(self, structured_intent: StructuredIntent) -> Dict[str, Any]:
+        """
+        Generates CLI configuration for each device in the intent.
+        Returns a dictionary mapping device name to generated config.
+        """
+        configs = {}
+        
+        for device in structured_intent.devices:
+            # 1. Retrieve relevant context (Tier 1 & 2)
+            query = f"{structured_intent.protocol} {structured_intent.action} " + 
+                    " ".join(structured_intent.parameters.keys())
+            
+            # Retrieve from Tier 1 (Syntax)
+            context_tier1 = self.vector_store.retrieve(
+                query=query, 
+                os_version=device.os_version,
+                tier=1,
+                n_results=3
+            )
+            
+            # Retrieve from Tier 2 (Patterns)
+            context_tier2 = self.vector_store.retrieve(
+                query=query,
+                os_version=device.os_version,
+                tier=2,
+                n_results=2
+            )
+            
+            context_text = self._format_context(context_tier1 + context_tier2)
+            
+            # 2. Build prompt
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", self._get_system_prompt()),
+                ("human", "Intent: {intent}
+
+Retrieved Vendor Documentation:
+{context}
+
+Generate the configuration for device {device_name} ({vendor} {os_type} {os_version}).")
+            ])
+            
+            # 3. Generate
+            chain = prompt | self.llm
+            response = chain.invoke({
+                "intent": structured_intent.model_dump_json(indent=2),
+                "context": context_text,
+                "device_name": device.name,
+                "vendor": device.vendor,
+                "os_type": device.os_type,
+                "os_version": device.os_version
+            })
+            
+            configs[device.name] = {
+                "config": response.content,
+                "retrieved_sources": [r['id'] for r in context_tier1 + context_tier2]
+            }
+            
+        return configs
+
+    def _format_context(self, results: List[Dict]) -> str:
+        formatted = ""
+        for i, res in enumerate(results, 1):
+            formatted += f"Reference [{res['id']}]:
+{res['text']}
+{'-'*40}
+"
+        return formatted
+
+    def _get_system_prompt(self) -> str:
+        return """You are a highly precise Network Configuration Generator. 
+Your task is to generate CLI commands based ONLY on the provided Intent and the Retrieved Vendor Documentation.
+
+CRITICAL RULES:
+1. Use ONLY the syntax found in the retrieved documentation.
+2. If the documentation does not contain the necessary commands, state "INSUFFICIENT_CONTEXT".
+3. DO NOT hallucinate commands or parameters.
+4. For every significant command block, add a comment citing the Reference ID, e.g., ! Based on [chunk_000123]
+5. Ensure the configuration is complete and ready to be pasted into a terminal.
+6. Target the specific OS version mentioned in the intent.
+"""
+
+if __name__ == "__main__":
+    # Test generation (requires API key and vector store population)
+    from parser.intent_parser import DeviceIntent, StructuredIntent
+    
+    test_intent = StructuredIntent(
+        protocol="OSPF",
+        action="create",
+        devices=[DeviceIntent(name="Router-1", vendor="cisco", os_type="ios-xe", os_version="ios-xe-17.6")],
+        parameters={"process_id": "1", "area": "0", "interface": "Gig0/1", "ip": "192.168.1.1/24"},
+        requirements=["enable_ospf", "set_area"]
+    )
+    
+    try:
+        generator = ConfigGenerator()
+        result = generator.generate(test_intent)
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        print(f"Error: {e}")
