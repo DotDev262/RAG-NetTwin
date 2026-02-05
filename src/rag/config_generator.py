@@ -34,7 +34,7 @@ class ConfigGenerator:
         
         for device in structured_intent.devices:
             # 1. Retrieve relevant context (Tier 1 & 2)
-            query = f"{structured_intent.protocol} {structured_intent.action} " + 
+            query = f"{structured_intent.protocol} {structured_intent.action} " + \
                     " ".join(structured_intent.parameters.keys())
             
             # Retrieve from Tier 1 (Syntax)
@@ -58,12 +58,7 @@ class ConfigGenerator:
             # 2. Build prompt
             prompt = ChatPromptTemplate.from_messages([
                 ("system", self._get_system_prompt()),
-                ("human", "Intent: {intent}
-
-Retrieved Vendor Documentation:
-{context}
-
-Generate the configuration for device {device_name} ({vendor} {os_type} {os_version}).")
+                ("human", "Intent: {intent}\n\nRetrieved Vendor Documentation:\n{context}\n\nGenerate the configuration for device {device_name} ({vendor} {os_type} {os_version}).")
             ])
             
             # 3. Generate
@@ -87,10 +82,7 @@ Generate the configuration for device {device_name} ({vendor} {os_type} {os_vers
     def _format_context(self, results: List[Dict]) -> str:
         formatted = ""
         for i, res in enumerate(results, 1):
-            formatted += f"Reference [{res['id']}]:
-{res['text']}
-{'-'*40}
-"
+            formatted += f"Reference [{res['id']}]:\n{res['text']}\n{'-'*40}\n"
         return formatted
 
     def _get_system_prompt(self) -> str:

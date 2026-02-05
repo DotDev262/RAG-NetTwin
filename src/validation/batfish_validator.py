@@ -1,6 +1,9 @@
 import os
+import tempfile
+import shutil
+from pathlib import Path
 from pybatfish.client.session import Session
-from pybatfish.datamodel.fid import *
+from pybatfish.datamodel import Interface
 import pandas as pd
 from typing import Dict, Any, List
 
@@ -10,51 +13,115 @@ class BatfishValidator:
     def __init__(self, host: str = "localhost", port: int = 9997):
         self.host = os.getenv("BATFISH_HOST", host)
         self.port = os.getenv("BATFISH_PORT", port)
+        self.session = None
         
         try:
             self.session = Session(host=self.host)
+            # Basic connectivity check
+            # self.session.list_networks() 
             print(f"Connected to Batfish at {self.host}")
         except Exception as e:
             print(f"Warning: Could not connect to Batfish: {e}")
-            self.session = None
 
-    def validate(self, configs: Dict[str, str], snapshot_name: str = "snapshot_test") -> Dict[str, Any]:
+    def validate(self, configs: Dict[str, str], network_name: str = "rag_net", snapshot_name: str = "snapshot_current") -> Dict[str, Any]:
         """
         Validates a set of configurations.
         configs: Mapping of hostname to config text.
         """
         if not self.session:
-            return {"status": "ERROR", "message": "Batfish session not initialized"}
-
-        try:
-            # 1. Initialize Snapshot
-            # Batfish expects a directory structure or a zip, 
-            # but we can also use init_snapshot_from_text for simple cases if supported by version,
-            # or write to temp files.
-            
-            # For simplicity in this POC, we'll simulate the report if Batfish is not running,
-            # or use the real session if it is.
-            
-            # TODO: Implement full snapshot initialization from text
-            # This requires creating a temporary directory with 'configs/' folder
-            
             return {
-                "status": "PASS",
-                "tier": 1,
-                "checks": ["ACL Reachability", "Routing Loops", "Undefined References"],
-                "issues": []
+                "status": "SKIPPED", 
+                "message": "Batfish service not available. Ensure Batfish is running (Docker)."
             }
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # 1. Prepare directory structure for Batfish
+            config_dir = Path(temp_dir) / "configs"
+            config_dir.mkdir(parents=True)
+            
+            for hostname, config_text in configs.items():
+                with open(config_dir / hostname, "w") as f:
+                    f.write(config_text)
+            
+            # 2. Initialize Network and Snapshot
+            self.session.set_network(network_name)
+            self.session.init_snapshot(temp_dir, name=snapshot_name, overwrite=True)
+            
+            # 3. Run Analysis Questions
+            issues = []
+            
+            # Check for configuration errors (e.g., syntax-related)
+            parse_status = self.session.q.initIssues().answer().frame()
+            if not parse_status.empty:
+                for _, row in parse_status.iterrows():
+                    issues.append({
+                        "type": "PARSE_ISSUE",
+                        "severity": "HIGH",
+                        "details": str(row.to_dict())
+                    })
+
+            # Check for ACL Reachability (Shadowing)
+            acl_reach = self.session.q.aclReachability().answer().frame()
+            if not acl_reach.empty:
+                for _, row in acl_reach.iterrows():
+                    issues.append({
+                        "type": "ACL_SHADOWING",
+                        "severity": "MEDIUM",
+                        "details": f"ACL {row['Structure_Name']} rule at line {row['Line_Number']} is unreachable."
+                    })
+
+            # Check for Undefined References
+            undefined = self.session.q.undefinedReferences().answer().frame()
+            if not undefined.empty:
+                for _, row in undefined.iterrows():
+                    issues.append({
+                        "type": "UNDEFINED_REFERENCE",
+                        "severity": "HIGH",
+                        "details": f"File {row['File_Name']}: {row['Structure_Type']} '{row['Structure_Name']}' is referenced but not defined."
+                    })
+
+            # Check for Routing Loops
+            # loop = self.session.q.detectLoops().answer().frame() # Might be slow
+            
+            status = "PASS" if not issues else "FAIL"
+            if issues and all(i['severity'] == "MEDIUM" for i in issues):
+                status = "WARNING"
+
+            return {
+                "status": status,
+                "tier": 1,
+                "issues": issues,
+                "snapshot_id": snapshot_name,
+                "summary": f"Found {len(issues)} potential issues."
+            }
+
         except Exception as e:
-            return {"status": "FAIL", "error": str(e)}
+            return {"status": "ERROR", "error": str(e)}
+        finally:
+            shutil.rmtree(temp_dir)
 
-    def check_acl_reachability(self):
-        """Checks for shadowed ACL rules."""
-        if self.session:
-            return self.session.q.aclReachability().answer().frame()
-        return None
-
-    def check_undefined_references(self):
-        """Checks for references to undefined objects."""
-        if self.session:
-            return self.session.q.undefinedReferences().answer().frame()
-        return None
+if __name__ == "__main__":
+    # POC Test
+    validator = BatfishValidator()
+    # Sample invalid config for testing
+    test_configs = {
+        "Router-1": """
+interface GigabitEthernet0/1
+ ip address 192.168.1.1 255.255.255.0
+!
+ip access-list extended TEST_ACL
+ permit ip any any
+ deny ip 10.0.0.0 0.255.255.255 any ! This is shadowed
+!
+router ospf 1
+ network 192.168.1.0 0.0.0.255 area 0
+"""
+    }
+    
+    if validator.session:
+        result = validator.validate(test_configs)
+        import json
+        print(json.dumps(result, indent=2))
+    else:
+        print("Batfish not running. Start it with: docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/batfish")
