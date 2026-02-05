@@ -12,5 +12,26 @@
     "os_version": "ios-xe-17.6",
     "file_path": "data/raw_docs/catalyst_9500_cmdref_17_6.pdf",
     "doc_type": "command_ref"
+  },
+  {
+    "title": "Juniper JunOS OSPF Configuration Guide",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junos-ospf.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS CLI User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junos-cli.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Routing Policies and Firewall Filters Guide",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junoos-routing-firewall-traffic.pdf",
+    "doc_type": "config_guide"
   }
 ]
