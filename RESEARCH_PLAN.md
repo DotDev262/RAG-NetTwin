@@ -807,7 +807,7 @@ Given the B.Tech project scope with journal publication goals, we adopt a **two-
 | **Month 1** | Foundation & RAG | 35-40 | Vector DB with 500+ chunks, basic retrieval |
 | **Month 2** | Core Innovation | 35-40 | Version-locked RAG, multi-vendor coordination |
 | **Month 3** | Validation Tiers 1-2 | 35-40 | Batfish integration, Containerlab setup |
-| **Month 4** | Validation Tier 3 & UI | 35-40 | GNS3 integration, Flask web UI |
+| **Month 4** | Validation Tier 3 & UI | 35-40 | GNS3 integration, FastAPI backend |
 | **Month 5** | Integration & Polish | 35-40 | End-to-end system, basic testing |
 
 **Phase 1 Goal**: Working system ready for extensive evaluation

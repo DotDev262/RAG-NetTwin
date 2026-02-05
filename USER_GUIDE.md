@@ -48,18 +48,13 @@ Before generating configurations, you must ingest the vendor documentation.
 
 ## 3. Using the System
 
-### Interactive CLI
-Run the main application to interact with the Intent Parser and Config Generator:
+### Interactive Dashboard
+Run the FastAPI backend to use the web dashboard:
 
 ```bash
-uv run python main.py
+uv run python ui/backend/main.py
 ```
-
-**Example Workflow**:
-1. **Enter Intent**: "Configure OSPF process 10 area 0 on Gig1/0/1"
-2. **System Parses**: Identifying Protocol=OSPF, Action=Configure.
-3. **RAG Retrieval**: System fetches `router ospf`, `network` command syntax from ChromaDB.
-4. **Generation**: Returns the exact CLI block with citation references.
+Then open `ui/frontend/index.html` in your browser.
 
 ### Evaluation Suite
 Compare RAG-NetTwin against a vanilla LLM baseline:
@@ -84,10 +79,9 @@ To enable Tier 1 validation (Static Analysis):
    *Note*: The system will automatically skip validation if Batfish is not reachable.
 
 ## 4. Project Structure
-- `src/parser`: Translates Natural Language -> Structured JSON.
-- `src/rag`: Vector Store & Config Generator.
-- `src/validation`: Batfish integration for static checks.
-- `src/evaluation`: Benchmark suite.
+- `src/`: Core engine logic (Parser, RAG, Validation).
+- `ui/frontend/`: HTML/JS dashboard assets.
+- `ui/backend/`: FastAPI backend implementation.
 - `data/`: Storage for docs, chunks, and vector DB.
 
 ## Troubleshooting

@@ -98,7 +98,7 @@ Tier 3: GNS3 Full Simulation (~3-5min, traffic tests)
 - **Vector DB**: ChromaDB (local)
 - **LLM**: Llama 3.1 70B via Groq API (free tier)
 - **RAG**: LangChain
-- **Web UI**: Flask
+- **Web UI**: FastAPI (Backend) + React or Simple HTML/JS
 
 ### **Validation**:
 - **Tier 1**: Batfish (Docker container)
@@ -126,8 +126,10 @@ ragnet-ibn/
 │   ├── data_processing/   # PDF extraction, chunking
 │   ├── rag/              # Vector store, retrieval
 │   ├── parser/           # Intent parser
-│   ├── validation/       # Batfish, Containerlab, GNS3
-│   └── ui/              # Flask web app
+│   └── validation/       # Batfish, Containerlab, GNS3
+├── ui/
+│   ├── frontend/         # HTML/JS dashboard
+│   └── backend/          # FastAPI API
 ├── tests/               # Test scripts
 ├── notebooks/          # Jupyter experiments
 ├── results/            # Evaluation results

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG-NetTwin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .config-box { background-color: #212529; color: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+        .status-pass { color: #198754; font-weight: bold; }
+        .status-fail { color: #dc3545; font-weight: bold; }
+        .status-warning { color: #ffc107; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">RAG-NetTwin: Supervisory Gate</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Describe Network Intent</h5>
+                        <div class="input-group mb-3">
+                            <input type="text" id="intentInput" class="form-control" placeholder="e.g., Configure OSPF area 0 on Router-1 Gig0/1 with IP 192.168.1.1/24">
+                            <button class="btn btn-primary" type="button" id="processBtn">Process Intent</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsArea" class="mt-4" style="display: none;">
+            <div class="row">
+                <!-- Intent Section -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-primary text-white">Parsed Intent</div>
+                        <div class="card-body">
+                            <pre id="intentDisplay" style="font-size: 0.85rem;"></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Section -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-secondary text-white">Validation Report (Tier 1: Batfish)</div>
+                        <div class="card-body">
+                            <div id="validationStatus" class="mb-3"></div>
+                            <ul id="issueList" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-dark text-white">Generated Configurations</div>
+                        <div class="card-body" id="configArea">
+                            <!-- Device configs will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4 mb-5">
+                <div class="col-md-12 text-center">
+                    <button class="btn btn-success btn-lg me-3">Approve & Deploy</button>
+                    <button class="btn btn-danger btn-lg">Reject</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8000";
+
+        document.getElementById('processBtn').addEventListener('click', async () => {
+            const text = document.getElementById('intentInput').value;
+            if (!text) return;
+
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('processBtn').innerText = "Processing...";
+            
+            try {
+                const response = await fetch(`${API_BASE}/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                alert("Error connecting to API. Make sure the FastAPI server is running.");
+                console.error(error);
+            } finally {
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('processBtn').innerText = "Process Intent";
+            }
+        });
+
+        function displayResults(data) {
+            document.getElementById('resultsArea').style.display = 'block';
+            
+            // 1. Display Intent
+            document.getElementById('intentDisplay').innerText = JSON.stringify(data.intent, null, 2);
+
+            // 2. Display Validation
+            const val = data.validation;
+            const statusDiv = document.getElementById('validationStatus');
+            const statusClass = val.status === 'PASS' ? 'status-pass' : (val.status === 'FAIL' ? 'status-fail' : 'status-warning');
+            statusDiv.innerHTML = `Status: <span class="${statusClass}">${val.status}</span><br><small>${val.summary || ''}</small>`;
+
+            const issueList = document.getElementById('issueList');
+            issueList.innerHTML = '';
+            if (val.issues && val.issues.length > 0) {
+                val.issues.forEach(issue => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `<strong>${issue.type}</strong> (${issue.severity}): ${issue.details}`;
+                    issueList.appendChild(li);
+                });
+            } else {
+                issueList.innerHTML = '<li class="list-group-item text-muted">No issues detected.</li>';
+            }
+
+            // 3. Display Configs
+            const configArea = document.getElementById('configArea');
+            configArea.innerHTML = '';
+            for (const [deviceName, deviceData] of Object.entries(data.generated_configs)) {
+                const div = document.createElement('div');
+                div.className = 'mb-4';
+                div.innerHTML = `
+                    <h6>Device: ${deviceName}</h6>
+                    <div class="config-box">${deviceData.config}</div>
+                    <p class="mt-2"><small class="text-muted">Sources: ${deviceData.retrieved_sources.join(', ')}</small></p>
+                `;
+                configArea.appendChild(div);
+            }
+        }
+    </script>
+</body>
+</html>

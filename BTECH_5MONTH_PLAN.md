@@ -136,13 +136,13 @@ Intent (Natural Language)
 
 ### **Month 4: UI & Integration**
 **Week 1-2: Web Interface**
-- Build Flask web app
+- Build FastAPI backend
 - Create simple pages:
   - Intent input form
   - Generated config display
   - Validation results view
   - Approve/Reject buttons
-- **Deliverable**: Functional web UI
+- **Deliverable**: Functional UI with FastAPI backend
 
 **Week 3-4: End-to-End Integration**
 - Connect all components
