@@ -138,16 +138,23 @@ class HierarchicalChunker:
             return 2  # Configuration Patterns (default)
     
     def extract_commands(self, text: str) -> List[str]:
-        """Extract command hierarchy from text"""
+        """Extract command hierarchy from text (Cisco & Juniper)"""
         commands = []
         
         # Look for command patterns
         command_patterns = [
+            # Cisco
             r'\b(ip\s+\w+)',
             r'\b(interface\s+\w+)',
             r'\b(router\s+\w+)',
             r'\b(access-list\s+\w+)',
-            r'\b(route-map\s+\w+)'
+            r'\b(route-map\s+\w+)',
+            # Juniper
+            r'\b(set\s+protocols\s+\w+)',
+            r'\b(set\s+interfaces\s+\w+)',
+            r'\b(set\s+routing-options\s+\w+)',
+            r'\b(set\s+policy-options\s+\w+)',
+            r'\b(set\s+security\s+\w+)'
         ]
         
         for pattern in command_patterns:
@@ -157,19 +164,19 @@ class HierarchicalChunker:
         return list(set(commands))  # Remove duplicates
     
     def extract_context_tags(self, text: str) -> List[str]:
-        """Extract context tags from text"""
+        """Extract context tags from text (Cisco & Juniper)"""
         text_lower = text.lower()
         tags = []
         
         # Define tag mappings
         tag_mappings = {
-            'layer3': ['ip address', 'routing', 'ospf', 'bgp', 'eigrp'],
-            'layer2': ['switchport', 'vlan', 'trunk', 'access'],
-            'security': ['acl', 'access-list', 'firewall', 'crypto'],
-            'management': ['snmp', 'ntp', 'logging', 'aaa'],
-            'interface': ['gigabitethernet', 'fastethernet', 'serial'],
-            'ipv4': ['ip address', 'ipv4'],
-            'ipv6': ['ipv6 address', 'ipv6']
+            'layer3': ['ip address', 'routing', 'ospf', 'bgp', 'eigrp', 'routing-options', 'protocols'],
+            'layer2': ['switchport', 'vlan', 'trunk', 'access', 'bridge-domains', 'ether-options'],
+            'security': ['acl', 'access-list', 'firewall', 'crypto', 'security-zone', 'security-policy'],
+            'management': ['snmp', 'ntp', 'logging', 'aaa', 'system services'],
+            'interface': ['gigabitethernet', 'fastethernet', 'serial', 'ge-', 'xe-', 'et-'],
+            'ipv4': ['ip address', 'ipv4', 'family inet '],
+            'ipv6': ['ipv6 address', 'ipv6', 'family inet6 ']
         }
         
         for tag, keywords in tag_mappings.items():

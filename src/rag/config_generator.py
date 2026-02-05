@@ -35,8 +35,10 @@ class ConfigGenerator:
         for device in structured_intent.devices:
             # Normalize OS version for retrieval
             search_version = device.os_version
-            if search_version == "17.6" and device.os_type == "ios-xe":
+            if device.os_type == "ios-xe" and "17.6" in search_version:
                 search_version = "ios-xe-17.6"
+            elif device.os_type == "junos" and "21.4" in search_version:
+                search_version = "junos-21.4"
                 
             # 1. Retrieve relevant context (Tier 1 & 2)
             query = f"{structured_intent.protocol} {structured_intent.action} " + \
