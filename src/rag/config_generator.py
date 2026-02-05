@@ -49,7 +49,7 @@ class ConfigGenerator:
                 query=query, 
                 os_version=search_version,
                 tier=1,
-                n_results=3
+                n_results=10  # Increased from 3
             )
             
             # Retrieve from Tier 2 (Patterns)
@@ -57,7 +57,7 @@ class ConfigGenerator:
                 query=query,
                 os_version=search_version,
                 tier=2,
-                n_results=2
+                n_results=5   # Increased from 2
             )
             
             context_text = self._format_context(context_tier1 + context_tier2)
@@ -97,12 +97,13 @@ class ConfigGenerator:
 Your task is to generate CLI commands based ONLY on the provided Intent and the Retrieved Vendor Documentation.
 
 CRITICAL RULES:
-1. Use ONLY the syntax found in the retrieved documentation.
-2. If the documentation does not contain the necessary commands, state "INSUFFICIENT_CONTEXT".
-3. DO NOT hallucinate commands or parameters.
-4. For every significant command block, add a comment citing the Reference ID, e.g., ! Based on [chunk_000123]
-5. Ensure the configuration is complete and ready to be pasted into a terminal.
+1. Provide ONLY the configuration commands. MINIMAL explanation.
+2. Use ONLY the syntax found in the retrieved documentation.
+3. If the documentation does not contain the necessary commands, state "INSUFFICIENT_CONTEXT".
+4. DO NOT hallucinate commands or parameters.
+5. For every significant command block, add a comment citing the Reference ID, e.g., ! Based on [chunk_000123]
 6. Target the specific OS version mentioned in the intent.
+7. Output format should be pure CLI, ready to be pasted into a terminal.
 """
 
 if __name__ == "__main__":
