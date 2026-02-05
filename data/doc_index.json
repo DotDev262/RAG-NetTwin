@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Cisco Catalyst 9300 Command Reference 17.6",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17.6",
+    "file_path": "data/raw_docs/catalyst_9300_cmdref_17_6.pdf",
+    "doc_type": "command_ref"
+  },
+  {
+    "title": "Cisco Catalyst 9500 Command Reference 17.6",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17.6",
+    "file_path": "data/raw_docs/catalyst_9500_cmdref_17_6.pdf",
+    "doc_type": "command_ref"
+  }
+]

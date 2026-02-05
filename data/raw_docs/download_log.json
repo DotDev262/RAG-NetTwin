@@ -1,0 +1,22 @@
+[
+  {
+    "doc_name": "catalyst_9300_cmdref_17_6",
+    "title": "Catalyst 9300 Command Reference 17.6",
+    "url": "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-6/command_reference/b_176_9300_cr.html",
+    "html_file": "data\\raw_docs\\catalyst_9300_cmdref_17_6.html",
+    "text_file": "data\\raw_docs\\catalyst_9300_cmdref_17_6.txt",
+    "timestamp": "2026-02-05T18:44:32.950447",
+    "size_bytes": 41215,
+    "status": "success"
+  },
+  {
+    "doc_name": "catalyst_9500_cmdref_17_6",
+    "title": "Catalyst 9500 Command Reference 17.6",
+    "url": "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/17-6/command_reference/b_176_9500_cr.html",
+    "html_file": "data\\raw_docs\\catalyst_9500_cmdref_17_6.html",
+    "text_file": "data\\raw_docs\\catalyst_9500_cmdref_17_6.txt",
+    "timestamp": "2026-02-05T18:44:35.755562",
+    "size_bytes": 41215,
+    "status": "success"
+  }
+]
