@@ -1,19 +1,18 @@
 import chromadb
 from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 from pathlib import Path
 from typing import List, Dict, Any
 import json
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import settings
 
 class VectorStore:
     """Manages ChromaDB vector database for RAG"""
     
     def __init__(self, persist_dir: str = None):
         if persist_dir is None:
-            persist_dir = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma_db")
+            persist_dir = settings.chroma_persist_dir
             
         self.persist_dir = Path(persist_dir)
         self.persist_dir.mkdir(parents=True, exist_ok=True)
@@ -26,14 +25,20 @@ class VectorStore:
             )
         )
         
+        # Initialize embedding function
+        sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=settings.embedding_model_name
+        )
+        
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
-            name="cisco_commands",
-            metadata={"hnsw:space": "cosine"}
+            name=settings.collection_name,
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=sentence_transformer_ef
         )
         
         print(f"Connected to ChromaDB at {self.persist_dir}")
-        print(f"Collection 'cisco_commands' ready")
+        print(f"Collection '{settings.collection_name}' ready")
     
     def add_chunks(self, chunks: List[Any]):
         """

@@ -2,25 +2,26 @@ import os
 from typing import List, Dict, Any
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from dotenv import load_dotenv
 import json
 
 from rag.vector_store import VectorStore
 from parser.intent_parser import StructuredIntent
-
-load_dotenv()
+from config import settings
 
 class ConfigGenerator:
     """Generates network configurations using RAG and LLM."""
     
-    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
-        api_key = os.getenv("GROQ_API_KEY")
+    def __init__(self, model_name: str = None):
+        if model_name is None:
+            model_name = settings.llm_model
+            
+        api_key = settings.groq_api_key
         if not api_key or api_key == "your_api_key_here":
-            raise ValueError("GROQ_API_KEY not found in environment. Please set it in .env")
+            raise ValueError("GROQ_API_KEY not found in settings or environment.")
             
         self.llm = ChatGroq(
             model=model_name,
-            temperature=0.1,  # Low temperature for consistency
+            temperature=settings.temperature,
             api_key=api_key
         )
         self.vector_store = VectorStore()

@@ -1,0 +1,48 @@
+PDF EXTRACTION SUMMARY
+================================================================================
+
+File: catalyst_9200_config_guide_17_6.pdf
+  Pages: 26/26
+  Characters: 31,119
+  Commands: 33
+
+File: catalyst_9300_cmdref_17_6.pdf
+  Pages: 2305/2322
+  Characters: 4,065,734
+  Commands: 2510
+
+File: catalyst_9300_config_guide_17_6.pdf
+  Pages: 26/26
+  Characters: 31,436
+  Commands: 33
+
+File: catalyst_9500_cmdref_17_6.pdf
+  Pages: 2252/2268
+  Characters: 3,975,330
+  Commands: 2575
+
+File: catalyst_9500_config_guide_17_6.pdf
+  Pages: 26/26
+  Characters: 32,786
+  Commands: 33
+
+File: junoos-routing-firewall-traffic.pdf
+  Pages: 2411/2416
+  Characters: 3,683,198
+  Commands: 748
+
+File: junos-cli.pdf
+  Pages: 334/336
+  Characters: 501,693
+  Commands: 146
+
+File: junos-ospf.pdf
+  Pages: 793/795
+  Characters: 1,196,081
+  Commands: 327
+
+File: programmability_guide_17_6.pdf
+  Pages: 405/410
+  Characters: 747,641
+  Commands: 229
+

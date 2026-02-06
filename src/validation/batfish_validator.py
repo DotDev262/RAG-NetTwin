@@ -7,27 +7,32 @@ from pybatfish.datamodel import Interface
 import pandas as pd
 from typing import Dict, Any, List
 
-class BatfishValidator:
+from validation.base import NetworkValidator
+from config import settings
+
+class BatfishValidator(NetworkValidator):
     """Performs Tier 1 Static Analysis using Batfish."""
     
-    def __init__(self, host: str = "localhost", port: int = 9997):
-        self.host = os.getenv("BATFISH_HOST", host)
-        self.port = os.getenv("BATFISH_PORT", port)
+    def __init__(self):
+        super().__init__(tier=1)
+        self.host = settings.batfish_host
         self.session = None
         
         try:
             self.session = Session(host=self.host)
             # Basic connectivity check
-            # self.session.list_networks() 
             print(f"Connected to Batfish at {self.host}")
         except Exception as e:
             print(f"Warning: Could not connect to Batfish: {e}")
 
-    def validate(self, configs: Dict[str, str], network_name: str = "rag_net", snapshot_name: str = "snapshot_current") -> Dict[str, Any]:
+    def validate(self, configs: Dict[str, str], intent: Any = None) -> Dict[str, Any]:
         """
         Validates a set of configurations.
         configs: Mapping of hostname to config text.
         """
+        network_name = "rag_net"
+        snapshot_name = f"snapshot_{int(os.getpid())}"
+        
         if not self.session:
             return {
                 "status": "SKIPPED", 

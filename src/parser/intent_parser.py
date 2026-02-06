@@ -3,9 +3,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import settings
 
 class DeviceIntent(BaseModel):
     name: str = Field(description="Name of the device, e.g., Router-A")
@@ -14,7 +12,7 @@ class DeviceIntent(BaseModel):
     os_version: str = Field(description="OS version, e.g., 17.6", default="17.6")
 
 class StructuredIntent(BaseModel):
-    intent_id: Optional[str] = Field(description="Unique identifier for the intent")
+    intent_id: Optional[str] = Field(description="Unique identifier for the intent", default=None)
     protocol: Optional[str] = Field(description="Network protocol involved, e.g., OSPF, BGP, Static, ACL")
     action: str = Field(description="Action to perform, e.g., create, delete, update, show")
     devices: List[DeviceIntent] = Field(description="List of devices involved in the intent")
@@ -24,10 +22,13 @@ class StructuredIntent(BaseModel):
 class IntentParser:
     """Parses natural language intents into structured JSON using LLM."""
     
-    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
-        api_key = os.getenv("GROQ_API_KEY")
+    def __init__(self, model_name: str = None):
+        if model_name is None:
+            model_name = settings.llm_model
+            
+        api_key = settings.groq_api_key
         if not api_key or api_key == "your_api_key_here":
-            raise ValueError("GROQ_API_KEY not found in environment. Please set it in .env")
+            raise ValueError("GROQ_API_KEY not found in settings or environment.")
             
         self.llm = ChatGroq(
             model=model_name,

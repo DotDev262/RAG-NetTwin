@@ -2,10 +2,15 @@ import os
 import time
 import json
 import random
+import sys
+from pathlib import Path
 from typing import List, Dict, Any
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import our system components
 from parser.intent_parser import IntentParser

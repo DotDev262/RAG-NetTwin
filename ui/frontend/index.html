@@ -50,10 +50,20 @@
                 <!-- Validation Section -->
                 <div class="col-md-8">
                     <div class="card shadow-sm h-100">
-                        <div class="card-header bg-secondary text-white">Validation Report (Tier 1: Batfish)</div>
+                        <div class="card-header bg-secondary text-white">Multi-Tier Validation</div>
                         <div class="card-body">
-                            <div id="validationStatus" class="mb-3"></div>
-                            <ul id="issueList" class="list-group list-group-flush"></ul>
+                            <div class="row">
+                                <div class="col-md-6 border-end">
+                                    <h6>Tier 1: Batfish (Static)</h6>
+                                    <div id="t1Status" class="mb-2"></div>
+                                    <ul id="t1Issues" class="list-group list-group-flush small"></ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Tier 2: Containerlab (Emulation)</h6>
+                                    <div id="t2Status" class="mb-2"></div>
+                                    <ul id="t2Results" class="list-group list-group-flush small"></ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,26 +123,48 @@
             // 1. Display Intent
             document.getElementById('intentDisplay').innerText = JSON.stringify(data.intent, null, 2);
 
-            // 2. Display Validation
-            const val = data.validation;
-            const statusDiv = document.getElementById('validationStatus');
-            const statusClass = val.status === 'PASS' ? 'status-pass' : (val.status === 'FAIL' ? 'status-fail' : 'status-warning');
-            statusDiv.innerHTML = `Status: <span class="${statusClass}">${val.status}</span><br><small>${val.summary || ''}</small>`;
+            // 2. Display Validation Tier 1
+            const t1 = data.validation.tier1;
+            const t1StatusDiv = document.getElementById('t1Status');
+            const t1Class = t1.status === 'PASS' ? 'status-pass' : (t1.status === 'FAIL' ? 'status-fail' : 'status-warning');
+            t1StatusDiv.innerHTML = `Status: <span class="${t1Class}">${t1.status}</span>`;
 
-            const issueList = document.getElementById('issueList');
-            issueList.innerHTML = '';
-            if (val.issues && val.issues.length > 0) {
-                val.issues.forEach(issue => {
+            const t1Issues = document.getElementById('t1Issues');
+            t1Issues.innerHTML = '';
+            if (t1.issues && t1.issues.length > 0) {
+                t1.issues.forEach(issue => {
                     const li = document.createElement('li');
                     li.className = 'list-group-item';
-                    li.innerHTML = `<strong>${issue.type}</strong> (${issue.severity}): ${issue.details}`;
-                    issueList.appendChild(li);
+                    li.innerHTML = `<strong>${issue.type}</strong>: ${issue.details}`;
+                    t1Issues.appendChild(li);
                 });
             } else {
-                issueList.innerHTML = '<li class="list-group-item text-muted">No issues detected.</li>';
+                t1Issues.innerHTML = '<li class="list-group-item text-muted">No issues detected.</li>';
             }
 
-            // 3. Display Configs
+            // 3. Display Validation Tier 2
+            const t2 = data.validation.tier2;
+            const t2StatusDiv = document.getElementById('t2Status');
+            const t2Class = t2.status === 'PASS' ? 'status-pass' : (t2.status === 'FAIL' ? 'status-fail' : 'status-warning');
+            t2StatusDiv.innerHTML = `Status: <span class="${t2Class}">${t2.status}</span>`;
+
+            const t2Results = document.getElementById('t2Results');
+            t2Results.innerHTML = '';
+            if (t2.protocol_results) {
+                t2.protocol_results.forEach(res => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `<strong>${res.device}</strong>: ${res.details}`;
+                    t2Results.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.className = 'list-group-item text-muted';
+                li.innerText = t2.message || 'Verification skipped.';
+                t2Results.appendChild(li);
+            }
+
+            // 4. Display Configs
             const configArea = document.getElementById('configArea');
             configArea.innerHTML = '';
             for (const [deviceName, deviceData] of Object.entries(data.generated_configs)) {
