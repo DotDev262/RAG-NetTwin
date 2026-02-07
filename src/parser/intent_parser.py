@@ -1,51 +1,67 @@
 import os
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
-from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from config import settings
+from llm import LLMProvider
+
 
 class DeviceIntent(BaseModel):
     name: str = Field(description="Name of the device, e.g., Router-A")
-    vendor: str = Field(description="Device vendor, e.g., cisco, juniper", default="cisco")
-    os_type: str = Field(description="Operating system type, e.g., ios-xe, junos", default="ios-xe")
+    vendor: str = Field(
+        description="Device vendor, e.g., cisco, juniper", default="cisco"
+    )
+    os_type: str = Field(
+        description="Operating system type, e.g., ios-xe, junos", default="ios-xe"
+    )
     os_version: str = Field(description="OS version, e.g., 17.6", default="17.6")
 
+
 class StructuredIntent(BaseModel):
-    intent_id: Optional[str] = Field(description="Unique identifier for the intent", default=None)
-    protocol: Optional[str] = Field(description="Network protocol involved, e.g., OSPF, BGP, Static, ACL")
-    action: str = Field(description="Action to perform, e.g., create, delete, update, show")
-    devices: List[DeviceIntent] = Field(description="List of devices involved in the intent")
-    parameters: Dict[str, Any] = Field(description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1'}")
-    requirements: List[str] = Field(description="Specific requirements or goals, e.g., ['establish_adjacency']")
+    intent_id: Optional[str] = Field(
+        description="Unique identifier for the intent", default=None
+    )
+    protocol: Optional[str] = Field(
+        description="Network protocol involved, e.g., OSPF, BGP, Static, ACL"
+    )
+    action: str = Field(
+        description="Action to perform, e.g., create, delete, update, show"
+    )
+    devices: List[DeviceIntent] = Field(
+        description="List of devices involved in the intent"
+    )
+    parameters: Dict[str, Any] = Field(
+        description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1'}"
+    )
+    requirements: List[str] = Field(
+        description="Specific requirements or goals, e.g., ['establish_adjacency']"
+    )
+
 
 class IntentParser:
     """Parses natural language intents into structured JSON using LLM."""
-    
+
     def __init__(self, model_name: str = None):
-        if model_name is None:
-            model_name = settings.llm_model
-            
-        api_key = settings.groq_api_key
-        if not api_key or api_key == "your_api_key_here":
-            raise ValueError("GROQ_API_KEY not found in settings or environment.")
-            
-        self.llm = ChatGroq(
-            model=model_name,
-            temperature=0,
-            api_key=api_key
+        # Use LLMProvider to get structured LLM instance
+        self.structured_llm = LLMProvider.get_structured_llm(
+            schema=StructuredIntent, model=model_name, temperature=0
         )
-        self.structured_llm = self.llm.with_structured_output(StructuredIntent)
-        
+
     def parse(self, text: str) -> StructuredIntent:
         """Translates NL text to StructuredIntent object."""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking."),
-            ("human", "{input}")
-        ])
-        
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.",
+                ),
+                ("human", "{input}"),
+            ]
+        )
+
         chain = prompt | self.structured_llm
         return chain.invoke({"input": text})
+
 
 if __name__ == "__main__":
     # Quick test
