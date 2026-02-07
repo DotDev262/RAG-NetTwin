@@ -3,20 +3,30 @@
     "doc_name": "catalyst_9300_cmdref_17_6",
     "title": "Catalyst 9300 Command Reference 17.6",
     "url": "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-6/command_reference/b_176_9300_cr.html",
-    "html_file": "data\\raw_docs\\catalyst_9300_cmdref_17_6.html",
-    "text_file": "data\\raw_docs\\catalyst_9300_cmdref_17_6.txt",
-    "timestamp": "2026-02-05T18:44:32.950447",
-    "size_bytes": 41215,
+    "html_file": "data/raw_docs/catalyst_9300_cmdref_17_6.html",
+    "text_file": "data/raw_docs/catalyst_9300_cmdref_17_6.txt",
+    "timestamp": "2026-02-07T03:25:54.156060",
+    "size_bytes": 41216,
     "status": "success"
   },
   {
     "doc_name": "catalyst_9500_cmdref_17_6",
     "title": "Catalyst 9500 Command Reference 17.6",
     "url": "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/17-6/command_reference/b_176_9500_cr.html",
-    "html_file": "data\\raw_docs\\catalyst_9500_cmdref_17_6.html",
-    "text_file": "data\\raw_docs\\catalyst_9500_cmdref_17_6.txt",
-    "timestamp": "2026-02-05T18:44:35.755562",
-    "size_bytes": 41215,
+    "html_file": "data/raw_docs/catalyst_9500_cmdref_17_6.html",
+    "text_file": "data/raw_docs/catalyst_9500_cmdref_17_6.txt",
+    "timestamp": "2026-02-07T03:25:57.653377",
+    "size_bytes": 41825,
+    "status": "success"
+  },
+  {
+    "doc_name": "ios_15_mt_ospf_config",
+    "title": "IP Routing: OSPF Configuration Guide, Cisco IOS Release 15M&T",
+    "url": "https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_ospf/configuration/15-mt/iro-15-mt-book.html",
+    "html_file": "data/raw_docs/ios_15_mt_ospf_config.html",
+    "text_file": "data/raw_docs/ios_15_mt_ospf_config.txt",
+    "timestamp": "2026-02-07T03:26:00.621143",
+    "size_bytes": 41520,
     "status": "success"
   }
 ]

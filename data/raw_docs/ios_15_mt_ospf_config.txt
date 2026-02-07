@@ -1,0 +1,17 @@
+Source: https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_ospf/configuration/15-mt/iro-15-mt-book.html
+Downloaded: 2026-02-07 03:26:00
+Format: Cisco IOS-XE Command Reference
+
+================================================================================
+
+# IP Routing: OSPF Configuration Guide, Cisco IOS Release 15M&T  - Cisco
+### Bias-Free Language
+The documentation set for this product strives to use bias-free language. For the purposes of this documentation set, bias-free is defined as language that does not imply discrimination based on age, disability, gender, racial identity, ethnic identity, sexual orientation, socioeconomic status, and intersectionality. Exceptions may be present in the documentation due to language that is hardcoded in the user interfaces of the product software, language used based on RFP documentation, or language that is used by a referenced third-party product.Learn moreabout how Cisco is using Inclusive Language.
+### Book TitleIP Routing: OSPF Configuration Guide, Cisco IOS Release 15M&T
+IP Routing: OSPF Configuration Guide, Cisco IOS Release 15M&T
+- PDF - Complete Book(5.41 MB)View with Adobe Reader on a variety of devices
+View with Adobe Reader on a variety of devices
+- ePub - Complete Book(1.19 MB)View in various apps on iPhone, iPad, Android, Sony Reader, or Windows Phone
+View in various apps on iPhone, iPad, Android, Sony Reader, or Windows Phone
+- Mobi - Complete Book(2.47 MB)View on Kindle device or Kindle app on multiple devices
+View on Kindle device or Kindle app on multiple devices

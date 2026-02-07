@@ -39,18 +39,37 @@ def process_documentation():
     # Step 3: Process each document
     for doc in documents:
         print(f"\nProcessing: {doc['title']}")
-        pdf_path = doc['file_path']
+        file_path = doc['file_path']
         
-        if not Path(pdf_path).exists():
-            print(f"  ✗ Skipping: File not found at {pdf_path}")
+        if not Path(file_path).exists():
+            print(f"  ✗ Skipping: File not found at {file_path}")
             continue
             
         # Initialize chunker for this doc's version
         chunker = HierarchicalChunker(vendor=doc['vendor'], os_version=doc['os_version'])
         
-        # Extract text from PDF
-        pages = extract_text_from_pdf(pdf_path)
-        print(f"  ✓ Extracted {len(pages)} pages")
+        # Extract text based on file extension
+        if file_path.endswith('.pdf'):
+            pages = extract_text_from_pdf(file_path)
+            print(f"  ✓ Extracted {len(pages)} pages from PDF")
+        elif file_path.endswith('.txt'):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                text = f.read()
+            # Split by section headers or just treat as a few large chunks
+            # For simplicity, treat as one "page" per 5000 chars
+            chars_per_page = 5000
+            pages = []
+            for i in range(0, len(text), chars_per_page):
+                pages.append({
+                    'page_num': (i // chars_per_page) + 1,
+                    'text': text[i:i+chars_per_page],
+                    'section_title': doc['title'],
+                    'source_file': Path(file_path).name
+                })
+            print(f"  ✓ Processed text file into {len(pages)} virtual pages")
+        else:
+            print(f"  ✗ Skipping: Unsupported file type for {file_path}")
+            continue
         
         # Create chunks
         chunks = chunker.chunk_document(pages)

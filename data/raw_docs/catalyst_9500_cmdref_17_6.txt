@@ -1,5 +1,5 @@
 Source: https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/17-6/command_reference/b_176_9500_cr.html
-Downloaded: 2026-02-05 18:44:35
+Downloaded: 2026-02-07 03:25:57
 Format: Cisco IOS-XE Command Reference
 
 ================================================================================
@@ -7,7 +7,15 @@ Format: Cisco IOS-XE Command Reference
 # Command Reference, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9500 Switches) - Cisco
 ### Bias-Free Language
 The documentation set for this product strives to use bias-free language. For the purposes of this documentation set, bias-free is defined as language that does not imply discrimination based on age, disability, gender, racial identity, ethnic identity, sexual orientation, socioeconomic status, and intersectionality. Exceptions may be present in the documentation due to language that is hardcoded in the user interfaces of the product software, language used based on RFP documentation, or language that is used by a referenced third-party product.Learn moreabout how Cisco is using Inclusive Language.
-### Book TitleCommand Reference, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9500 Switches)
+### Book Title
+Command Reference, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9500 Switches)
+- PDF - Complete Book(15.13 MB)View with Adobe Reader on a variety of devices
+View with Adobe Reader on a variety of devices
+- ePub - Complete Book(3.6 MB)View in various apps on iPhone, iPad, Android, Sony Reader, or Windows Phone
+View in various apps on iPhone, iPad, Android, Sony Reader, or Windows Phone
+- Mobi - Complete Book(13.01 MB)View on Kindle device or Kindle app on multiple devices
+View on Kindle device or Kindle app on multiple devices
+### Book Title
 Command Reference, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9500 Switches)
 - PDF - Complete Book(15.13 MB)View with Adobe Reader on a variety of devices
 View with Adobe Reader on a variety of devices

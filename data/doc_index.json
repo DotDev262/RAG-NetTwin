@@ -33,5 +33,12 @@
     "os_version": "junos-21.4",
     "file_path": "data/raw_docs/junoos-routing-firewall-traffic.pdf",
     "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS 15M&T OSPF Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-15.6",
+    "file_path": "data/raw_docs/ios_15_mt_ospf_config.txt",
+    "doc_type": "config_guide"
   }
 ]

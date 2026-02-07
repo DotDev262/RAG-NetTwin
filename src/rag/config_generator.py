@@ -38,6 +38,8 @@ class ConfigGenerator:
             search_version = device.os_version
             if device.os_type == "ios-xe" and "17.6" in search_version:
                 search_version = "ios-xe-17.6"
+            elif device.vendor == "cisco" and ("15." in search_version or "ios-15" in search_version.lower()):
+                search_version = "ios-15.6"
             elif device.os_type == "junos" and "21.4" in search_version:
                 search_version = "junos-21.4"
                 

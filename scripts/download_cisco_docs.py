@@ -39,6 +39,12 @@ class CiscoDocDownloader:
                 "platform": "catalyst9500",
                 "version": "17.6",
             },
+            "ios_15_mt_ospf_config": {
+                "url": "https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_ospf/configuration/15-mt/iro-15-mt-book.html",
+                "title": "IP Routing: OSPF Configuration Guide, Cisco IOS Release 15M&T",
+                "platform": "ios-15",
+                "version": "15.6",
+            },
         }
 
         self.download_log = []
