@@ -18,7 +18,7 @@ podman run -d \
   --name batfish \
   -v batfish-data:/data \
   -p 8888:8888 \
-  -p 9996:9996 \
+  -p 9998:9996 \
   docker.io/batfish/allinone:latest
 
 echo "⏳ Waiting for Batfish to initialize (60 seconds)..."
