@@ -38,29 +38,39 @@ class ConfigGenerator:
             elif device.os_type == "junos" and "21.4" in search_version:
                 search_version = "junos-21.4"
 
-            # 1. Retrieve relevant context (Tier 1 & 2)
+            # 1. Retrieve relevant context
             query = (
                 f"{structured_intent.protocol} {structured_intent.action} "
                 + " ".join(structured_intent.parameters.keys())
             )
 
-            # Retrieve from Tier 1 (Syntax)
-            context_tier1 = self.vector_store.retrieve(
+            # Try with OS version filter first
+            context_results = self.vector_store.retrieve(
                 query=query,
                 os_version=search_version,
-                tier=1,
-                n_results=10,  # Increased from 3
+                n_results=15,
             )
 
-            # Retrieve from Tier 2 (Patterns)
-            context_tier2 = self.vector_store.retrieve(
-                query=query,
-                os_version=search_version,
-                tier=2,
-                n_results=5,  # Increased from 2
-            )
+            # If no results with OS filter, try without
+            if not context_results:
+                print(
+                    f"      ⚠️  No results with OS filter '{search_version}', trying without filter..."
+                )
+                context_results = self.vector_store.retrieve(
+                    query=query,
+                    n_results=15,
+                )
 
-            context_text = self._format_context(context_tier1 + context_tier2)
+            # If still no results, try a broader query
+            if not context_results:
+                print(f"      ⚠️  Trying broader query...")
+                broad_query = f"{structured_intent.protocol} configuration"
+                context_results = self.vector_store.retrieve(
+                    query=broad_query,
+                    n_results=15,
+                )
+
+            context_text = self._format_context(context_results)
 
             # 2. Build prompt
             prompt = ChatPromptTemplate.from_messages(
@@ -88,7 +98,7 @@ class ConfigGenerator:
 
             configs[device.name] = {
                 "config": response.content,
-                "retrieved_sources": [r["id"] for r in context_tier1 + context_tier2],
+                "retrieved_sources": [r["id"] for r in context_results],
             }
 
         return configs
