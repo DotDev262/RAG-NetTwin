@@ -78,6 +78,29 @@ def main():
                 print("```")
                 print("-" * 40)
 
+                # Optional: Tier 1 Validation (Batfish)
+                try:
+                    from validation.batfish_validator import BatfishValidator
+
+                    print("\n[4/4] Running Tier 1 Validation (Batfish)...")
+                    validator = BatfishValidator()
+                    validation_result = validator.validate(data["config"])
+
+                    if validation_result.get("passed", False):
+                        print("✅ Tier 1 Validation PASSED")
+                    else:
+                        print("⚠️  Tier 1 Validation Issues Found:")
+                        if "errors" in validation_result:
+                            for error in validation_result["errors"][
+                                :3
+                            ]:  # Show first 3
+                                print(f"   - {error}")
+                except Exception as e:
+                    print(f"\n⚠️  Tier 1 Validation not available: {e}")
+                    print(
+                        "   Start validators: sudo ./scripts/install_validators_ubuntu.sh --verify"
+                    )
+
             logger.info("Intent processing complete")
 
         except Exception as e:

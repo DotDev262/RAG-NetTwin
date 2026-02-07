@@ -17,32 +17,50 @@ File: catalyst_9300_config_guide_17_6.pdf
   Commands: 33
 
 File: catalyst_9500_cmdref_17_6.pdf
-  Pages: 2252/2268
-  Characters: 3,975,330
-  Commands: 2575
+  Pages: 0/2268
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
 File: catalyst_9500_config_guide_17_6.pdf
-  Pages: 26/26
-  Characters: 32,786
-  Commands: 33
+  Pages: 0/26
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
 File: junoos-routing-firewall-traffic.pdf
-  Pages: 2411/2416
-  Characters: 3,683,198
-  Commands: 748
+  Pages: 0/2416
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
 File: junos-cli.pdf
-  Pages: 334/336
-  Characters: 501,693
-  Commands: 146
+  Pages: 0/336
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
 File: junos-ospf.pdf
-  Pages: 793/795
-  Characters: 1,196,081
-  Commands: 327
+  Pages: 0/795
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
+
+File: junos_cli_user_guide.pdf
+  Pages: 0/336
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
+
+File: junos_user_access_guide.pdf
+  Pages: 0/1140
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
 File: programmability_guide_17_6.pdf
-  Pages: 405/410
-  Characters: 747,641
-  Commands: 229
+  Pages: 0/410
+  Characters: 0
+  Commands: 0
+  Error: [Errno 32] Broken pipe
 
