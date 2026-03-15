@@ -64,7 +64,7 @@ class HierarchicalChunker:
         
         return chunks
     
-    def identify_sections(self, pages: List[Dict], max_pages: int = 5) -> List[Dict]:
+    def identify_sections(self, pages: List[Dict], max_pages: int = 2) -> List[Dict]:
         """Group pages into logical sections with a maximum page limit"""
         if not pages:
             return []

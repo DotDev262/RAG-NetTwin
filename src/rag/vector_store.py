@@ -74,18 +74,21 @@ class VectorStore:
         
         print(f"Added {len(chunks)} chunks to vector database")
     
-    def retrieve(self, query: str, os_version: str = None, tier: int = None, n_results: int = 5) -> List[Dict]:
+    def retrieve(self, query: str, vendor: str = None, os_version: str = None, tier: int = None, n_results: int = 5) -> List[Dict]:
         """
         Retrieve relevant chunks for a query
         
         Args:
             query: Search query
+            vendor: Filter by vendor (e.g., "cisco", "juniper")
             os_version: Filter by OS version (e.g., "ios-xe-17.6")
             tier: Filter by tier (1, 2, or 3)
             n_results: Number of results to return
         """
         # Build where clause for filtering
         where_conditions = []
+        if vendor:
+            where_conditions.append({"vendor": vendor})
         if os_version:
             where_conditions.append({"os_version": os_version})
         if tier:

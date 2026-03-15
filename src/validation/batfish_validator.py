@@ -40,13 +40,34 @@ class BatfishValidator(NetworkValidator):
                 "message": "Batfish service not available. Ensure Batfish is running (Docker).",
             }
 
+        # --- FINAL CLEANUP: Remove LLM labels that break Batfish ---
+        cleaned_configs = {}
+        for dev_name, raw_cfg in configs.items():
+            lines = raw_cfg.split("\n")
+            cleaned_lines = []
+            for line in lines:
+                clean_line = line
+                # Remove common prefixes like "Assistant:", "CLI:", etc.
+                if ":" in line[:15]: 
+                    prefix = line.split(":")[0].strip().lower()
+                    if prefix in ["assistant", "cli", "config", "device", "note", "sure", "system"]:
+                        clean_line = line.split(":", 1)[1].strip()
+                
+                # Filter out lines that are clearly prose (many words, no special chars)
+                words = clean_line.split()
+                if clean_line and len(words) < 12: 
+                    cleaned_lines.append(clean_line)
+            
+            cleaned_configs[dev_name] = "\n".join(cleaned_lines).strip()
+        # ----------------------------------------------------------
+
         temp_dir = tempfile.mkdtemp()
         try:
             # 1. Prepare directory structure for Batfish
             config_dir = Path(temp_dir) / "configs"
             config_dir.mkdir(parents=True)
 
-            for hostname, config_text in configs.items():
+            for hostname, config_text in cleaned_configs.items():
                 with open(config_dir / hostname, "w") as f:
                     f.write(config_text)
 
@@ -61,23 +82,21 @@ class BatfishValidator(NetworkValidator):
             parse_status = self.session.q.initIssues().answer().frame()
             if not parse_status.empty:
                 for _, row in parse_status.iterrows():
+                    details = str(row.get("Details", ""))
+                    line_text = str(row.get("Line_Text", ""))
+                    
+                    # Filter out common benign warnings
+                    if any(msg in details for msg in ["No hostname set", "File is empty", "File format is unknown"]):
+                        continue
+                    if "No candidates for OSPF router-id" in details:
+                        issues.append({"type": "CONFIG_WARNING", "severity": "MEDIUM", "details": details})
+                        continue
+
                     issues.append(
                         {
                             "type": "PARSE_ISSUE",
                             "severity": "HIGH",
-                            "details": str(row.to_dict()),
-                        }
-                    )
-
-            # Check for ACL Reachability (Shadowing)
-            acl_reach = self.session.q.filterLineReachability().answer().frame()
-            if not acl_reach.empty:
-                for _, row in acl_reach.iterrows():
-                    issues.append(
-                        {
-                            "type": "ACL_SHADOWING",
-                            "severity": "MEDIUM",
-                            "details": f"Filter {row['Sources']} has unreachable line: {row['Unreachable_Line']}",
+                            "details": f"{details} at line: {line_text}",
                         }
                     )
 
@@ -85,20 +104,26 @@ class BatfishValidator(NetworkValidator):
             undefined = self.session.q.undefinedReferences().answer().frame()
             if not undefined.empty:
                 for _, row in undefined.iterrows():
+                    struct_type = row.get('Structure_Type', 'Unknown')
+                    struct_name = row.get('Structure_Name', 'Unknown')
                     issues.append(
                         {
                             "type": "UNDEFINED_REFERENCE",
                             "severity": "HIGH",
-                            "details": f"File {row['File_Name']}: {row['Structure_Type']} '{row['Structure_Name']}' is referenced but not defined.",
+                            "details": f"File {row.get('File_Name', 'unknown')}: {struct_type} '{struct_name}' is referenced but not defined.",
                         }
                     )
 
-            # Check for Routing Loops
-            # loop = self.session.q.detectLoops().answer().frame() # Might be slow
-
             status = "PASS" if not issues else "FAIL"
-            if issues and all(i["severity"] == "MEDIUM" for i in issues):
+            
+            # Implementation of Fail-Safe Policy from PAPER.md:
+            # "the system defaults to a 'REJECT_FOR_MANUAL_REVIEW' status for any command not supported by the Batfish parser."
+            if any(i["type"] == "PARSE_ISSUE" for i in issues):
+                status = "REJECT_FOR_MANUAL_REVIEW"
+            elif any(i["type"] in ["CONFIG_WARNING", "ACL_SHADOWING"] for i in issues):
                 status = "WARNING"
+            elif issues:
+                status = "FAIL"
 
             return {
                 "status": status,

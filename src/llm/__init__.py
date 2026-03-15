@@ -17,6 +17,7 @@ class LLMProvider:
 
     PROVIDER_GROQ = "groq"
     PROVIDER_GEMINI = "gemini"
+    PROVIDER_LLAMACPP = "llamacpp"
 
     @staticmethod
     def get_llm(
@@ -29,8 +30,8 @@ class LLMProvider:
         Get an LLM instance for the specified provider.
 
         Args:
-            provider: LLM provider name ('groq', 'gemini', or None for default from settings)
-            model: Model name (e.g., 'llama-3.3-70b-versatile', 'gemini-1.5-flash')
+            provider: LLM provider name ('groq', 'gemini', 'llamacpp', or None for default from settings)
+            model: Model name/path (e.g., 'llama-3.3-70b-versatile', 'gemini-1.5-flash', path to GGUF)
             temperature: Sampling temperature (0.0 to 1.0)
             api_key: API key (optional, will use env var if not provided)
 
@@ -38,7 +39,7 @@ class LLMProvider:
             BaseChatModel instance configured for the provider
 
         Raises:
-            ValueError: If provider is not supported or API key is missing
+            ValueError: If provider is not supported or configuration is missing
         """
         provider = provider or settings.llm_provider
 
@@ -46,10 +47,12 @@ class LLMProvider:
             return LLMProvider._get_groq_llm(model, temperature, api_key)
         elif provider == LLMProvider.PROVIDER_GEMINI:
             return LLMProvider._get_gemini_llm(model, temperature, api_key)
+        elif provider == LLMProvider.PROVIDER_LLAMACPP:
+            return LLMProvider._get_llamacpp_llm(model, temperature)
         else:
             raise ValueError(
                 f"Unsupported LLM provider: '{provider}'. "
-                f"Supported providers: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}"
+                f"Supported providers: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}, {LLMProvider.PROVIDER_LLAMACPP}"
             )
 
     @staticmethod
@@ -104,6 +107,34 @@ class LLMProvider:
 
         return ChatGoogleGenerativeAI(
             model=model, temperature=temperature, api_key=api_key
+        )
+
+    @staticmethod
+    def _get_llamacpp_llm(
+        model: Optional[str] = None,
+        temperature: float = 0.0,
+    ) -> BaseChatModel:
+        """Create a LlamaCpp LLM instance."""
+        try:
+            from langchain_community.chat_models import ChatLlamaCpp
+        except ImportError:
+            raise ImportError(
+                "langchain-community is not installed or ChatLlamaCpp is missing. "
+                "Install it with: pip install langchain-community llama-cpp-python"
+            )
+
+        model_path = model or settings.llama_cpp_model_path
+        if not model_path:
+            raise ValueError(
+                "LLAMA_CPP_MODEL_PATH not found in settings or environment. "
+                "Please set LLAMA_CPP_MODEL_PATH in your .env file."
+            )
+
+        return ChatLlamaCpp(
+            model_path=model_path,
+            temperature=temperature,
+            n_ctx=settings.llama_cpp_n_ctx,
+            n_gpu_layers=settings.llama_cpp_n_gpu_layers,
         )
 
     @staticmethod
@@ -180,10 +211,16 @@ class LLMProvider:
                     f"GEMINI_API_KEY is required when using provider '{provider}'. "
                     f"Please set GEMINI_API_KEY in your .env file."
                 )
+        elif provider == LLMProvider.PROVIDER_LLAMACPP:
+            if not settings.llama_cpp_model_path:
+                raise ValueError(
+                    f"LLAMA_CPP_MODEL_PATH is required when using provider '{provider}'. "
+                    f"Please set LLAMA_CPP_MODEL_PATH in your .env file."
+                )
         else:
             raise ValueError(
                 f"Unsupported LLM provider: '{provider}'. "
-                f"Supported: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}"
+                f"Supported: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}, {LLMProvider.PROVIDER_LLAMACPP}"
             )
 
         return True
@@ -191,7 +228,11 @@ class LLMProvider:
     @staticmethod
     def list_supported_providers() -> list:
         """Return list of supported provider names."""
-        return [LLMProvider.PROVIDER_GROQ, LLMProvider.PROVIDER_GEMINI]
+        return [
+            LLMProvider.PROVIDER_GROQ,
+            LLMProvider.PROVIDER_GEMINI,
+            LLMProvider.PROVIDER_LLAMACPP,
+        ]
 
     @staticmethod
     def get_default_model(provider: Optional[str] = None) -> str:
@@ -202,6 +243,8 @@ class LLMProvider:
             return settings.groq_model
         elif provider == LLMProvider.PROVIDER_GEMINI:
             return settings.gemini_model
+        elif provider == LLMProvider.PROVIDER_LLAMACPP:
+            return settings.llama_cpp_model_path
         else:
             raise ValueError(f"Unknown provider: {provider}")
 

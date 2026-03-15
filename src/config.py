@@ -5,7 +5,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 def is_wsl():
@@ -51,6 +51,17 @@ class Settings(BaseModel):
     # LLM Provider Settings
     llm_provider: str = Field(default_factory=lambda: os.getenv("LLM_PROVIDER", "groq"))
 
+    # LlamaCpp Settings
+    llama_cpp_model_path: str = Field(
+        default_factory=lambda: os.getenv("LLAMA_CPP_MODEL_PATH", "")
+    )
+    llama_cpp_n_ctx: int = Field(
+        default_factory=lambda: int(os.getenv("LLAMA_CPP_N_CTX", 4096))
+    )
+    llama_cpp_n_gpu_layers: int = Field(
+        default_factory=lambda: int(os.getenv("LLAMA_CPP_N_GPU_LAYERS", -1))
+    )
+
     # API Keys
     groq_api_key: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
@@ -69,7 +80,7 @@ class Settings(BaseModel):
         default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     )
     gemini_model: str = Field(
-        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite-preview-02-05")
     )
     temperature: float = 0.0
 
@@ -115,9 +126,15 @@ def validate_llm_config():
                 "GEMINI_API_KEY is required when using provider 'gemini'. "
                 "Please set GEMINI_API_KEY in your .env file."
             )
+    elif provider == "llamacpp":
+        if not settings.llama_cpp_model_path:
+            raise ValueError(
+                "LLAMA_CPP_MODEL_PATH is required when using provider 'llamacpp'. "
+                "Please set LLAMA_CPP_MODEL_PATH in your .env file."
+            )
     else:
         raise ValueError(
-            f"Unsupported LLM provider: '{provider}'. Supported providers: groq, gemini"
+            f"Unsupported LLM provider: '{provider}'. Supported providers: groq, gemini, llamacpp"
         )
 
 

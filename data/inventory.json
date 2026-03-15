@@ -1,0 +1,22 @@
+{
+  "Router-A": {
+    "vendor": "cisco",
+    "os_type": "ios-xe",
+    "os_version": "17.6"
+  },
+  "Router-B": {
+    "vendor": "cisco",
+    "os_type": "ios-xe",
+    "os_version": "17.6"
+  },
+  "Juniper-1": {
+    "vendor": "juniper",
+    "os_type": "junos",
+    "os_version": "21.4"
+  },
+  "CORE-RTR-01": {
+    "vendor": "cisco",
+    "os_type": "ios-xe",
+    "os_version": "17.6"
+  }
+}
