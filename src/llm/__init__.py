@@ -7,6 +7,7 @@ import os
 from typing import Optional, Type, Any
 from langchain_core.language_models import BaseChatModel
 from config import settings
+from utils import validate_provider_config
 
 
 class LLMProvider:
@@ -28,18 +29,6 @@ class LLMProvider:
     ) -> "BaseChatModel":
         """
         Get an LLM instance for the specified provider.
-
-        Args:
-            provider: LLM provider name ('groq', 'gemini', 'llamacpp', or None for default from settings)
-            model: Model name/path (e.g., 'llama-3.3-70b-versatile', 'gemini-1.5-flash', path to GGUF)
-            temperature: Sampling temperature (0.0 to 1.0)
-            api_key: API key (optional, will use env var if not provided)
-
-        Returns:
-            BaseChatModel instance configured for the provider
-
-        Raises:
-            ValueError: If provider is not supported or configuration is missing
         """
         provider = provider or settings.llm_provider
 
@@ -65,20 +54,10 @@ class LLMProvider:
         try:
             from langchain_groq import ChatGroq
         except ImportError:
-            raise ImportError(
-                "langchain-groq is not installed. "
-                "Install it with: pip install langchain-groq"
-            )
+            raise ImportError("pip install langchain-groq")
 
         api_key = api_key or settings.groq_api_key
-        if not api_key or api_key == "your_api_key_here":
-            raise ValueError(
-                "GROQ_API_KEY not found in settings or environment. "
-                "Please set GROQ_API_KEY in your .env file."
-            )
-
         model = model or settings.groq_model
-
         return ChatGroq(model=model, temperature=temperature, api_key=api_key)
 
     @staticmethod
@@ -91,20 +70,10 @@ class LLMProvider:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError:
-            raise ImportError(
-                "langchain-google-genai is not installed. "
-                "Install it with: pip install langchain-google-genai"
-            )
+            raise ImportError("pip install langchain-google-genai")
 
         api_key = api_key or settings.gemini_api_key
-        if not api_key or api_key == "your_api_key_here":
-            raise ValueError(
-                "GEMINI_API_KEY not found in settings or environment. "
-                "Please set GEMINI_API_KEY in your .env file."
-            )
-
         model = model or settings.gemini_model
-
         return ChatGoogleGenerativeAI(
             model=model, temperature=temperature, api_key=api_key
         )
@@ -118,18 +87,9 @@ class LLMProvider:
         try:
             from langchain_community.chat_models import ChatLlamaCpp
         except ImportError:
-            raise ImportError(
-                "langchain-community is not installed or ChatLlamaCpp is missing. "
-                "Install it with: pip install langchain-community llama-cpp-python"
-            )
+            raise ImportError("pip install langchain-community llama-cpp-python")
 
         model_path = model or settings.llama_cpp_model_path
-        if not model_path:
-            raise ValueError(
-                "LLAMA_CPP_MODEL_PATH not found in settings or environment. "
-                "Please set LLAMA_CPP_MODEL_PATH in your .env file."
-            )
-
         return ChatLlamaCpp(
             model_path=model_path,
             temperature=temperature,
@@ -147,82 +107,28 @@ class LLMProvider:
     ) -> BaseChatModel:
         """
         Get an LLM with structured output support.
-
-        Args:
-            schema: Pydantic model class defining the output structure
-            provider: LLM provider name
-            model: Model name
-            temperature: Sampling temperature
-            api_key: API key (optional)
-
-        Returns:
-            LLM instance configured for structured output
         """
         llm = LLMProvider.get_llm(provider, model, temperature, api_key)
-
         provider = provider or settings.llm_provider
 
         if provider == LLMProvider.PROVIDER_GROQ:
-            # Groq uses with_structured_output
             return llm.with_structured_output(schema)
         elif provider == LLMProvider.PROVIDER_GEMINI:
-            # Gemini also uses with_structured_output in newer versions
-            # Fallback to bind if needed
             try:
                 return llm.with_structured_output(schema)
             except AttributeError:
-                # Fallback for older versions
                 return llm.bind(response_format=schema)
         else:
-            # Default to standard structured output
             return llm.with_structured_output(schema)
 
     @staticmethod
     def validate_provider_config(provider: Optional[str] = None) -> bool:
         """
         Validate that the provider configuration is correct.
-
-        Args:
-            provider: Provider to validate (uses settings.llm_provider if None)
-
-        Returns:
-            True if configuration is valid
-
-        Raises:
-            ValueError: If configuration is invalid
+        Uses centralized logic in utils.py.
         """
         provider = provider or settings.llm_provider
-
-        if provider == LLMProvider.PROVIDER_GROQ:
-            if (
-                not settings.groq_api_key
-                or settings.groq_api_key == "your_api_key_here"
-            ):
-                raise ValueError(
-                    f"GROQ_API_KEY is required when using provider '{provider}'. "
-                    f"Please set GROQ_API_KEY in your .env file."
-                )
-        elif provider == LLMProvider.PROVIDER_GEMINI:
-            if (
-                not settings.gemini_api_key
-                or settings.gemini_api_key == "your_api_key_here"
-            ):
-                raise ValueError(
-                    f"GEMINI_API_KEY is required when using provider '{provider}'. "
-                    f"Please set GEMINI_API_KEY in your .env file."
-                )
-        elif provider == LLMProvider.PROVIDER_LLAMACPP:
-            if not settings.llama_cpp_model_path:
-                raise ValueError(
-                    f"LLAMA_CPP_MODEL_PATH is required when using provider '{provider}'. "
-                    f"Please set LLAMA_CPP_MODEL_PATH in your .env file."
-                )
-        else:
-            raise ValueError(
-                f"Unsupported LLM provider: '{provider}'. "
-                f"Supported: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}, {LLMProvider.PROVIDER_LLAMACPP}"
-            )
-
+        validate_provider_config(provider, settings.model_dump())
         return True
 
     @staticmethod
@@ -238,7 +144,6 @@ class LLMProvider:
     def get_default_model(provider: Optional[str] = None) -> str:
         """Get the default model for a provider."""
         provider = provider or settings.llm_provider
-
         if provider == LLMProvider.PROVIDER_GROQ:
             return settings.groq_model
         elif provider == LLMProvider.PROVIDER_GEMINI:
@@ -249,12 +154,10 @@ class LLMProvider:
             raise ValueError(f"Unknown provider: {provider}")
 
 
-# Convenience function for quick LLM instantiation
+# Convenience functions
 def get_llm(**kwargs) -> BaseChatModel:
-    """Convenience wrapper for LLMProvider.get_llm()"""
     return LLMProvider.get_llm(**kwargs)
 
 
 def get_structured_llm(schema: Type[Any], **kwargs) -> BaseChatModel:
-    """Convenience wrapper for LLMProvider.get_structured_llm()"""
     return LLMProvider.get_structured_llm(schema, **kwargs)

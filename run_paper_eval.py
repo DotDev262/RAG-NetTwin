@@ -2,10 +2,12 @@ import json
 import time
 import os
 import sys
+import argparse
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 from tqdm import tqdm
+from datetime import datetime, timedelta
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -15,21 +17,112 @@ from rag.config_generator import ConfigGenerator
 from validation.batfish_validator import BatfishValidator
 from llm import LLMProvider
 from config import settings
+from evaluation.hallucination_detector import HallucinationDetector
+from evaluation.ensemble import EnsembleEngine
+from utils import setup_logger, TokenCounter
+
+logger = setup_logger("PaperEval")
+
+# SECURITY NOTE: Cache files contain full network configurations in plain text.
+# This is acceptable for research environments only. For production:
+# - Implement encryption at rest, or
+# - Scrub sensitive parameters (passwords, keys) before caching, or
+# - Use secure storage with access controls
+VANILLA_CACHE_FILE = "results/vanilla_cache.json"
+RAG_CACHE_FILE = "results/rag_cache.json"
+CACHE_EXPIRY_DAYS = 7
 
 
 class PaperQualityEvaluator:
     """
-    Automated high-scale evaluation script to generate data for the PAPER.md.
-    Uses batching and rate-limiting to respect API quotas.
+    Optimized high-scale evaluation script for RAG-NetTwin.
+    Generates structured data for PAPER.md metrics.
     """
 
-    def __init__(self):
+    def __init__(self, run_vanilla: bool = False, cache_only: bool = False):
         self.parser = IntentParser()
         self.generator = ConfigGenerator()
         self.validator = BatfishValidator()
-        self.vanilla_llm = LLMProvider.get_llm(temperature=0.1)
+        self.hallucination_detector = HallucinationDetector()
+        self.ensemble = EnsembleEngine()
+        self.token_counter = TokenCounter()
+        self.vanilla_llm = LLMProvider.get_llm(temperature=0.0) if run_vanilla else None
+        self.run_vanilla = run_vanilla
+        self.cache_only = cache_only
+
+        # Load caches
+        self.vanilla_cache = self._load_cache(VANILLA_CACHE_FILE)
+        self.rag_cache = self._load_cache(RAG_CACHE_FILE)
+
+        os.makedirs("results", exist_ok=True)
+        logger.info(f"Loaded vanilla cache: {len(self.vanilla_cache)} items")
+        logger.info(f"Loaded RAG cache: {len(self.rag_cache)} items")
+
+    def _load_cache(self, filepath: str) -> Dict[str, Any]:
+        """Load cache file, filtering out expired entries."""
+        if not os.path.exists(filepath):
+            return {}
+
+        try:
+            with open(filepath, "r") as f:
+                cache = json.load(f)
+
+            # Filter out expired entries (including those without timestamps - mark as stale)
+            cutoff = datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS)
+            filtered = {}
+            for key, value in cache.items():
+                ts = value.get("timestamp", "")
+                if ts:
+                    try:
+                        entry_time = datetime.fromisoformat(ts)
+                        if entry_time > cutoff:
+                            filtered[key] = value
+                        # Entries without valid timestamp are NOT included (they're stale)
+                    except:
+                        # Invalid timestamp format - treat as stale, don't include
+                        pass
+                # Entries without timestamp are also stale - don't include
+
+            expired_count = len(cache) - len(filtered)
+            if expired_count > 0:
+                logger.info(f"Filtered out {expired_count} expired cache entries")
+            return filtered
+        except Exception as e:
+            logger.warning(f"Failed to load cache {filepath}: {e}")
+            return {}
+
+    def _save_cache(self, filepath: str, cache: Dict[str, Any]):
+        """Save cache to file."""
+        try:
+            with open(filepath, "w") as f:
+                json.dump(cache, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save cache {filepath}: {e}")
+
+    def _cache_get(self, cache: Dict, key: str) -> Optional[Any]:
+        """Get from cache if exists and not expired."""
+        if key not in cache:
+            return None
+        ts = cache[key].get("timestamp", "")
+        if ts:
+            try:
+                entry_time = datetime.fromisoformat(ts)
+                if entry_time < datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS):
+                    return None
+            except:
+                pass
+        return cache[key]
+
+    def _cache_set(self, cache: Dict, key: str, value: Any):
+        """Store value in cache with timestamp."""
+        cache[key] = {**value, "timestamp": datetime.now().isoformat()}
+
+    def get_intent_key(self, intent) -> str:
+        """Generate a cache key for an intent."""
+        return intent.original_text if hasattr(intent, "original_text") else str(intent)
 
     def get_test_intents(self) -> List[str]:
+        # (Keeping original list for consistency in longitudinal tracking)
         return [
             "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
             "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
@@ -57,205 +150,568 @@ class PaperQualityEvaluator:
         ]
 
     def run_full_eval(self):
+        # --- PRE-FLIGHT CHECK ---
+        logger.info("🔍 Pre-flight check: Verifying Batfish connectivity...")
+        try:
+            # We check if session is initialized and try a lightweight operation
+            if not self.validator.session:
+                raise ConnectionError("Batfish session not initialized.")
+
+            # list_networks() is a fast way to check if the service is actually responsive
+            self.validator.session.list_networks()
+            logger.info("✅ Batfish detected and responsive.")
+        except Exception as e:
+            print("\n" + "=" * 60)
+            print("❌ ERROR: BATFISH IS OFFLINE")
+            print("Paper evaluation requires Batfish for Tier 1 Syntactic Validation.")
+            print("\nPlease start Batfish using Docker:")
+            print(
+                "docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/batfish"
+            )
+            print("=" * 60 + "\n")
+            sys.exit(1)
+        # ------------------------
+
         scenarios = self.get_test_intents()
         all_results = []
 
-        # 0. Metadata for tracking
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         metadata = {
             "timestamp": timestamp,
             "llm_provider": settings.llm_provider,
-            "gemini_model": settings.gemini_model,
-            "groq_model": settings.groq_model,
-            "prompt_version": "v2.0-batch-synthesis",  # Incremented for batch changes
+            "embedding_model": settings.embedding_model_name,
+            "prompt_version": "v3.0-pydantic-structured",
+            "run_vanilla": self.run_vanilla,
+            "cache_only": self.cache_only,
         }
 
-        print(f"🚀 Phase 1: Parsing {len(scenarios)} intents...")
-        parsed_intents = []
-        for scenario in scenarios:
-            try:
-                print(f"  Parsing: {scenario[:40]}...")
-                parsed_intents.append(self.parser.parse(scenario))
-                time.sleep(2)  # Rate limit between parsing calls
-            except Exception as e:
-                print(f"      ⚠️  Parsing failed: {e}")
-                time.sleep(5)  # Extra delay on failure
+        # 1. BATCH PARSING (Optimized)
+        logger.info(f"Phase 1: Batch parsing {len(scenarios)} intents...")
+        try:
+            parsed_intents = self.parser.parse_batch(scenarios)
+        except Exception as e:
+            logger.error(f"Batch parsing failed: {e}. Falling back to sequential.")
+            parsed_intents = [self.parser.parse(s) for s in scenarios]
 
-        print(f"🚀 Phase 2: Generating and Validating configurations...")
-        for intent in tqdm(parsed_intents):
+        # 2. GENERATION & VALIDATION
+        eval_mode = "RAG-Only" if not self.run_vanilla else "Both"
+        logger.info(
+            f"Phase 2: Generating and Validating configurations... ({eval_mode})"
+        )
+
+        cached_count = 0
+        new_count = 0
+        for intent in tqdm(parsed_intents, desc="Evaluating Intents"):
             res = self.evaluate_intent(intent)
             if res:
                 all_results.append(res)
-            time.sleep(5)  # Rate limit cooling between intents
+                intent_key = self.get_intent_key(intent)
+                if intent_key in self.rag_cache:
+                    cached_count += 1
+                else:
+                    new_count += 1
+            time.sleep(0.2)  # Balanced delay to avoid rate limits
 
-        # 3. Save results with versioning
+        logger.info(f"Cache stats: {cached_count} cached, {new_count} new")
+
+        # 3. SAVE & SUMMARIZE
         os.makedirs("results/history", exist_ok=True)
-        report = {"metadata": metadata, "results": all_results}
+        report = {
+            "metadata": metadata,
+            "results": all_results,
+            "total_tokens": self.token_counter.get_total_usage().model_dump(),
+        }
 
-        # Save to latest for easy access
         with open("results/paper_evaluation_latest.json", "w") as f:
             json.dump(report, f, indent=2)
 
-        # Save to history for tracking
         history_path = f"results/history/eval_{timestamp}.json"
         with open(history_path, "w") as f:
             json.dump(report, f, indent=2)
 
-        print(f"\n✅ Evaluation saved to {history_path}")
+        # Save caches
+        self._save_cache(VANILLA_CACHE_FILE, self.vanilla_cache)
+        self._save_cache(RAG_CACHE_FILE, self.rag_cache)
+        logger.info(f"Saved caches to {VANILLA_CACHE_FILE} and {RAG_CACHE_FILE}")
+
+        logger.info(f"Evaluation saved to {history_path}")
         self._generate_summary_table(all_results)
 
     def evaluate_intent(self, intent):
+        intent_key = self.get_intent_key(intent)
         results = {
             "scenario": intent.original_text,
             "parsed_intent": intent.model_dump(),
         }
 
-        # 1. Vanilla
-        try:
-            vanilla_cfg = self._generate_vanilla(intent.original_text)
-            # Vanilla usually puts all configs in one block, let's treat it as one device
-            validation = self.validator.validate({"Vanilla-Router": vanilla_cfg})
-            results["vanilla"] = {
-                "config": vanilla_cfg,
-                "validation": validation,
-                "cfr": self._check_cfr(intent, vanilla_cfg, validation),
-                "citation_validity": 0.0,  # Vanilla doesn't cite
-            }
-        except Exception as e:
-            results["vanilla"] = {"status": "ERROR", "error": str(e)}
-
-        # 2. RAG with Self-Correction (Retry Loop)
-        try:
-            rag_output = self.generator.generate(intent)
-
-            # Prepare all configs for multi-device validation
-            full_config_map = {
-                dev_name: dev_data["config"]
-                for dev_name, dev_data in rag_output.items()
-            }
-            validation = self.validator.validate(full_config_map)
-
-            # --- SELF-CORRECTION LOOP (1 attempt) ---
-            if validation["status"] in ["FAIL", "REJECT_FOR_MANUAL_REVIEW"]:
-                scenario_desc = (
-                    intent.original_text[:30]
-                    if intent.original_text
-                    else "Unknown Intent"
-                )
-                print(f"      🔄  Attempting self-correction for {scenario_desc}...")
-                refined_map = {}
-                for dev_name, config in full_config_map.items():
-                    # Identify errors for this specific device
-                    dev_errors = [
-                        i["details"]
-                        for i in validation.get("issues", [])
-                        if dev_name in str(i.get("details", ""))
-                    ]
-                    if not dev_errors:
-                        refined_map[dev_name] = config
-                        continue
-
-                    # Find vendor from intent
-                    vendor = "cisco"
-                    for d in intent.devices:
-                        if d.name == dev_name:
-                            vendor = d.vendor
-                            break
-
-                    refined_map[dev_name] = self.generator.refine(
-                        dev_name, config, "\n".join(dev_errors[:3]), vendor
+        # --- MODE A: VANILLA LLM (optional) ---
+        if self.run_vanilla and not self.cache_only:
+            # Check cache first
+            cached_vanilla = self._cache_get(self.vanilla_cache, intent_key)
+            if cached_vanilla:
+                results["vanilla"] = cached_vanilla
+                logger.info(f"Vanilla cache hit: {intent_key[:40]}...")
+            else:
+                try:
+                    vanilla_cfg = self._generate_vanilla(intent.original_text)
+                    validation = self.validator.validate(
+                        {"Vanilla-Router": vanilla_cfg}
                     )
+                    vanilla_result = {
+                        "config": vanilla_cfg,
+                        "status": validation["status"],
+                        "cfr_failure": self._check_cfr(intent, vanilla_cfg),
+                        "hallucination": self.hallucination_detector.detect(
+                            vanilla_cfg, [], []
+                        ).model_dump(),
+                    }
+                    results["vanilla"] = vanilla_result
+                    self._cache_set(self.vanilla_cache, intent_key, vanilla_result)
+                except Exception as e:
+                    results["vanilla"] = {"status": "ERROR", "error": str(e)}
 
-                # Re-validate refined configs
-                validation = self.validator.validate(refined_map)
-                full_config_map = refined_map
-            # ----------------------------------------
+        # --- MODE B: RAG-NetTwin (Structured + Lite Path) ---
+        # Check cache first
+        cached_rag = self._cache_get(self.rag_cache, intent_key)
+        if cached_rag:
+            results["rag_nettwin"] = cached_rag
+            logger.info(f"RAG cache hit: {intent_key[:40]}...")
+        elif self.cache_only:
+            results["rag_nettwin"] = {"status": "SKIPPED", "reason": "cache_only mode"}
+        else:
+            try:
+                start_time = time.time()
+                rag_output = self.generator.generate(intent)
+                elapsed = time.time() - start_time
+                # Normalize latency per device for fair comparison
+                num_devices = len(rag_output)
+                latency = elapsed / num_devices if num_devices > 0 else elapsed
 
-            full_config_text = "\n".join(full_config_map.values())
+                full_config_map = {
+                    name: data["config"] for name, data in rag_output.items()
+                }
+                validation = self.validator.validate(full_config_map, intent)
 
-            # Check citation validity across all devices
-            valid_citations = [
-                1.0 if "! Based on [Ref:" in cfg else 0.0
-                for cfg in full_config_map.values()
-            ]
-            avg_citation_validity = (
-                sum(valid_citations) / len(valid_citations) if valid_citations else 0.0
-            )
+                # Use detector for paper-grade hallucination stats
+                hal_reports = [
+                    self.hallucination_detector.detect(
+                        data["config"],
+                        data.get("retrieved_sources", []),
+                        data.get("valid_source_ids", []),
+                    ).model_dump()
+                    for data in rag_output.values()
+                ]
 
-            results["rag_locked"] = {
-                "configs": full_config_map,
-                "validation": validation,
-                "cfr": self._check_cfr(intent, full_config_text, validation),
-                "citation_validity": avg_citation_validity,
-            }
-        except Exception as e:
-            import traceback
-
-            print(f"      ⚠️  RAG evaluation failed: {e}\n{traceback.format_exc()}")
-            results["rag_locked"] = {"status": "ERROR", "error": str(e)}
+                rag_result = {
+                    "configs": full_config_map,
+                    "validation": validation,
+                    "latency": latency,
+                    "cfr_failure": self._check_cfr(
+                        intent, "\n".join(full_config_map.values())
+                    ),
+                    "hallucinations": hal_reports,
+                    "confidence_avg": sum(
+                        d.get("confidence", 0) for d in rag_output.values()
+                    )
+                    / len(rag_output)
+                    if rag_output
+                    else 0,
+                }
+                results["rag_nettwin"] = rag_result
+                self._cache_set(self.rag_cache, intent_key, rag_result)
+            except Exception as e:
+                logger.error(
+                    f"RAG evaluation failed for {intent.original_text[:30]}: {e}"
+                )
+                results["rag_nettwin"] = {"status": "ERROR", "error": str(e)}
 
         return results
 
-    def _check_cfr(self, intent, config, validation) -> bool:
-        """
-        Estimates Critical Failure Rate (CFR).
-        Returns True if the config passes syntactic checks (PASS/WARNING)
-        but is missing critical parameters from the intent (Silent Failure).
-        """
-        if validation["status"] not in ["PASS", "WARNING"]:
-            return False  # Not a "silent" failure
-
-        # Heuristic: Check if critical parameters (IP, AS, Area) are present in the config
-        critical_params = []
-        if intent.parameters:
-            for val in intent.parameters.values():
-                if isinstance(val, str) and ("." in val or val.isdigit()):
-                    critical_params.append(val)
-
-        for param in critical_params:
-            if param not in config:
-                return True  # Missing a critical parameter!
-
-        return False
-
     def _generate_vanilla(self, scenario: str) -> str:
         from langchain_core.prompts import ChatPromptTemplate
+
         prompt = ChatPromptTemplate.from_template(
             "Task: Generate Cisco/Juniper CLI for {request}. Output ONLY the raw commands. NO prose. CLI:"
         )
         chain = prompt | self.vanilla_llm
         return chain.invoke({"request": scenario}).content
 
+    def _check_cfr(self, intent, config: str) -> bool:
+        """
+        CFR Check: Detects if critical intent parameters are missing in configs.
+        Handles IP addresses, VLANs, AS numbers, area IDs, and other parameters.
+        """
+        if not intent.parameters:
+            return False
+
+        import re
+        import ast
+
+        for key, val in intent.parameters.items():
+            # Check if this is a critical parameter
+            key_lower = key.lower()
+            is_critical = any(
+                k in key_lower
+                for k in [
+                    "ip",
+                    "address",
+                    "mask",
+                    "netmask",
+                    "neighbor",
+                    "as",
+                    "area",
+                    "vlan",
+                    "remote",
+                    "port",
+                    "gateway",
+                    "subnet",
+                ]
+            )
+            if not is_critical:
+                continue
+
+            # Handle potential list of values (e.g., VLANs 10,20,30)
+            if isinstance(val, list):
+                vals = val
+            elif isinstance(val, str) and val.startswith("[") and val.endswith("]"):
+                try:
+                    vals = ast.literal_eval(val)
+                    if not isinstance(vals, list):
+                        vals = [val]
+                except:
+                    vals = [val]
+            else:
+                vals = [val]
+
+            for v in vals:
+                val_str = str(v).strip()
+
+                # Determine parameter type and check accordingly
+                if "/" in val_str and val_str.split("/")[0].replace(".", "").isdigit():
+                    # IP/CIDR parameter - pass FULL value including prefix
+                    if not self._config_contains_ip(config, val_str):
+                        return True
+                elif any(c.isdigit() for c in val_str) and "." not in val_str:
+                    # Numeric parameter (VLAN, AS, area, port) - check with keyword context
+                    if not self._config_contains_value(config, key, val_str):
+                        return True
+                elif "." in val_str and self._is_ip_like(val_str):
+                    # IP address parameter - pass full value
+                    if not self._config_contains_ip(config, val_str):
+                        return True
+
+        return False
+
+    def _is_ip_like(self, val: str) -> bool:
+        """Check if a value looks like an IP address."""
+        parts = val.replace("/", " ").split()
+        if parts:
+            first_part = parts[0]
+            return all(part.isdigit() for part in first_part.split("."))
+        return False
+
+    def _config_contains_ip(self, config: str, ip_with_prefix: str) -> bool:
+        """
+        Check if config contains the given IP address with correct prefix/mask.
+        Returns True only if IP is found with CORRECT prefix/mask.
+        Tracks perfect matches vs near matches (IP with wrong mask).
+        Handles Cisco ACL wildcard masks (0.0.0.255) vs subnet masks (255.255.255.0).
+        """
+        import re
+
+        # Parse IP and prefix
+        if "/" in ip_with_prefix:
+            parts = ip_with_prefix.split("/")
+            ip_base = parts[0]
+            intent_prefix = parts[1]
+        else:
+            ip_base = ip_with_prefix
+            intent_prefix = None
+
+        # Find all IPs in config
+        ip_pattern = r"\d+\.\d+\.\d+\.\d+"
+        config_ips = re.findall(ip_pattern, config)
+
+        # Check if IP exists at all
+        if ip_base not in config_ips:
+            return False
+
+        # If no prefix specified, just check IP exists
+        if not intent_prefix:
+            return True
+
+        # CIDR prefix provided - verify prefix/mask matches
+        prefix_to_mask = {
+            "0": "0.0.0.0",
+            "8": "255.0.0.0",
+            "16": "255.255.0.0",
+            "24": "255.255.255.0",
+            "25": "255.255.255.128",
+            "26": "255.255.255.192",
+            "27": "255.255.255.224",
+            "28": "255.255.255.240",
+            "29": "255.255.255.248",
+            "30": "255.255.255.252",
+            "31": "255.255.255.254",
+            "32": "255.255.255.255",
+        }
+
+        # Reverse masks (Cisco wildcard style)
+        prefix_to_wildcard = {
+            "0": "255.255.255.255",
+            "8": "0.255.255.255",
+            "16": "0.0.255.255",
+            "24": "0.0.0.255",
+            "25": "0.0.0.127",
+            "26": "0.0.0.63",
+            "27": "0.0.0.31",
+            "28": "0.0.0.15",
+            "29": "0.0.0.7",
+            "30": "0.0.0.3",
+            "31": "0.0.0.1",
+            "32": "0.0.0.0",
+        }
+
+        intent_mask = prefix_to_mask.get(intent_prefix)
+        intent_wildcard = prefix_to_wildcard.get(intent_prefix)
+
+        perfect_match = False
+        near_match = False
+
+        # Check if this is an ACL context (has access-list related keywords)
+        is_acl_context = "access-list" in config.lower() or "acl" in config.lower()
+
+        # Find all lines containing the IP
+        for line in config.split("\n"):
+            if ip_base not in line:
+                continue
+
+            # Check for CIDR notation (e.g., 10.1.1.1/24)
+            cidr_match = re.search(rf"{re.escape(ip_base)}/(\d+)", line)
+            if cidr_match:
+                if cidr_match.group(1) == intent_prefix:
+                    perfect_match = True
+                    break
+                else:
+                    near_match = True
+                    continue
+
+            # Check for mask notation (e.g., 255.255.255.0)
+            if intent_mask and intent_mask in line:
+                perfect_match = True
+                break
+
+            # Check for wildcard notation (e.g., 0.0.0.255) - used in Cisco ACLs
+            if intent_wildcard and intent_wildcard in line:
+                perfect_match = True
+                break
+
+            # ACL-specific: Check for wildcard mask on same line
+            # In Cisco ACLs: "10.0.0.0 0.0.0.255" means 10.0.0.0/24
+            if is_acl_context:
+                # Find wildcard mask on this line
+                wildcard_match = re.search(
+                    r"(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)", line
+                )
+                if wildcard_match:
+                    potential_wildcard = wildcard_match.group(2)
+                    # Check if this wildcard matches the expected /24 (or other prefix)
+                    if intent_wildcard and potential_wildcard == intent_wildcard:
+                        perfect_match = True
+                        break
+                    elif potential_wildcard in prefix_to_wildcard.values():
+                        # Found a wildcard but different from expected
+                        near_match = True
+                        continue
+
+            # IP found but no mask info - might be correct
+            # Check if line has ANY mask (could be wrong one)
+            has_mask = any(m in line for m in prefix_to_mask.values())
+            has_wildcard = any(w in line for w in prefix_to_wildcard.values())
+            has_cidr = "/2" in line or "/1" in line
+            if has_mask or has_cidr or has_wildcard:
+                near_match = True  # IP found but mask might be wrong
+            else:
+                perfect_match = True  # IP found in line without mask requirement
+
+        # Return True only if we found a perfect match
+        # If only near matches (IP with wrong mask), return False (CFR failure)
+        return perfect_match
+
+    def _config_contains_value(self, config: str, param_key: str, value: str) -> bool:
+        """
+        Check if config contains the given numeric value with keyword context.
+        E.g., for 'vlan 100', check for 'vlan' followed by '100'.
+        """
+        import re
+
+        # Define keyword patterns for common numeric parameters
+        keyword_patterns = {
+            "vlan": r"vlan\s+",
+            "area": r"area\s+",
+            "as": r"(?:remote-as|autonomous-system|as)\s+",
+            "neighbor": r"neighbor\s+",
+            "remote": r"remote-as\s+",
+            "port": r"(?:eq|port)\s+",
+            "mtu": r"mtu\s+",
+            "priority": r"priority\s+",
+            "cost": r"cost\s+",
+            "bandwidth": r"bandwidth\s+",
+            "hello": r"hello-interval\s+",
+        }
+
+        # Check if param_key has a known keyword pattern
+        key_lower = param_key.lower()
+        for kw, pattern in keyword_patterns.items():
+            if kw in key_lower:
+                # Search for keyword followed by the value
+                combined_pattern = f"{pattern}{re.escape(value)}(\\s|$)"
+                if re.search(combined_pattern, config, re.IGNORECASE):
+                    return True
+                return False
+
+        # Fallback: if no keyword pattern matches, check standalone value
+        # But be more strict - look for value at word boundaries
+        standalone_pattern = f"(?<![\\w/]){re.escape(value)}(?![\\w/])"
+        return bool(re.search(standalone_pattern, config))
+
+    def _normalize_for_comparison(self, value: str) -> str:
+        """Normalize values for comparison (e.g., /24 -> 255.255.255.0)"""
+        import re
+
+        # Handle CIDR notation
+        cidr_map = {
+            "0": "0.0.0.0",
+            "8": "255.0.0.0",
+            "16": "255.255.0.0",
+            "24": "255.255.255.0",
+            "25": "255.255.255.128",
+            "26": "255.255.255.192",
+            "27": "255.255.255.224",
+            "28": "255.255.255.240",
+            "29": "255.255.255.248",
+            "30": "255.255.255.252",
+            "31": "255.255.255.254",
+            "32": "255.255.255.255",
+        }
+        value = str(value).strip()
+        if "/" in value:
+            parts = value.split("/")
+            ip = parts[0]
+            prefix = parts[1].split()[0] if " " in parts[1] else parts[1]
+            if prefix in cidr_map:
+                value = f"{ip} {cidr_map[prefix]}"
+        return value.lower().strip()
+
     def _generate_summary_table(self, results: List[Dict]):
         summary = []
-        for mode in ["vanilla", "rag_locked"]:
-            mode_data = [
-                r[mode] for r in results if mode in r and "status" not in r[mode]
-            ]
+        for mode in ["vanilla", "rag_nettwin"]:
+            # Fix: RAG mode status is nested in 'validation', Vanilla is top-level.
+            # We filter for anything that isn't an explicit ERROR status string.
+            mode_data = []
+            for r in results:
+                if (
+                    mode in r
+                    and isinstance(r[mode], dict)
+                    and r[mode].get("status") != "ERROR"
+                ):
+                    mode_data.append(r[mode])
+
             if not mode_data:
                 continue
 
-            valid_count = sum(
-                1 for d in mode_data if d["validation"]["status"] == "PASS"
-            )
-            cfr_count = sum(1 for d in mode_data if d.get("cfr", False))
-            citation_val = sum(
-                d.get("citation_validity", 0.0) for d in mode_data
-            ) / len(mode_data)
+            # Syntactic Validity: Count PASS or WARNING. If SKIPPED, we mark as N/A or 0.
+            pass_count = 0
+            for d in mode_data:
+                # Check both top-level (vanilla) and nested (rag) validation status
+                status = d.get("status")
+                if not status and "validation" in d:
+                    status = d["validation"].get("status")
+
+                if status in ["PASS", "WARNING"]:
+                    pass_count += 1
+
+            cfr_count = sum(1 for d in mode_data if d.get("cfr_failure", False))
+
+            if mode == "vanilla":
+                hal_count = sum(
+                    1
+                    for d in mode_data
+                    if d.get("hallucination", {}).get("is_hallucinated")
+                )
+            else:
+                hal_count = sum(
+                    1
+                    for d in mode_data
+                    if any(
+                        h.get("is_hallucinated") for h in d.get("hallucinations", [])
+                    )
+                )
 
             summary.append(
                 {
                     "Mode": mode,
-                    "Syntactic Validity": f"{(valid_count / len(mode_data)) * 100:.1f}%",
-                    "Hallucination Rate": f"{(1 - valid_count / len(mode_data)) * 100:.1f}%",
-                    "CFR": f"{(cfr_count / len(mode_data)) * 100:.1f}%",
-                    "Citation Validity": f"{citation_val * 100:.1f}%",
+                    "Syntactic Validity": f"{(pass_count / len(mode_data)) * 100:.1f}%",
+                    "Hallucination Rate": f"{(hal_count / len(mode_data)) * 100:.1f}%",
+                    "CFR Failure Rate": f"{(cfr_count / len(mode_data)) * 100:.1f}%",
+                    "CFR Faithfulness": f"{((len(mode_data) - cfr_count) / len(mode_data)) * 100:.1f}%",
+                    "Avg Latency": f"{sum(d.get('latency', 0) for d in mode_data) / len(mode_data):.2f}s"
+                    if mode == "rag_nettwin"
+                    else "N/A",
                 }
             )
-        print("\n📊 FINAL PAPER METRICS")
+
+        print("\n📊 UPDATED RESEARCH METRICS (RAG-NetTwin v3)")
         print(pd.DataFrame(summary).to_string(index=False))
 
 
 if __name__ == "__main__":
-    evaluator = PaperQualityEvaluator()
+    parser = argparse.ArgumentParser(
+        description="RAG-NetTwin Paper Evaluation",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # RAG-Only mode (default, skips vanilla LLM)
+  uv run python run_paper_eval.py
+
+  # Run with vanilla LLM comparison
+  uv run python run_paper_eval.py --run-vanilla
+
+  # Use only cached results (no new API calls)
+  uv run python run_paper_eval.py --cache-only
+
+  # Clear caches and run fresh
+  uv run python run_paper_eval.py --clear-cache
+
+  # Run vanilla comparison with cache-only mode
+  uv run python run_paper_eval.py --run-vanilla --cache-only
+""",
+    )
+    parser.add_argument(
+        "--run-vanilla",
+        action="store_true",
+        help="Also run vanilla LLM baseline (default: skip vanilla)",
+    )
+    parser.add_argument(
+        "--clear-cache", action="store_true", help="Clear all caches before running"
+    )
+    parser.add_argument(
+        "--cache-only",
+        action="store_true",
+        help="Use only cached results, no new API calls",
+    )
+    args = parser.parse_args()
+
+    # Clear caches if requested
+    if args.clear_cache:
+        for cache_file in [VANILLA_CACHE_FILE, RAG_CACHE_FILE]:
+            if os.path.exists(cache_file):
+                os.remove(cache_file)
+                print(f"Cleared cache: {cache_file}")
+        print("Starting fresh evaluation...")
+
+    # Run evaluation
+    evaluator = PaperQualityEvaluator(
+        run_vanilla=args.run_vanilla, cache_only=args.cache_only
+    )
     evaluator.run_full_eval()

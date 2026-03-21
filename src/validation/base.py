@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from parser.intent_parser import StructuredIntent
 
 class NetworkValidator(ABC):
     """Abstract Base Class for all network configuration validators."""
@@ -8,7 +9,7 @@ class NetworkValidator(ABC):
         self.tier = tier
 
     @abstractmethod
-    def validate(self, configs: Dict[str, str], intent: Any) -> Dict[str, Any]:
+    def validate(self, configs: Dict[str, str], intent: Optional[StructuredIntent] = None) -> Dict[str, Any]:
         """
         Validate the generated configurations against the user's intent.
         

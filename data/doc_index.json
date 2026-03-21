@@ -14,17 +14,38 @@
     "doc_type": "command_ref"
   },
   {
-    "title": "Juniper JunOS OSPF Configuration Guide",
-    "vendor": "juniper",
-    "os_version": "junos-21.4",
-    "file_path": "data/raw_docs/junos-ospf.pdf",
+    "title": "Cisco IOS XE Configuration Fundamentals Guide",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17.6",
+    "file_path": "data/raw_docs/cisco_xe_fundamentals.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS 15M&T OSPF Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-15.6",
+    "file_path": "data/raw_docs/ios_15_mt_ospf_config.txt",
     "doc_type": "config_guide"
   },
   {
     "title": "Juniper JunOS CLI User Guide",
     "vendor": "juniper",
     "os_version": "junos-21.4",
-    "file_path": "data/raw_docs/junos-cli.pdf",
+    "file_path": "data/raw_docs/junos_cli.pdf",
+    "doc_type": "cli_user_guide"
+  },
+  {
+    "title": "Juniper JunOS BGP Configuration Guide",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junos_bgp_config.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS OSPF Configuration Guide",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junos-ospf.pdf",
     "doc_type": "config_guide"
   },
   {
@@ -35,10 +56,206 @@
     "doc_type": "config_guide"
   },
   {
-    "title": "Cisco IOS 15M&T OSPF Configuration Guide",
+    "title": "Juniper JunOS CLI User Guide (Legacy)",
+    "vendor": "juniper",
+    "os_version": "junos-21.4",
+    "file_path": "data/raw_docs/junos-cli.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Protocol-Independent Routing Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_static_routing.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS OpenConfig User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_openconfig.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS XE Security Configuration Guide 17.14",
     "vendor": "cisco",
-    "os_version": "ios-15.6",
-    "file_path": "data/raw_docs/ios_15_mt_ospf_config.txt",
+    "os_version": "ios-xe-17.14",
+    "file_path": "data/raw_docs/cisco_security_17_14.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS XE IP Routing Configuration Guide 17.15",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17.15",
+    "file_path": "data/raw_docs/cisco_routing_17_15.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS XE NAT Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-xe-16.9",
+    "file_path": "data/raw_docs/cisco_nat_config.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco IOS XE Programmability Configuration Guide 17.16",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17.16",
+    "file_path": "data/raw_docs/cisco_programmability_17_16.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS OSPF User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_ospf.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Routing Policies and Firewall Filters Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_routing_policy.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Routing Protocols Overview",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_routing_overview.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Security Policies User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_security.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Spanning-Tree Protocols User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_stp.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Ethernet Switching User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_ethernet_switching.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS DHCP User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_dhcp.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Timing and Synchronization Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_timing.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Interfaces User Guide for Switches",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_interfaces_switches.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Virtual Chassis User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_virtual_chassis.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Juniper JunOS Class of Service User Guide",
+    "vendor": "juniper",
+    "os_version": "junos-24.2",
+    "file_path": "data/raw_docs/junos_cos.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco Nexus VXLAN Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "nxos-9.3",
+    "file_path": "data/raw_docs/cisco_vxlan_nexus.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco DMVPN Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-15m",
+    "file_path": "data/raw_docs/cisco_dmvpn.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco sFlow Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-15.2",
+    "file_path": "data/raw_docs/cisco_sflow.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco QoS Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17",
+    "file_path": "data/raw_docs/cisco_qos.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco QoS Configuration Guide IOS XE 17.x",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17",
+    "file_path": "data/raw_docs/cisco_qos_xe17.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco MQC QoS Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-xe-17",
+    "file_path": "data/raw_docs/cisco_qos_mqc.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco NCS540 QoS Configuration Guide",
+    "vendor": "cisco",
+    "os_version": "ios-xr",
+    "file_path": "data/raw_docs/cisco_qos_ncs540.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco QoS Congestion Management Guide (CBWFQ)",
+    "vendor": "cisco",
+    "os_version": "ios-12.4",
+    "file_path": "data/raw_docs/cisco_qos_congestion.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco QoS Congestion Management Guide XE 16.7",
+    "vendor": "cisco",
+    "os_version": "ios-xe-16.7",
+    "file_path": "data/raw_docs/cisco_qos_congestion_xe16.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco Nexus 9000 sFlow Configuration",
+    "vendor": "cisco",
+    "os_version": "nxos-10.1",
+    "file_path": "data/raw_docs/cisco_sflow_nexus9k.pdf",
+    "doc_type": "config_guide"
+  },
+  {
+    "title": "Cisco Nexus 3000 sFlow Configuration",
+    "vendor": "cisco",
+    "os_version": "nxos-9.3",
+    "file_path": "data/raw_docs/cisco_sflow_nexus3k.pdf",
     "doc_type": "config_guide"
   }
 ]

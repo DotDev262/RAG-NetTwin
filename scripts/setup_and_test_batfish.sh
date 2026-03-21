@@ -109,8 +109,7 @@ router ospf 1
 
 try:
     result = validator.validate(test_configs)
-    print("
---- Batfish Validation Result ---")
+    print("\n--- Batfish Validation Result ---")
     print(json.dumps(result, indent=2))
     if result.get("status") == "PASS" or result.get("status") == "WARNING":
         print("Batfish functionality test: PASSED (or with WARNINGS).")

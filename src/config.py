@@ -1,142 +1,89 @@
 import os
 import platform
-import subprocess
 from pathlib import Path
-from pydantic import BaseModel, Field
+from typing import Optional
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
+from utils import is_wsl, fix_path, validate_provider_config
 
-load_dotenv(override=True)
-
-
-def is_wsl():
-    """Detect if running inside WSL."""
-    if platform.system() != "Linux":
-        return False
-    try:
-        with open("/proc/version", "r") as f:
-            return "microsoft" in f.read().lower()
-    except:
-        return False
+# Load environment variables into os.environ for external libraries (LangChain, Groq, etc.)
+load_dotenv()
 
 
-def get_wsl_host_ip():
-    """Get the IP address of the Windows host from WSL."""
-    try:
-        result = subprocess.run(["ip", "route"], capture_output=True, text=True)
-        for line in result.stdout.splitlines():
-            if "default via" in line:
-                return line.split()[2]
-    except:
-        pass
-    return "localhost"
+class Settings(BaseSettings):
+    """System-wide settings for RAG-NetTwin using Pydantic V2"""
 
-
-def fix_path(path_str: str) -> str:
-    """Convert Windows-style absolute paths to WSL-style if necessary."""
-    if not path_str:
-        return path_str
-    if is_wsl() and len(path_str) > 2 and path_str[1] == ":" and path_str[2] == "\\":
-        drive = path_str[0].lower()
-        parts = path_str[3:].replace("\\", "/").split("/")
-        return f"/mnt/{drive}/{'/'.join(parts)}"
-    return path_str
-
-
-class Settings(BaseModel):
-    """System-wide settings for RAG-NetTwin"""
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
 
     # Environment Detection
-    is_wsl: bool = Field(default_factory=is_wsl)
+    is_wsl_detected: bool = Field(default_factory=is_wsl)
 
     # LLM Provider Settings
-    llm_provider: str = Field(default_factory=lambda: os.getenv("LLM_PROVIDER", "groq"))
+    llm_provider: str = "groq"
 
     # LlamaCpp Settings
-    llama_cpp_model_path: str = Field(
-        default_factory=lambda: os.getenv("LLAMA_CPP_MODEL_PATH", "")
-    )
-    llama_cpp_n_ctx: int = Field(
-        default_factory=lambda: int(os.getenv("LLAMA_CPP_N_CTX", 4096))
-    )
-    llama_cpp_n_gpu_layers: int = Field(
-        default_factory=lambda: int(os.getenv("LLAMA_CPP_N_GPU_LAYERS", -1))
-    )
+    llama_cpp_model_path: str = ""
+    llama_cpp_n_ctx: int = 4096
+    llama_cpp_n_gpu_layers: int = -1
 
     # API Keys
-    groq_api_key: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
-    gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
+    groq_api_key: str = ""
+    gemini_api_key: str = ""
 
     # Vector DB
-    chroma_persist_dir: str = Field(
-        default_factory=lambda: fix_path(
-            os.getenv("CHROMA_PERSIST_DIR", "./data/chroma_db")
-        )
-    )
-    embedding_model_name: str = "all-MiniLM-L6-v2"
-    collection_name: str = "cisco_commands"
+    chroma_persist_dir: str = "./data/chroma_db"
+    embedding_model_name: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+    collection_name: str = "network_docs"
 
-    # LLM Model Settings (Provider-specific)
-    groq_model: str = Field(
-        default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    )
-    gemini_model: str = Field(
-        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite-preview-02-05")
-    )
+    # LLM Model Settings
+    groq_model: str = "moonshotai/kimi-k2-instruct-0905"
+    gemini_model: str = "gemini-2.0-flash-lite-preview-02-05"
     temperature: float = 0.0
 
     # GNS3 Settings
-    gns3_host: str = Field(default_factory=lambda: os.getenv("GNS3_HOST", "localhost"))
-    gns3_port: int = Field(default_factory=lambda: int(os.getenv("GNS3_PORT", 3080)))
+    gns3_host: str = "localhost"
+    gns3_port: int = 3080
 
-    # File Paths
-    project_root: Path = Path(__file__).parent.parent
-    data_dir: Path = project_root / "data"
-    raw_docs_dir: Path = data_dir / "raw_docs"
-    processed_chunks_dir: Path = data_dir / "processed_chunks"
+    # Batfish Settings
+    batfish_host: str = "127.0.0.1"
 
-    # Validation
-    batfish_host: str = Field(
-        default_factory=lambda: os.getenv("BATFISH_HOST", "localhost")
-    )
+    # Paths (These are derived, not usually set via ENV)
+    project_root: Path = Path(__file__).parent.parent.resolve()
 
-    class Config:
-        case_sensitive = False
+    @property
+    def data_dir(self) -> Path:
+        return self.project_root / "data"
+
+    @property
+    def raw_docs_dir(self) -> Path:
+        return self.data_dir / "raw_docs"
+
+    @property
+    def processed_chunks_dir(self) -> Path:
+        return self.data_dir / "processed_chunks"
+
+    @field_validator("chroma_persist_dir")
+    @classmethod
+    def fix_chroma_path(cls, v: str) -> str:
+        return fix_path(v)
+
+    def validate_config(self):
+        """Perform manual validation of provider specific keys."""
+        config_dict = self.model_dump()
+        validate_provider_config(self.llm_provider, config_dict)
 
 
 # Global settings instance
 settings = Settings()
 
-
-def validate_llm_config():
-    """Validate LLM provider configuration at startup."""
-    provider = settings.llm_provider.lower()
-
-    if provider == "groq":
-        if not settings.groq_api_key or settings.groq_api_key == "your_api_key_here":
-            raise ValueError(
-                "GROQ_API_KEY is required when using provider 'groq'. "
-                "Please set GROQ_API_KEY in your .env file."
-            )
-    elif provider == "gemini":
-        if (
-            not settings.gemini_api_key
-            or settings.gemini_api_key == "your_api_key_here"
-        ):
-            raise ValueError(
-                "GEMINI_API_KEY is required when using provider 'gemini'. "
-                "Please set GEMINI_API_KEY in your .env file."
-            )
-    elif provider == "llamacpp":
-        if not settings.llama_cpp_model_path:
-            raise ValueError(
-                "LLAMA_CPP_MODEL_PATH is required when using provider 'llamacpp'. "
-                "Please set LLAMA_CPP_MODEL_PATH in your .env file."
-            )
-    else:
-        raise ValueError(
-            f"Unsupported LLM provider: '{provider}'. Supported providers: groq, gemini, llamacpp"
-        )
-
-
-# Validate LLM configuration on module import
-validate_llm_config()
+# Run validation on import
+try:
+    settings.validate_config()
+except ValueError as e:
+    # Print a warning if config is incomplete instead of crashing
+    print(f"⚠️  Configuration Warning: {e}")
+except Exception as e:
+    print(f"⚠️  Unexpected error during config validation: {e}")

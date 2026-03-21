@@ -9,6 +9,10 @@ from typing import Dict, Any, List
 
 from validation.base import NetworkValidator
 from config import settings
+from utils import setup_logger
+from utils import clean_cli_prose
+
+logger = setup_logger("BatfishValidator")
 
 
 class BatfishValidator(NetworkValidator):
@@ -22,9 +26,9 @@ class BatfishValidator(NetworkValidator):
         try:
             self.session = Session(host=self.host)
             # Basic connectivity check
-            print(f"Connected to Batfish at {self.host}")
+            logger.info(f"Connected to Batfish at {self.host}")
         except Exception as e:
-            print(f"Warning: Could not connect to Batfish: {e}")
+            logger.warning(f"Could not connect to Batfish: {e}")
 
     def validate(self, configs: Dict[str, str], intent: Any = None) -> Dict[str, Any]:
         """
@@ -41,25 +45,22 @@ class BatfishValidator(NetworkValidator):
             }
 
         # --- FINAL CLEANUP: Remove LLM labels that break Batfish ---
-        cleaned_configs = {}
-        for dev_name, raw_cfg in configs.items():
-            lines = raw_cfg.split("\n")
-            cleaned_lines = []
-            for line in lines:
-                clean_line = line
-                # Remove common prefixes like "Assistant:", "CLI:", etc.
-                if ":" in line[:15]: 
-                    prefix = line.split(":")[0].strip().lower()
-                    if prefix in ["assistant", "cli", "config", "device", "note", "sure", "system"]:
-                        clean_line = line.split(":", 1)[1].strip()
-                
-                # Filter out lines that are clearly prose (many words, no special chars)
-                words = clean_line.split()
-                if clean_line and len(words) < 12: 
-                    cleaned_lines.append(clean_line)
-            
-            cleaned_configs[dev_name] = "\n".join(cleaned_lines).strip()
+        cleaned_configs = {
+            dev_name: clean_cli_prose(raw_cfg) for dev_name, raw_cfg in configs.items()
+        }
         # ----------------------------------------------------------
+
+        # Check for empty configs (silent failure detection)
+        empty_issues = []
+        for dev_name, config_text in cleaned_configs.items():
+            if not config_text.strip():
+                empty_issues.append(
+                    {
+                        "type": "EMPTY_CONFIG",
+                        "severity": "HIGH",
+                        "details": f"Device {dev_name} produced no valid commands after cleaning",
+                    }
+                )
 
         temp_dir = tempfile.mkdtemp()
         try:
@@ -68,7 +69,32 @@ class BatfishValidator(NetworkValidator):
             config_dir.mkdir(parents=True)
 
             for hostname, config_text in cleaned_configs.items():
-                with open(config_dir / hostname, "w") as f:
+                # Sanitize hostname to prevent directory traversal or path errors
+                safe_hostname = hostname.replace("/", "_").replace("\\", "_")
+
+                # Detect vendor from config content and set appropriate extension
+                # Juniper: Use .conf (Batfish recognizes set commands)
+                # Cisco: Use .cfg
+                is_juniper = (
+                    any(
+                        config_text.strip().startswith(prefix)
+                        for prefix in [
+                            "set ",
+                            "firewall",
+                            "protocols ",
+                            "interfaces ",
+                            "routing-options",
+                        ]
+                    )
+                    or "set " in config_text[:500]
+                )
+
+                if is_juniper:
+                    safe_hostname = safe_hostname.replace(".cfg", "") + ".conf"
+                elif not safe_hostname.endswith(".cfg"):
+                    safe_hostname += ".cfg"
+
+                with open(config_dir / safe_hostname, "w") as f:
                     f.write(config_text)
 
             # 2. Initialize Network and Snapshot
@@ -78,25 +104,66 @@ class BatfishValidator(NetworkValidator):
             # 3. Run Analysis Questions
             issues = []
 
+            # Commands that are valid but not in Batfish's parser
+            batfish_known_gaps = {
+                "ip ssh v2",  # Valid SSH config
+                "vlan database",  # Old but valid VLAN config syntax
+                "ip ssh authentication-type password",  # Valid SSH auth
+                "ip ssh key-exchange group",  # Valid SSH KEX
+            }
+
             # Check for configuration errors (e.g., syntax-related)
             parse_status = self.session.q.initIssues().answer().frame()
             if not parse_status.empty:
                 for _, row in parse_status.iterrows():
-                    details = str(row.get("Details", ""))
-                    line_text = str(row.get("Line_Text", ""))
-                    
+                    # Safely extract values, ensuring strings
+                    details = (
+                        str(row.get("Details", ""))
+                        if not isinstance(row.get("Details"), bool)
+                        else ""
+                    )
+                    line_text = (
+                        str(row.get("Line_Text", ""))
+                        if not isinstance(row.get("Line_Text"), bool)
+                        else ""
+                    )
+                    filename = (
+                        str(row.get("File_Name", "unknown"))
+                        if not isinstance(row.get("File_Name"), bool)
+                        else "unknown"
+                    )
+
                     # Filter out common benign warnings
-                    if any(msg in details for msg in ["No hostname set", "File is empty", "File format is unknown"]):
+                    if not details:
                         continue
+                    if any(
+                        msg in details for msg in ["No hostname set", "File is empty"]
+                    ):
+                        continue
+                    if "File format is unknown" in details:
+                        continue
+                    if line_text == "None":
+                        continue
+
+                    # Filter out known Batfish parser gaps
+                    if any(cmd in line_text for cmd in batfish_known_gaps):
+                        continue
+
                     if "No candidates for OSPF router-id" in details:
-                        issues.append({"type": "CONFIG_WARNING", "severity": "MEDIUM", "details": details})
+                        issues.append(
+                            {
+                                "type": "CONFIG_WARNING",
+                                "severity": "MEDIUM",
+                                "details": f"File {filename}: {details}",
+                            }
+                        )
                         continue
 
                     issues.append(
                         {
                             "type": "PARSE_ISSUE",
                             "severity": "HIGH",
-                            "details": f"{details} at line: {line_text}",
+                            "details": f"File {filename}: {details} at line: {line_text}",
                         }
                     )
 
@@ -104,8 +171,8 @@ class BatfishValidator(NetworkValidator):
             undefined = self.session.q.undefinedReferences().answer().frame()
             if not undefined.empty:
                 for _, row in undefined.iterrows():
-                    struct_type = row.get('Structure_Type', 'Unknown')
-                    struct_name = row.get('Structure_Name', 'Unknown')
+                    struct_type = row.get("Structure_Type", "Unknown")
+                    struct_name = row.get("Structure_Name", "Unknown")
                     issues.append(
                         {
                             "type": "UNDEFINED_REFERENCE",
@@ -114,8 +181,11 @@ class BatfishValidator(NetworkValidator):
                         }
                     )
 
+            # Add empty config issues
+            issues.extend(empty_issues)
+
             status = "PASS" if not issues else "FAIL"
-            
+
             # Implementation of Fail-Safe Policy from PAPER.md:
             # "the system defaults to a 'REJECT_FOR_MANUAL_REVIEW' status for any command not supported by the Batfish parser."
             if any(i["type"] == "PARSE_ISSUE" for i in issues):

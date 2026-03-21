@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src"
 
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
-from logger import setup_logger
+from utils import setup_logger
 from config import settings, validate_llm_config
 from llm import LLMProvider
 
@@ -84,17 +84,15 @@ def main():
 
                     print("\n[4/4] Running Tier 1 Validation (Batfish)...")
                     validator = BatfishValidator()
-                    validation_result = validator.validate(data["config"])
+                    # Batfish expects a mapping of hostname -> config
+                    validation_result = validator.validate({device_name: data["config"]}, structured_intent)
 
-                    if validation_result.get("passed", False):
-                        print("✅ Tier 1 Validation PASSED")
+                    if validation_result.get("status") in ["PASS", "WARNING"]:
+                        print(f"✅ Tier 1 Validation {validation_result.get('status')}")
                     else:
-                        print("⚠️  Tier 1 Validation Issues Found:")
-                        if "errors" in validation_result:
-                            for error in validation_result["errors"][
-                                :3
-                            ]:  # Show first 3
-                                print(f"   - {error}")
+                        print(f"⚠️  Tier 1 Validation {validation_result.get('status')}:")
+                        for issue in validation_result.get("issues", [])[:3]:
+                            print(f"   - [{issue['type']}] {issue['details']}")
                 except Exception as e:
                     print(f"\n⚠️  Tier 1 Validation not available: {e}")
                     print(

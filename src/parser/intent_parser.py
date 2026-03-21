@@ -6,18 +6,24 @@ from config import settings
 from llm import LLMProvider
 from enum import Enum
 from parser.inventory_resolver import InventoryResolver
+from utils import setup_logger
+
+logger = setup_logger("IntentParser")
 
 
 class DeviceIntent(BaseModel):
-    name: str = Field(description="Name of the device, e.g., Router-A")
+    name: Optional[str] = Field(
+        description="Name of the device, e.g., Router-A. Default to 'Device' if unknown.",
+        default="Device",
+    )
     vendor: Optional[str] = Field(
-        description="Device vendor, e.g., cisco, juniper", default="cisco"
+        description="Device vendor, e.g., cisco, juniper", default=None
     )
     os_type: Optional[str] = Field(
-        description="Operating system type, e.g., ios-xe, junos", default="ios-xe"
+        description="Operating system type, e.g., ios-xe, junos", default=None
     )
     os_version: Optional[str] = Field(
-        description="OS version, e.g., 17.6", default="17.6"
+        description="OS version, e.g., 17.6, 21.4", default=None
     )
 
 
@@ -27,6 +33,7 @@ class ActionType(str, Enum):
     DELETE = "delete"
     ENABLE = "enable"
     DISABLE = "disable"
+    CONFIGURE = "configure"
     SHOW = "show"
     VERIFY = "verify"
     MONITOR = "monitor"
@@ -37,19 +44,24 @@ class StructuredIntent(BaseModel):
         description="Unique identifier for the intent", default=None
     )
     protocol: Optional[str] = Field(
-        description="Network protocol involved, e.g., OSPF, BGP, Static, ACL, Interface"
+        description="Network protocol involved, e.g., OSPF, BGP, Static, ACL, Interface",
+        default="Unknown",
     )
     action: ActionType = Field(
-        description="Specific CRUD operation: create, update, delete, enable, disable, show, verify, monitor"
+        description="Specific operation: create, update, delete, enable, disable, configure, show, verify, monitor",
+        default=ActionType.CONFIGURE,
     )
     devices: List[DeviceIntent] = Field(
-        description="List of devices involved in the intent"
+        description="List of devices involved in the intent",
+        default_factory=list,
     )
     parameters: Dict[str, Any] = Field(
-        description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1/24'}"
+        description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1/24'}",
+        default_factory=dict,
     )
     requirements: List[str] = Field(
-        description="Specific requirements or goals, e.g., ['establish_adjacency', 'no_downtime', 'validate_only']"
+        description="Specific requirements or goals, e.g., ['establish_adjacency', 'no_downtime', 'validate_only']",
+        default_factory=list,
     )
     original_text: Optional[str] = Field(
         description="The original natural language text", default=None
@@ -63,6 +75,15 @@ class BatchStructuredIntent(BaseModel):
 class IntentParser:
     """Parses natural language intents into structured JSON using LLM."""
 
+    # Shared vendor detection instructions for consistency
+    VENDOR_DETECTION_INSTRUCTIONS = """
+IMPORTANT VENDOR DETECTION:
+- If the text mentions "Cisco" or "cisco" anywhere, set vendor to "cisco"
+- If the text mentions "Juniper" or "juniper" or "MX" or "EX", set vendor to "juniper"
+- If no vendor is mentioned, default to "cisco"
+- CRITICAL: Pay close attention to vendor mentions like "on Cisco", "for Juniper", "between Cisco and Juniper"
+"""
+
     def __init__(self, model_name: Optional[str] = None):
         # Use LLMProvider to get structured LLM instance
         self.structured_llm = LLMProvider.get_structured_llm(
@@ -73,66 +94,115 @@ class IntentParser:
         )
         self.inventory_resolver = InventoryResolver()
 
-    def parse_batch(self, texts: List[str]) -> List[StructuredIntent]:
-        """Translates a batch of NL texts into StructuredIntent objects in one call."""
-        system_prompt = f"""You are a network automation expert. Translate the following list of natural language intents into a structured JSON list for Intent-Based Networking.
+    def parse_batch(
+        self, texts: List[str], chunk_size: int = 3
+    ) -> List[StructuredIntent]:
+        """Translates a batch of NL texts into StructuredIntent objects in chunks."""
+        all_intents = []
 
-For each intent, you MUST choose the most specific 'action' from the allowed values: {", ".join([f"'{action.value}'" for action in ActionType])}.
-Populate the 'original_text' field with the input string.
+        for i in range(0, len(texts), chunk_size):
+            chunk = texts[i : i + chunk_size]
+            try:
+                intents = self._parse_chunk(chunk)
+                all_intents.extend(intents)
+            except Exception as e:
+                logger.warning(
+                    f"Chunk {i // chunk_size + 1} failed ({e}), falling back to sequential for chunk..."
+                )
+                # Fallback to sequential for this chunk only
+                for text in chunk:
+                    all_intents.append(self.parse(text))
+
+        return all_intents
+
+    def _parse_chunk(self, texts: List[str]) -> List[StructuredIntent]:
+        """Parse a single chunk of intents."""
+        actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
+        count = len(texts)
+        
+        system_prompt = f"""You are a network automation expert. 
+Translate the following list of {count} natural language intents into a structured JSON list.
+
+{IntentParser.VENDOR_DETECTION_INSTRUCTIONS}
+
+RULES:
+1. You MUST return a list containing EXACTLY {count} intent objects.
+2. For each intent, choose the most specific 'action' from the allowed values: {actions_str}.
+3. The 'original_text' for each object MUST match the input text exactly from the provided list.
 """
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
-                ("human", "Parse these intents into a list:\n{input_list}"),
-            ]
+                ("human", "Parse these {{num}} intents into a JSON list:\n{{input_list}}"),
+            ],
+            template_format="jinja2"
         )
 
         input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(texts)])
         chain = prompt | self.batch_llm
-        try:
-            batch_result = chain.invoke({"input_list": input_list})
-            # Apply inventory resolution for each intent
-            for intent in batch_result.intents:
-                self._resolve_device_metadata(intent)
-            return batch_result.intents
-        except Exception as e:
-            # Fallback to individual parsing if batch fails
-            print(f"      ⚠️  Batch parsing failed ({e}), falling back to individual...")
-            return [self.parse(t) for t in texts]
+        batch_result = chain.invoke({"input_list": input_list, "num": count})
+
+        # CRITICAL: Verify we got the same number of intents back
+        if len(batch_result.intents) != len(texts):
+            raise ValueError(
+                f"LLM returned {len(batch_result.intents)} intents but expected {len(texts)}"
+            )
+
+        # CRITICAL: Force-overwrite original_text with EXACT input strings to avoid cache key mismatches
+        for i, intent in enumerate(batch_result.intents):
+            intent.original_text = texts[i]
+            self._resolve_device_metadata(intent)
+
+        return batch_result.intents
 
     def parse(self, text: str) -> StructuredIntent:
         """Translates NL text to StructuredIntent object."""
+        actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
+        
         system_prompt = f"""You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.
 
-You MUST choose the most specific 'action' from the following allowed values: {", ".join([f"'{action.value}'" for action in ActionType])}.
+{IntentParser.VENDOR_DETECTION_INSTRUCTIONS}
+
+You MUST choose the most specific 'action' from the following allowed values: {actions_str}.
 Populate the 'requirements' list with any relevant constraints, such as 'no_downtime' if the user emphasizes minimal disruption, or 'validate_only' if the intent is purely for verification.
 
 Examples:
 Natural Language: "Create OSPF area 0 on Router-A for interface Gig0/1."
 Structured Intent:
-{{{{
+{{
   "protocol": "OSPF",
   "action": "create",
-  "devices": [{{{{ "name": "Router-A", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}}}],
-  "parameters": {{{{ "area": "0", "interface": "Gig0/1" }}}},
+  "devices": [{{ "name": "Router-A", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}],
+  "parameters": {{ "area": "0", "interface": "Gig0/1" }},
   "requirements": []
-}}}}
+}}
+
+Natural Language: "Set up BGP on Juniper MX router."
+Structured Intent:
+{{
+  "protocol": "BGP",
+  "action": "create",
+  "devices": [{{ "name": "Router-A", "vendor": "juniper", "os_type": "junos", "os_version": "21.4" }}],
+  "parameters": {{}},
+  "requirements": []
+}}
 
 Natural Language: "Remove BGP neighbor 10.0.0.2 from Router-B."
 Structured Intent:
-{{{{
+{{
   "protocol": "BGP",
   "action": "delete",
-  "devices": [{{{{ "name": "Router-B", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}}}],
-  "parameters": {{{{ "neighbor_ip": "10.0.0.2" }}}},
+  "devices": [{{ "name": "Router-B", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}],
+  "parameters": {{ "neighbor_ip": "10.0.0.2" }},
   "requirements": ["no_downtime"]
-}}}}
+}}
 """
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
-                ("human", "{input}"),
-            ]
+                ("human", "{{input}}"),
+            ],
+            template_format="jinja2"
         )
 
         chain = prompt | self.structured_llm
@@ -144,27 +214,24 @@ Structured Intent:
     def _resolve_device_metadata(self, intent: StructuredIntent):
         """Enhances device intents with data from the inventory resolver."""
         for device in intent.devices:
-            # Handle null values from LLM - provide sensible defaults
-            if not device.vendor:
-                device.vendor = "cisco"
-            if not device.os_type:
-                device.os_type = "ios-xe"
-            if not device.os_version:
-                device.os_version = "17.6"
-
-            # Resolve if we have specific inventory data for that hostname
+            # Get metadata from inventory
             metadata = self.inventory_resolver.resolve(device.name)
 
-            # Inventory takes precedence for technical facts if the intent was vague
-            # (e.g. didn't specify a version or use the 17.6 default)
-            if (
-                device.os_version
-                and device.os_version == "17.6"
-                and metadata.get("os_version") != "17.6"
-            ):
-                device.os_version = metadata["os_version"]
-                device.vendor = metadata["vendor"]
-                device.os_type = metadata["os_type"]
+            # Only override if hostname was actually found in inventory
+            if metadata.get("found_in_inventory", False):
+                device.vendor = metadata.get("vendor", device.vendor)
+                device.os_type = metadata.get("os_type", device.os_type)
+                device.os_version = metadata.get("os_version", device.os_version)
+            else:
+                # No inventory match - use LLM-detected values or smart defaults
+                if not device.vendor:
+                    device.vendor = "cisco"
+                
+                if not device.os_type:
+                    device.os_type = "junos" if device.vendor == "juniper" else "ios-xe"
+                
+                if not device.os_version:
+                    device.os_version = "21.4" if device.vendor == "juniper" else "17.6"
 
 
 if __name__ == "__main__":
