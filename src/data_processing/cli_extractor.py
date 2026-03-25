@@ -1,6 +1,23 @@
 """
-CLI-Focused Chunk Extractor
-Extracts actual CLI commands from PDFs and creates focused chunks for RAG.
+CLI-Focused Chunk Extractor for RAG-NetTwin.
+
+This module extracts individual CLI commands from PDF documentation
+and creates focused chunks for the vector database. Unlike the more
+complex chunker, this focuses on individual command-level extraction
+for precise retrieval.
+
+Key Features:
+- Regex-based CLI command extraction
+- Vendor-specific patterns (Cisco IOS vs Juniper JunOS)
+- Command type categorization
+- Deduplication by command content
+
+Typical Usage:
+    from data_processing.cli_extractor import CLIExtractor
+
+    extractor = CLIExtractor()
+    chunks = extractor.process_pdf("data/raw_docs/cisco_cmdref.pdf", "cisco")
+    print(f"Extracted {len(chunks)} CLI commands")
 """
 
 import re
@@ -10,7 +27,7 @@ from pathlib import Path
 from typing import List, Dict, Set
 import hashlib
 
-# Add parent to path
+# Add parent to path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -19,58 +36,85 @@ from src.rag.vector_store import VectorStore
 
 
 class CLIExtractor:
-    """Extract CLI commands from documentation."""
+    """
+    Extracts CLI commands from documentation PDFs.
 
+    This class uses regex patterns to identify network device CLI
+    commands within documentation text. It categorizes commands by
+    type (interface, router, ACL, etc.) and creates focused chunks
+    suitable for RAG retrieval.
+
+    Each extracted command is associated with a vendor (Cisco/Juniper)
+    and assigned a default OS version. The tier is set to 1 (highest
+    priority) for these focused CLI chunks.
+
+    Attributes:
+        CISCO_PATTERNS: List of (regex_pattern, command_type) tuples
+            for Cisco IOS CLI commands.
+        JUNIPER_PATTERNS: List of (regex_pattern, command_type) tuples
+            for Juniper JunOS CLI commands.
+
+    Example:
+        >>> extractor = CLIExtractor()
+        >>> chunks = extractor.extract_from_text(page_text, "cisco")
+        >>> len(chunks)
+        15
+    """
+
+    # Cisco IOS command patterns - matches common configuration commands
+    # Each tuple contains: (regex_pattern, command_type)
     CISCO_PATTERNS = [
-        # Interface config
+        # Interface config patterns
         (
             r"(?:interface\s+(?:GigabitEthernet|FastEthernet|Serial|Ethernet|Vlan)\S+)",
             "interface",
         ),
         (r"(?:ip\s+address\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+)", "ip-address"),
         (r"(?:ip\s+address\s+\d+\.\d+\.\d+\.\d+\s+\d+)", "ip-address"),
-        # OSPF
+        # OSPF patterns
         (r"(?:router\s+ospf\s+\d+)", "router-ospf"),
         (
             r"(?:network\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+\s+area\s+\d+)",
             "ospf-network",
         ),
         (r"(?:area\s+\d+\.\d+\.\d+\.\d+)", "ospf-area"),
-        # BGP
+        # BGP patterns
         (r"(?:router\s+bgp\s+\d+)", "router-bgp"),
         (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+remote-as\s+\d+)", "bgp-neighbor"),
         (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+peer-group)", "bgp-peer-group"),
-        # ACL
+        # ACL patterns
         (r"(?:ip\s+access-list\s+(?:extended|standard)\s+\S+)", "acl-named"),
         (r"(?:access-list\s+\d+\s+(?:permit|deny))", "acl-numbered"),
         # Static route
         (r"(?:ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+)", "static-route"),
-        # VLAN
+        # VLAN patterns
         (r"(?:vlan\s+\d+)", "vlan"),
         (r"(?:switchport\s+mode\s+(?:trunk|access))", "switchport"),
-        # Various
+        # System patterns
         (r"(?:hostname\s+\S+)", "hostname"),
         (r"(?:ntp\s+server\s+\d+\.\d+\.\d+\.\d+)", "ntp"),
         (r"(?:snmp-server\s+community\s+\S+)", "snmp"),
         (r"(?:logging\s+host\s+\d+\.\d+\.\d+\.\d+)", "logging"),
         (r"(?:username\s+\S+\s+privilege\s+\d+)", "aaa-user"),
+        # Routing
         (r"(?:router\s+eigrp\s+\d+)", "router-eigrp"),
     ]
 
+    # Juniper JunOS command patterns - uses "set" command syntax
     JUNIPER_PATTERNS = [
-        # Interface
+        # Interface patterns
         (r"(?:set\s+interfaces\s+\S+)", "interface"),
         (
             r"(?:set\s+interfaces\s+\S+\s+unit\s+\d+\s+family\s+inet\s+address)",
             "interface-ip",
         ),
-        # OSPF
+        # OSPF patterns
         (r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+)", "ospf-area"),
         (
             r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+\s+interface)",
             "ospf-interface",
         ),
-        # BGP
+        # BGP patterns
         (r"(?:set\s+protocols\s+bgp\s+group\s+\S+)", "bgp-group"),
         (
             r"(?:set\s+protocols\s+bgp\s+group\s+\S+\s+neighbor\s+\d+\.\d+\.\d+\.\d+)",
@@ -81,7 +125,7 @@ class CLIExtractor:
             r"(?:set\s+routing-options\s+static\s+route\s+\d+\.\d+\.\d+\.\d+/)",
             "static-route",
         ),
-        # Firewall
+        # Firewall filter
         (r"(?:set\s+firewall\s+family\s+inet\s+filter\s+\S+)", "firewall-filter"),
         # VLAN
         (r"(?:set\s+vlans\s+\S+\s+vlan-id\s+\d+)", "vlan"),
@@ -91,15 +135,37 @@ class CLIExtractor:
     ]
 
     def extract_from_text(self, text: str, vendor: str) -> List[Dict]:
-        """Extract CLI commands from text."""
+        """
+        Extract CLI commands from plain text.
+
+        This method scans the input text for matches against vendor-specific
+        regex patterns and creates chunks for each matched command.
+
+        Args:
+            text: Plain text extracted from documentation.
+            vendor: Vendor identifier ("cisco" or "juniper").
+
+        Returns:
+            List of chunk dictionaries, each containing:
+                - id: Unique chunk identifier
+                - text: Formatted command text with type and vendor
+                - vendor: Vendor name
+                - os_version: Default OS version for the vendor
+                - command: The extracted command string
+                - command_type: Categorized type (e.g., "interface", "ospf")
+                - tier: Priority level (1 = highest)
+        """
         chunks = []
+        # Select appropriate pattern set based on vendor
         patterns = self.CISCO_PATTERNS if vendor == "cisco" else self.JUNIPER_PATTERNS
 
+        # Iterate through patterns and find matches
         for pattern, cmd_type in patterns:
             matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
             for match in matches:
                 # Create a focused chunk with the command
                 chunk_text = f"Command: {match}\nType: {cmd_type}\nVendor: {vendor}"
+                # Generate unique ID from vendor and command
                 chunk_id = hashlib.md5(f"{vendor}:{match}".encode()).hexdigest()[:16]
 
                 chunks.append(
@@ -119,11 +185,24 @@ class CLIExtractor:
         return chunks
 
     def process_pdf(self, pdf_path: str, vendor: str) -> List[Dict]:
-        """Extract CLI from a PDF file."""
+        """
+        Extract CLI commands from a PDF file.
+
+        This method reads a PDF, extracts text from each page, and applies
+        command extraction to the text.
+
+        Args:
+            pdf_path: Path to the PDF file.
+            vendor: Vendor identifier ("cisco" or "juniper").
+
+        Returns:
+            List of extracted command chunks from all pages.
+        """
         print(f"Processing {Path(pdf_path).name}...")
         pages = extract_text_from_pdf(pdf_path)
 
         all_chunks = []
+        # Process each page separately
         for page in pages:
             chunks = self.extract_from_text(page["text"], vendor)
             all_chunks.extend(chunks)
@@ -133,7 +212,20 @@ class CLIExtractor:
 
 
 def reindex_cli_chunks():
-    """Re-index vector store with CLI-focused chunks."""
+    """
+    Re-index the vector store with CLI-focused chunks.
+
+    This is a standalone function that processes documentation PDFs
+    and populates the vector store with CLI command chunks. It:
+    1. Clears the existing collection
+    2. Processes Cisco and Juniper PDFs
+    3. Deduplicates commands by content
+    4. Adds unique chunks to the vector store
+
+    Note:
+        This function expects PDF files to exist at the specified paths.
+        Adjust the paths as needed for your documentation set.
+    """
     extractor = CLIExtractor()
     vector_store = VectorStore()
 
@@ -169,7 +261,7 @@ def reindex_cli_chunks():
             chunks = extractor.process_pdf(pdf, "juniper")
             all_chunks.extend(chunks)
 
-    # Deduplicate by command
+    # Deduplicate by command content
     seen = set()
     unique_chunks = []
     for chunk in all_chunks:
@@ -198,7 +290,7 @@ def reindex_cli_chunks():
         vector_store.collection.add(ids=ids, documents=texts, metadatas=metadatas)
         print(f"Added {len(unique_chunks)} CLI chunks to vector store")
 
-    # Print stats
+    # Print statistics
     vendor_counts = {}
     type_counts = {}
     for chunk in unique_chunks:

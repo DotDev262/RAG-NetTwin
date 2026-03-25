@@ -1,3 +1,36 @@
+"""
+Paper Evaluation Module for RAG-NetTwin.
+
+This module provides comprehensive evaluation capabilities for measuring
+RAG-NetTwin's performance against research metrics. It compares the
+RAG-NetTwin approach against vanilla LLM baselines and generates
+structured reports for paper writing.
+
+Key Features:
+- Dual-mode evaluation (Vanilla LLM vs RAG-NetTwin)
+- Multi-tier validation (syntactic, semantic, CFR faithfulness)
+- Hallucination detection with citation validation
+- Caching with 7-day expiry for efficient re-runs
+- Latency tracking per intent
+- Historical result tracking
+
+Metrics Computed:
+- Syntactic Validity: % of configs passing Batfish validation
+- Hallucination Rate: % of configs with detected hallucinations
+- CFR Faithfulness: % of configs containing all required parameters
+- Average Latency: Time per configuration generation
+
+Typical Usage:
+    # RAG-Only mode (default)
+    uv run python run_paper_eval.py
+
+    # With vanilla LLM comparison
+    uv run python run_paper_eval.py --run-vanilla
+
+    # Use cached results only
+    uv run python run_paper_eval.py --cache-only
+"""
+
 import json
 import time
 import os
@@ -9,7 +42,7 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime, timedelta
 
-# Add src to path
+# Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from parser.intent_parser import IntentParser
@@ -28,18 +61,61 @@ logger = setup_logger("PaperEval")
 # - Implement encryption at rest, or
 # - Scrub sensitive parameters (passwords, keys) before caching, or
 # - Use secure storage with access controls
+
+# Cache file paths for evaluation results
 VANILLA_CACHE_FILE = "results/vanilla_cache.json"
 RAG_CACHE_FILE = "results/rag_cache.json"
+
+# Cache entries older than this are considered stale
 CACHE_EXPIRY_DAYS = 7
 
 
 class PaperQualityEvaluator:
     """
     Optimized high-scale evaluation script for RAG-NetTwin.
-    Generates structured data for PAPER.md metrics.
+
+    This class orchestrates the complete evaluation pipeline for measuring
+    RAG-NetTwin's performance. It generates network configurations from
+    natural language intents using both the RAG-NetTwin system and a
+    vanilla LLM baseline, then validates them using Batfish.
+
+    The evaluator supports caching to enable efficient re-runs and
+    produces structured JSON reports for analysis.
+
+    Attributes:
+        parser: IntentParser instance for NL to StructuredIntent conversion.
+        generator: ConfigGenerator instance for RAG-based config generation.
+        validator: BatfishValidator instance for syntactic validation.
+        hallucination_detector: HallucinationDetector for hallucination checks.
+        ensemble: EnsembleEngine (reserved for future use).
+        token_counter: TokenCounter for tracking API usage and costs.
+        vanilla_llm: Optional LLM for baseline comparison.
+        vanilla_cache: Dictionary of cached vanilla results.
+        rag_cache: Dictionary of cached RAG results.
+
+    Evaluation Flow:
+        1. Pre-flight check: Verify Batfish connectivity
+        2. Batch parsing: Convert all test intents to StructuredIntent
+        3. Generation & Validation: For each intent:
+           a. Generate config (RAG-NetTwin + optional Vanilla)
+           b. Validate with Batfish
+           c. Check CFR faithfulness
+           d. Detect hallucinations
+        4. Cache results and generate summary
+
+    Example:
+        >>> evaluator = PaperQualityEvaluator(run_vanilla=True)
+        >>> evaluator.run_full_eval()
     """
 
     def __init__(self, run_vanilla: bool = False, cache_only: bool = False):
+        """
+        Initialize the PaperQualityEvaluator.
+
+        Args:
+            run_vanilla: Whether to also run vanilla LLM baseline for comparison.
+            cache_only: If True, only use cached results (no new API calls).
+        """
         self.parser = IntentParser()
         self.generator = ConfigGenerator()
         self.validator = BatfishValidator()
@@ -50,7 +126,7 @@ class PaperQualityEvaluator:
         self.run_vanilla = run_vanilla
         self.cache_only = cache_only
 
-        # Load caches
+        # Load caches from disk
         self.vanilla_cache = self._load_cache(VANILLA_CACHE_FILE)
         self.rag_cache = self._load_cache(RAG_CACHE_FILE)
 
@@ -59,7 +135,18 @@ class PaperQualityEvaluator:
         logger.info(f"Loaded RAG cache: {len(self.rag_cache)} items")
 
     def _load_cache(self, filepath: str) -> Dict[str, Any]:
-        """Load cache file, filtering out expired entries."""
+        """
+        Load cache file, filtering out expired entries.
+
+        Entries older than CACHE_EXPIRY_DAYS are considered stale and excluded.
+        This ensures evaluation results remain fresh while enabling fast re-runs.
+
+        Args:
+            filepath: Path to the cache JSON file.
+
+        Returns:
+            Dictionary of cache entries (excluding expired ones).
+        """
         if not os.path.exists(filepath):
             return {}
 
@@ -92,7 +179,13 @@ class PaperQualityEvaluator:
             return {}
 
     def _save_cache(self, filepath: str, cache: Dict[str, Any]):
-        """Save cache to file."""
+        """
+        Save cache to file.
+
+        Args:
+            filepath: Path to save the cache JSON file.
+            cache: Dictionary of cache entries to save.
+        """
         try:
             with open(filepath, "w") as f:
                 json.dump(cache, f, indent=2)
@@ -100,7 +193,16 @@ class PaperQualityEvaluator:
             logger.warning(f"Failed to save cache {filepath}: {e}")
 
     def _cache_get(self, cache: Dict, key: str) -> Optional[Any]:
-        """Get from cache if exists and not expired."""
+        """
+        Get from cache if exists and not expired.
+
+        Args:
+            cache: Cache dictionary to search.
+            key: Cache key to look up.
+
+        Returns:
+            Cached value if exists and not expired, None otherwise.
+        """
         if key not in cache:
             return None
         ts = cache[key].get("timestamp", "")
@@ -114,14 +216,39 @@ class PaperQualityEvaluator:
         return cache[key]
 
     def _cache_set(self, cache: Dict, key: str, value: Any):
-        """Store value in cache with timestamp."""
+        """
+        Store value in cache with timestamp.
+
+        Args:
+            cache: Cache dictionary to update.
+            key: Cache key.
+            value: Value to store.
+        """
         cache[key] = {**value, "timestamp": datetime.now().isoformat()}
 
     def get_intent_key(self, intent) -> str:
-        """Generate a cache key for an intent."""
+        """
+        Generate a cache key for an intent.
+
+        Args:
+            intent: StructuredIntent object to generate key for.
+
+        Returns:
+            String key based on original text.
+        """
         return intent.original_text if hasattr(intent, "original_text") else str(intent)
 
     def get_test_intents(self) -> List[str]:
+        """
+        Get the list of test intents for evaluation.
+
+        This is a curated list of 23 network configuration intents
+        covering various protocols, vendors, and complexity levels.
+        The list is kept static for longitudinal tracking consistency.
+
+        Returns:
+            List of natural language intent strings.
+        """
         # (Keeping original list for consistency in longitudinal tracking)
         return [
             "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
@@ -150,8 +277,21 @@ class PaperQualityEvaluator:
         ]
 
     def run_full_eval(self):
+        """
+        Run the complete evaluation pipeline.
+
+        This is the main entry point for evaluation. It:
+        1. Verifies Batfish connectivity (pre-flight check)
+        2. Loads test intents
+        3. Batch parses intents to StructuredIntent format
+        4. Generates and validates configs for each intent
+        5. Caches results and saves to JSON
+        6. Generates summary table
+
+        The evaluation will exit with error if Batfish is not available.
+        """
         # --- PRE-FLIGHT CHECK ---
-        logger.info("🔍 Pre-flight check: Verifying Batfish connectivity...")
+        logger.info("Pre-flight check: Verifying Batfish connectivity...")
         try:
             # We check if session is initialized and try a lightweight operation
             if not self.validator.session:
@@ -159,10 +299,10 @@ class PaperQualityEvaluator:
 
             # list_networks() is a fast way to check if the service is actually responsive
             self.validator.session.list_networks()
-            logger.info("✅ Batfish detected and responsive.")
+            logger.info("Batfish detected and responsive.")
         except Exception as e:
             print("\n" + "=" * 60)
-            print("❌ ERROR: BATFISH IS OFFLINE")
+            print("ERROR: BATFISH IS OFFLINE")
             print("Paper evaluation requires Batfish for Tier 1 Syntactic Validation.")
             print("\nPlease start Batfish using Docker:")
             print(
@@ -238,6 +378,19 @@ class PaperQualityEvaluator:
         self._generate_summary_table(all_results)
 
     def evaluate_intent(self, intent):
+        """
+        Evaluate a single intent through both vanilla and RAG pipelines.
+
+        This method generates configurations using both approaches (if enabled),
+        validates them with Batfish, checks CFR faithfulness, and detects
+        hallucinations. Results are cached for future runs.
+
+        Args:
+            intent: StructuredIntent to evaluate.
+
+        Returns:
+            Dictionary containing evaluation results for both modes.
+        """
         intent_key = self.get_intent_key(intent)
         results = {
             "scenario": intent.original_text,
@@ -328,6 +481,18 @@ class PaperQualityEvaluator:
         return results
 
     def _generate_vanilla(self, scenario: str) -> str:
+        """
+        Generate configuration using vanilla LLM (no RAG).
+
+        This is the baseline approach that generates configs without
+        retrieval-augmented generation, used for comparison.
+
+        Args:
+            scenario: Natural language intent string.
+
+        Returns:
+            Generated CLI configuration string.
+        """
         from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_template(
@@ -339,7 +504,19 @@ class PaperQualityEvaluator:
     def _check_cfr(self, intent, config: str) -> bool:
         """
         CFR Check: Detects if critical intent parameters are missing in configs.
-        Handles IP addresses, VLANs, AS numbers, area IDs, and other parameters.
+
+        CFR (Config Faithfulness Rate) measures whether the generated config
+        includes all the critical parameters specified in the intent.
+        This catches cases where the LLM omits important values like
+        IP addresses, VLAN IDs, AS numbers, etc.
+
+        Args:
+            intent: StructuredIntent with parameters to check.
+            config: Generated configuration string.
+
+        Returns:
+            True if any critical parameter is missing (CFR failure),
+            False if all parameters are present.
         """
         if not intent.parameters:
             return False
@@ -403,7 +580,15 @@ class PaperQualityEvaluator:
         return False
 
     def _is_ip_like(self, val: str) -> bool:
-        """Check if a value looks like an IP address."""
+        """
+        Check if a value looks like an IP address.
+
+        Args:
+            val: String value to check.
+
+        Returns:
+            True if value appears to be an IP address.
+        """
         parts = val.replace("/", " ").split()
         if parts:
             first_part = parts[0]
@@ -413,9 +598,17 @@ class PaperQualityEvaluator:
     def _config_contains_ip(self, config: str, ip_with_prefix: str) -> bool:
         """
         Check if config contains the given IP address with correct prefix/mask.
+
         Returns True only if IP is found with CORRECT prefix/mask.
         Tracks perfect matches vs near matches (IP with wrong mask).
         Handles Cisco ACL wildcard masks (0.0.0.255) vs subnet masks (255.255.255.0).
+
+        Args:
+            config: Configuration string to search.
+            ip_with_prefix: IP address with optional prefix (e.g., "10.1.1.0/24").
+
+        Returns:
+            True if IP found with correct mask/prefix, False otherwise.
         """
         import re
 
@@ -541,7 +734,17 @@ class PaperQualityEvaluator:
     def _config_contains_value(self, config: str, param_key: str, value: str) -> bool:
         """
         Check if config contains the given numeric value with keyword context.
+
         E.g., for 'vlan 100', check for 'vlan' followed by '100'.
+        This ensures values aren't accidentally matched in wrong contexts.
+
+        Args:
+            config: Configuration string to search.
+            param_key: Parameter key (e.g., "vlan", "area").
+            value: Value to find (e.g., "100").
+
+        Returns:
+            True if value found with correct keyword context.
         """
         import re
 
@@ -576,7 +779,15 @@ class PaperQualityEvaluator:
         return bool(re.search(standalone_pattern, config))
 
     def _normalize_for_comparison(self, value: str) -> str:
-        """Normalize values for comparison (e.g., /24 -> 255.255.255.0)"""
+        """
+        Normalize values for comparison (e.g., /24 -> 255.255.255.0).
+
+        Args:
+            value: Value string to normalize.
+
+        Returns:
+            Normalized value string.
+        """
         import re
 
         # Handle CIDR notation
@@ -604,6 +815,19 @@ class PaperQualityEvaluator:
         return value.lower().strip()
 
     def _generate_summary_table(self, results: List[Dict]):
+        """
+        Generate and print summary table of evaluation results.
+
+        Computes metrics for both vanilla and RAG modes:
+        - Syntactic Validity: % passing Batfish validation
+        - Hallucination Rate: % with detected hallucinations
+        - CFR Failure Rate: % missing critical parameters
+        - CFR Faithfulness: % with all parameters present
+        - Avg Latency: Average generation time
+
+        Args:
+            results: List of evaluation result dictionaries.
+        """
         summary = []
         for mode in ["vanilla", "rag_nettwin"]:
             # Fix: RAG mode status is nested in 'validation', Vanilla is top-level.
@@ -661,7 +885,7 @@ class PaperQualityEvaluator:
                 }
             )
 
-        print("\n📊 UPDATED RESEARCH METRICS (RAG-NetTwin v3)")
+        print("\n UPDATED RESEARCH METRICS (RAG-NetTwin v3)")
         print(pd.DataFrame(summary).to_string(index=False))
 
 
