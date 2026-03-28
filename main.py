@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src"
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
 from utils import setup_logger
-from config import settings, validate_llm_config
+from config import settings
 from llm import LLMProvider
 
 # Initialize Logger for this module
@@ -61,7 +61,7 @@ def main():
     # Validate LLM configuration before starting
     # This ensures API keys are present for the selected provider
     try:
-        validate_llm_config()
+        settings.validate_config()
         logger.info(f"Using LLM provider: {settings.llm_provider}")
         print(f"\n✓ LLM Provider: {settings.llm_provider}")
     except ValueError as e:

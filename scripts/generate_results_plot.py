@@ -19,11 +19,11 @@ fig, ax = plt.subplots(figsize=(10, 6))
 
 # Create bars
 rects1 = ax.bar(x - width/2, vanilla_scores, width, label='Vanilla LLM (Baseline)', color='#d1d1d1', edgecolor='black', alpha=0.8)
-rects2 = ax.bar(x + width/2, rag_nettwin_scores, width, label='RAG-NetTwin (Proposed)', color='#2c3e50', edgecolor='black')
+rects2 = ax.bar(x + width/2, rag_nettwin_scores, width, label='Proposed System', color='#2c3e50', edgecolor='black')
 
 # Add labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Score (%)')
-ax.set_title('Phase 1 Performance Comparison: RAG-NetTwin vs. Vanilla LLM', pad=20, fontweight='bold')
+ax.set_title('Phase 1 Performance Comparison: Proposed System vs. Vanilla LLM', pad=20, fontweight='bold')
 ax.set_xticks(x)
 ax.set_xticklabels(metrics)
 ax.set_ylim(0, 115) # Room for labels
@@ -43,7 +43,7 @@ autolabel(rects1)
 autolabel(rects2)
 
 # Add a footnote/insight
-plt.figtext(0.5, 0.01, "N=23 Intents (OSPF, BGP, ACL). RAG-NetTwin eliminates hallucinations and significantly boosts reliability.", 
+plt.figtext(0.5, 0.01, "N=23 Intents (OSPF, BGP, ACL). The Proposed System eliminates hallucinations and significantly boosts reliability.", 
             ha="center", fontsize=10, bbox={"facecolor":"orange", "alpha":0.1, "pad":5})
 
 fig.tight_layout()
