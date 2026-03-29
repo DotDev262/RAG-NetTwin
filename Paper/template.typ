@@ -3,9 +3,11 @@
   authors: (),
   supervisor: "",
   chancellor: "Sri Mata Amritanandamayi Devi",
-  director: "Mr. I B Manikantan",
+  admin_director: "",
+  campus_director: "",
   principal: "Dr. V. Jayakumar",
-  chairperson: "Dr. S Baghavathi Priya",
+  chairperson: "Dr. S. Baghavathi Priya",
+  assoc_prof: "",
   program_chair: "Dr. S. Natarajan",
   department: "Department of CSE",
   school: "Amrita School of Computing",
@@ -38,7 +40,17 @@
   // Header styling
   show heading: set text(weight: "bold")
   set heading(numbering: "1.1")
-  show figure: set block(breakable: true)
+  set figure(
+    numbering: n => numbering("1.1", counter(heading).at(here()).at(0), n),
+    supplement: "Figure"
+  )
+  show figure.where(kind: table): set figure(
+    numbering: n => numbering("1.1", counter(heading).at(here()).at(0), n),
+    supplement: "Table"
+  )
+  show figure: set block(breakable: false)
+  show table: set block(breakable: false)
+  show table.cell.where(y: 0): set align(center)
 
   // Helper for "Capitalize Each Word" (Title Case)
   let title-case(it) = {
@@ -58,23 +70,25 @@
   }
 
   show heading.where(level: 2): it => {
+    v(2em, weak: true)
+    set text(size: 12pt, weight: "bold")
+    set align(left)
+    it
+    v(0.8em)
+  }
+
+  show heading.where(level: 3): it => {
     v(1.5em, weak: true)
     set text(size: 12pt, weight: "bold")
     set align(left)
     it
     v(0.5em)
   }
-
-  show heading.where(level: 3): it => {
-    v(1em, weak: true)
-    set text(size: 12pt, weight: "bold")
-    set align(left)
-    it
-    v(0.3em)
-  }
   
   // Custom Chapter styling
   show heading.where(level: 1): it => {
+    counter(figure.where(kind: image)).update(0)
+    counter(figure.where(kind: table)).update(0)
     set align(center)
     set text(size: 14pt, weight: "bold")
     if it.numbering != none {
@@ -112,6 +126,9 @@
     
     #v(0.2em)
     #text(style: "italic")[in partial fulfilment for the award of the \ degree of]
+    #v(0.4em)
+    #text(size: 12pt, weight: "bold")[#upper(degree) IN #upper(department)]
+    
     #v(0.6em)
     #text(weight: "bold")[By]
     #v(0.6em)
@@ -185,7 +202,7 @@
         #text(size: 12pt, weight: "bold")[SUPERVISOR] \ \
         #set par(leading: 0.8em)
         #text(size: 12pt, weight: "bold")[
-          Assistant Professor(Sr.G), \
+          Assistant Professor, \
           #department \
           #school \
           #university \
@@ -238,7 +255,10 @@
 
   // --- 5. Abstract ---
   heading(numbering: none, outlined: true)[Abstract]
-  abstract
+  text(size: 14pt)[
+    #set par(justify: true)
+    #abstract
+  ]
   if keywords != () {
     v(1em)
     [*Keywords:* ]
@@ -248,7 +268,10 @@
 
   // --- 6. Acknowledgement ---
   heading(numbering: none, outlined: true)[Acknowledgement]
-  acknowledgement
+  text(size: 14pt)[
+    #set par(justify: true)
+    #acknowledgement
+  ]
   v(3fr)
   grid(
     columns: (1fr, 1fr),
@@ -273,8 +296,8 @@
     grid(
       columns: (80pt, 1fr, 60pt),
       gutter: 0pt,
-      inset: (y: 8pt),
-      align: (left, left, right),
+      inset: (y: 0.5em),
+      align: center,
       [*CHAPTER* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
     v(-0.5em)
@@ -291,7 +314,7 @@
         if num != "" {
           (strong(num), strong(upper(it.element.body)), it => it)
         } else {
-          ("", upper(it.element.body), it => it)
+          ("", strong(it.element.body), it => it)
         }
       } else {
         ("", num + " " + upper(it.element.body), it => it)
@@ -300,8 +323,8 @@
       grid(
         columns: (80pt, 1fr, 60pt),
         gutter: 0pt,
-        inset: (y: 6pt),
-        align: (left, left, right),
+        inset: (y: 0.5em),
+        align: (center, left, center),
         col1, col2, pg_style(it.page())
       )
     }
@@ -317,8 +340,8 @@
     grid(
       columns: (80pt, 1fr, 60pt),
       gutter: 0pt,
-      inset: (y: 8pt),
-      align: (left, left, right),
+      inset: (y: 0.5em),
+      align: center,
       [*TABLE* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
     v(-0.5em)
@@ -327,14 +350,16 @@
 
     show outline.entry: it => {
       let loc = it.element.location()
-      let num = numbering(it.element.numbering, ..counter(figure.where(kind: table)).at(loc))
+      let ch = counter(heading).at(loc).at(0)
+      let fig = counter(figure.where(kind: table)).at(loc).at(0)
+      let num = [#ch.#fig]
       let title = if it.element.caption != none { upper(it.element.caption.body) } else { "" }
       
       grid(
         columns: (80pt, 1fr, 60pt),
         gutter: 0pt,
-        inset: (y: 6pt),
-        align: (left, left, right),
+        inset: (y: 0.5em),
+        align: (center, left, center),
         [#num], [#title], [#it.page()]
       )
     }
@@ -349,8 +374,8 @@
     grid(
       columns: (80pt, 1fr, 60pt),
       gutter: 0pt,
-      inset: (y: 8pt),
-      align: (left, left, right),
+      inset: (y: 0.5em),
+      align: center,
       [*FIGURE* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
     v(-0.5em)
@@ -359,14 +384,16 @@
 
     show outline.entry: it => {
       let loc = it.element.location()
-      let num = numbering(it.element.numbering, ..counter(figure.where(kind: image)).at(loc))
+      let ch = counter(heading).at(loc).at(0)
+      let fig = counter(figure.where(kind: image)).at(loc).at(0)
+      let num = [#ch.#fig]
       let title = if it.element.caption != none { upper(it.element.caption.body) } else { "" }
       
       grid(
         columns: (80pt, 1fr, 60pt),
         gutter: 0pt,
-        inset: (y: 6pt),
-        align: (left, left, right),
+        inset: (y: 0.5em),
+        align: (center, left, center),
         [#num], [#title], [#it.page()]
       )
     }
@@ -389,15 +416,16 @@
   set page(margin: 1in, numbering: "1")
   counter(page).update(1)
   
-  // FORCE 1.5 SPACING AND 1CM INDENT FOR ALL PARAGRAPHS
-  // leading: 1em is a clear visual 1.5x gap in Typst 0.11
+  // --- Explicit Paragraph Styling for Main Body ---
   set par(leading: 1.5em, justify: true, first-line-indent: 1cm)
+  show heading: it => it + h(0pt) // Safely triggers indentation on the next paragraph
   
   body
 
   if bib_path != none {
     heading(level: 1, numbering: "1.1", outlined: true)[References]
-    bibliography(bib_path, title: none, style: "apa")
+    set par(first-line-indent: 0pt, justify: false)
+    bibliography(bib_path, title: none, style: "ieee", full: true)
   }
 
   if publications != [] {
