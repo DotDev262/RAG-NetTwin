@@ -1,9 +1,13 @@
-
 #let project(
   title: "",
   authors: (),
   supervisor: "",
-  department: "Department of Computer Science and Engineering",
+  chancellor: "Sri Mata Amritanandamayi Devi",
+  director: "Mr. I B Manikantan",
+  principal: "Dr. V. Jayakumar",
+  chairperson: "Dr. S Baghavathi Priya",
+  program_chair: "Dr. S. Natarajan",
+  department: "Department of CSE",
   school: "Amrita School of Computing",
   university: "Amrita Vishwa Vidyapeetham",
   location: "Chennai - 601103",
@@ -30,19 +34,52 @@
     number-align: bottom + center,
   )
   set text(font: "Times New Roman", size: 12pt)
-  set par(leading: 0.65em, justify: true) // Approx 1.25-1.5 line spacing
   
   // Header styling
   show heading: set text(weight: "bold")
   set heading(numbering: "1.1")
+  show figure: set block(breakable: true)
+
+  // Helper for "Capitalize Each Word" (Title Case)
+  let title-case(it) = {
+    if type(it) == "string" {
+      it.split(" ").map(w => {
+        if w.len() > 0 {
+          upper(w.slice(0, 1)) + w.slice(1)
+        } else { "" }
+      }).join(" ")
+    } else if it.has("body") {
+      title-case(it.body)
+    } else if it.has("text") {
+      title-case(it.text)
+    } else {
+      it
+    }
+  }
+
+  show heading.where(level: 2): it => {
+    v(1.5em, weak: true)
+    set text(size: 12pt, weight: "bold")
+    set align(left)
+    it
+    v(0.5em)
+  }
+
+  show heading.where(level: 3): it => {
+    v(1em, weak: true)
+    set text(size: 12pt, weight: "bold")
+    set align(left)
+    it
+    v(0.3em)
+  }
   
   // Custom Chapter styling
   show heading.where(level: 1): it => {
+    set align(center)
+    set text(size: 14pt, weight: "bold")
     if it.numbering != none {
       pagebreak(weak: true)
       v(2em)
-      set align(center)
-      set text(size: 14pt)
       [CHAPTER-#counter(heading).display()]
       v(0.5em)
       upper(it.body)
@@ -50,8 +87,6 @@
     } else {
       pagebreak(weak: true)
       v(2em)
-      set align(center)
-      set text(size: 14pt)
       upper(it.body)
       v(1em)
     }
@@ -62,7 +97,7 @@
   page(numbering: none)[
     #set align(center)
     #set text(size: 14pt)
-    #set par(leading: 0.8em) // 1.5 spacing
+    #set par(leading: 0.8em) // Original front-matter spacing
     #block(spacing: 0.5em)[
       #text(size: 18pt, weight: "bold")[#upper(title)]
     ]
@@ -115,11 +150,12 @@
     #if logo_dept != none { image(logo_dept, height: 2.2cm) } else if logo != none { image(logo, height: 2.2cm) }
     #v(1em)
     
-    #text(size: 14pt, weight: "bold")[BONAFIDE CERTIFICATE]
+    #text(size: 16pt, weight: "bold")[BONAFIDE CERTIFICATE]
     #v(1.5em)
     
     #set align(left)
     #set par(first-line-indent: 2em, justify: true, leading: 0.8em)
+    #set text(size: 14pt)
     This is to certify that this project report entitled *"#title"* is the bonafide work of *"#authors.map(a => [#a.name (#a.reg)]).join(" & ")"* who carried out the project work under my supervision.
     
     #v(4fr)
@@ -127,20 +163,28 @@
     #grid(
       columns: (1fr, 1fr),
       gutter: 1.5em,
-      align(left)[
-        #text(weight: "bold")[Dr. BHAGAVATHI PRIYA] \
-        #text(weight: "bold")[CHAIRPERSON] \ \
-        #text(size: 11pt)[
+      align(center)[
+        #v(3em)
+        #text(size: 12pt, weight: "bold")[SIGNATURE] \
+        #v(1em)
+        #text(size: 14pt, weight: "bold")[#upper(chairperson)] \
+        #text(size: 12pt, weight: "bold")[CHAIRPERSON] \ \
+        #set par(leading: 0.8em)
+        #text(size: 12pt, weight: "bold")[
           #department \
           #school \
           #university \
           #location
         ]
       ],
-      align(left)[
-        #text(weight: "bold")[#supervisor] \
-        #text(weight: "bold")[SUPERVISOR] \ \
-        #text(size: 11pt)[
+      align(center)[
+        #v(3em)
+        #text(size: 12pt, weight: "bold")[SIGNATURE] \
+        #v(1em)
+        #text(size: 14pt, weight: "bold")[#upper(supervisor)] \
+        #text(size: 12pt, weight: "bold")[SUPERVISOR] \ \
+        #set par(leading: 0.8em)
+        #text(size: 12pt, weight: "bold")[
           Assistant Professor(Sr.G), \
           #department \
           #school \
@@ -155,11 +199,11 @@
     #grid(
       columns: (1fr, 1fr),
       gutter: 1.5em,
-      align(left)[
-        #text(weight: "bold")[INTERNAL EXAMINER]
+      align(center)[
+        #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
       ],
-      align(left)[
-        #text(weight: "bold")[EXTERNAL EXAMINER]
+      align(center)[
+        #text(size: 14pt, weight: "bold")[EXTERNAL EXAMINER]
       ]
     )
     #v(0.5fr)
@@ -170,12 +214,12 @@
     #set align(center)
     #if logo_dept != none { image(logo_dept, width: 60%) }
     #v(2em)
-    #text(size: 14pt, weight: "bold")[DECLARATION BY THE CANDIDATE]
+    #text(size: 16pt, weight: "bold")[DECLARATION BY THE CANDIDATE]
     #v(1.5em)
     
     #set align(left)
     #set par(first-line-indent: 2em, justify: true, leading: 0.8em)
-    #declaration
+    #text(size: 14pt)[#declaration]
     #v(4fr)
     #grid(
       columns: (1fr, 1fr),
@@ -184,9 +228,9 @@
       align(center)[
         #authors.map(a => [
           #v(5em)
-          #text(weight: "bold")[SIGNATURE] \
-          #text(weight: "bold")[#a.name] \
-          (#a.reg)
+          #text(size: 12pt, weight: "bold")[SIGNATURE] \
+          #text(size: 12pt, weight: "bold")[#a.name] \
+          #text(size: 12pt, weight: "bold")[(#a.reg)]
         ]).join()
       ]
     )
@@ -344,6 +388,10 @@
   // --- Main Content Setup ---
   set page(margin: 1in, numbering: "1")
   counter(page).update(1)
+  
+  // FORCE 1.5 SPACING AND 1CM INDENT FOR ALL PARAGRAPHS
+  // leading: 1em is a clear visual 1.5x gap in Typst 0.11
+  set par(leading: 1.5em, justify: true, first-line-indent: 1cm)
   
   body
 
