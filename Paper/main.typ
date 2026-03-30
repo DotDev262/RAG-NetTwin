@@ -142,7 +142,9 @@ Investigation into network automation has historically followed a progression fr
 
 == Review of Previous Papers
 
-#heading(level: 3, numbering: none)[1. Automation for Network Security Configuration: State of the Art and Research Trends]
+#heading(level: 3, numbering: none)[
+  1. Automation for Network Security Configuration: State of the Art and Research Trends
+]
 In this investigation [1], the authors delineate a critical industry transduction from manual, error-prone security orchestration to automated, intent-driven synthesis mediated by SDN and NFV technologies.
 - *Objective*: Facilitate the automated synthesis of security services to mitigate manual configuration overhead and operational latency.
 - *Technique*: Systematic analytical review of methodologies leveraging formal verification, Integer Linear Programming (ILP), and MaxSMT solvers.
@@ -163,7 +165,9 @@ In [3], the authors propose a comprehensive Intent-Based Network Architecture (I
 - *Results*: Realized near-total accuracy in entity extraction across intent volumes scaling from 5,000 to 40,000.
 - *Research Gaps*: Absence of standardized multi-domain coordination; failure to incorporate OS version-locking for target SDN controllers.
 
-#heading(level: 3, numbering: none)[4. Application of Retrieval-Augmented Generation for Industrial Knowledge Management]
+#heading(level: 3, numbering: none)[
+  4. Application of Retrieval-Augmented Generation for Industrial Knowledge Management
+]
 The study in [4]: confirms that the integration of LLMs with RAG significantly mitigates hallucinations and accelerates technical query resolution.
 - *Objective*: Eradicate LLM hallucinations and optimize response latency for technical inquiries in industrial domains.
 - *Technique*: Hybrid IIKM architecture pairing GPT-3.5/4 with TF-IDF, BM25, and a BAAI cross-encoding reranker.
@@ -219,14 +223,18 @@ In [11], researchers design an end-to-end architecture for intent lifecycle mana
 - *Results*: Validated on 5G testbed; however, translation latency exceeded 2 minutes during concurrent application processing.
 - *Research Gaps*: Lack of autonomous feasibility verification against physical hardware limits; failure to implement OS version-locking.
 
-#heading(level: 3, numbering: none)[12. Intent-Based Service Provisioning and Closed-Loop Automation for Cobot Service Migration]
+#heading(level: 3, numbering: none)[
+  12. Intent-Based Service Provisioning and Closed-Loop Automation for Cobot Service Migration
+]
 This proof-of-concept [12]: validates Zero-Touch Service Management (ZSM) by applying intent automation for cobot migration.
 - *Objective*: Achieve zero-touch service migration across multi-stakeholder domains.
 - *Technique*: IBN-IME framework leveraging NLP interfaces and hierarchical FSMs.
 - *Results*: Demonstrated minimal downtime during autonomous surveillance migrations in laboratory environments.
 - *Research Gaps*: Multi-stakeholder integration without predefined APIs remains difficult; failure to address version-locked OS drift.
 
-#heading(level: 3, numbering: none)[13. Interactive AI With Retrieval-Augmented Generation for Next Generation Networking]
+#heading(level: 3, numbering: none)[
+  13. Interactive AI With Retrieval-Augmented Generation for Next Generation Networking
+]
 The authors in [13]: propose ChatNet, which pairs LLMs with RAG to assist engineers in translating requirements into mathematical models.
 - *Objective*: Facilitate mathematical optimization in networking via multi-turn IAI and RAG.
 - *Technique*: GPT-4 via LangChain, multi-module pipeline (analyzer, planner, calculator), and CoT reasoning.
@@ -247,7 +255,9 @@ In [15], the researchers demonstrate that SLMs can replace large models for data
 - *Results*: Achieved over 88% translation accuracy and reduced token costs by 89.54%.
 - *Research Gaps*: Accuracy degrades significantly without few-shot examples; failure to address versioning for softwarized firmware.
 
-#heading(level: 3, numbering: none)[16. Large Language Models for Networking: Applications, Enabling Techniques, and Challenges]
+#heading(level: 3, numbering: none)[
+  16. Large Language Models for Networking: Applications, Enabling Techniques, and Challenges
+]
 This tutorial [16]: outlines a roadmap for achieving "Network Embodied Intelligence" through LLM adaptation.
 - *Objective*: Provide a comprehensive framework for LLM adaptation via PEFT and LoRA.
 - *Technique*: Analysis of PEFT, LoRA, and advanced prompting strategies including RAG and CoT.
@@ -275,7 +285,9 @@ In [19], researchers developed TeleQnA, a massive open-source benchmark proving 
 - *Results*: GPT-4 achieved 74.91% accuracy, while the incorporation of RAG improved model fidelity by 22.5%.
 - *Research Gaps*: Human subjectivity in dataset selection; failure to address version-locked OS syntax requirements.
 
-#heading(level: 3, numbering: none)[20. Toward Intelligent Intent-Based Network Slicing for IoT Systems: Enabling Technologies]
+#heading(level: 3, numbering: none)[
+  20. Toward Intelligent Intent-Based Network Slicing for IoT Systems: Enabling Technologies
+]
 This survey [20]: maps the convergence of intelligent intent-based slicing for IoT.
 - *Objective*: Define the paradigm for AI-driven resource and data management in IoT slicing.
 - *Technique*: Literature review encompassing MA-DQN, LSTM in NWDAF, and Knowledge Graphs.
@@ -286,29 +298,102 @@ This survey [20]: maps the convergence of intelligent intent-based slicing for I
 #figure(
   table(
     columns: (30pt, 80pt, 130pt, 1fr),
-    table.header(
-      [No], [Authors], [Title], [Key Research Gaps],
-    ),
-    [1], [Boutouchent], [AMANOS: An Intent-Driven Management and Orchestration System], [Fails to address physical hardware Syntax Drift],
+    table.header([No], [Authors], [Title], [Key Research Gaps]),
+    [1],
+    [Boutouchent],
+    [AMANOS: An Intent-Driven Management and Orchestration System],
+    [Fails to address physical hardware Syntax Drift],
+
     [2], [Njah], [An AI-Driven Intent-Based Network Architecture], [Targets SDN policies rather than Native CLI],
-    [3], [Chen], [Application of Retrieval-Augmented Generation for Industrial Knowledge Management], [Generates NL text, not machine-executable code],
-    [4], [Bringhenti], [Automation for Network Security Configuration: State of the Art and Research Trends], [Lacks Syntactic Validator for vendor CLI],
-    [5], [Kerboeuf], [Design Methodology for 6G End-to-End System: Hexa-X-II Perspective], [Ignores Firmware-level Syntax Drift at edge],
-    [6], [Jacobs], [Establishing Trust for Using Natural Language for Intent-Based Networking], [Failure to handle out-of-vocabulary terms and a lack of OS Versioning awareness],
-    [7], [Kou], [GIA: Generative Intent Abstraction], [High computational complexity and a failure to address OS Versioning at the hardware layer],
-    [8], [Wang], [Hierarchical Index Retrieval-Driven Wireless Network Intent Translation], [Failure to address strict OS Versioning and a lack of Deterministic Syntactic Verification],
-    [9], [Su], [Hybrid RAG-Empowered Multimodal LLM for Secure Data Management in IoMT], [Fails to address OS Versioning for IoMT sensors and lacks Syntactic Verification],
-    [10], [Brodimas], [Intent-Based Infrastructure and Service Orchestration Using Agentic-AI], [SLMs are bottlenecked by 8K context limits; failure to address OS Versioning],
-    [11], [Mekrache], [Intent-Based Management of Next-Generation Networks: an LLM-Centric Approach], [Lacks autonomous ML feasibility checks and fails to address OS Versioning for hardware],
-    [12], [Orozco], [Intent-Based Service Provisioning and Closed-Loop Automation for Cobot Migration], [Difficulty integrating AI across diverse TechCos and failure to address OS Versioning],
-    [13], [Zhang], [Interactive AI With Retrieval-Augmented Generation for Next Generation Networking], [Catastrophic context loss when RAG chunk sizes exceed 4000 tokens],
-    [14], [Mehmood], [Knowledge-Driven Intent Life-Cycle Management for Cellular Networks], [RDF triples cannot adapt dynamically to different firmware (failure to address OS Versioning)],
-    [15], [Huang], [Large Language Models for Networking: Applications, Enabling Techniques, and Challenges], [Calculator module suffers from extreme hallucinations; failure to address OS Versioning],
-    [16], [Angi], [LLNet: An Intent-Driven Approach Using a Small Language Model], [Accuracy collapses without Few-Shot prompting; total failure to address OS Versioning],
-    [17], [Hussein], [Privacy-Preserving Intelligent Intent-Based Network Slicing for IoT Systems], [Failure to address OS Versioning for individual sensors and lack of Syntactic Verification],
-    [18], [Alabbasi], [TeleOracle: Fine-Tuned Retrieval-Augmented Generation With Long-Context Support], [Total inability to ingest multimodal data (tables/graphs) and a failure to address OS Versioning],
-    [19], [Maatouk], [TeleQnA: A Benchmark Dataset to Assess Large Language Models], [Human subjectivity in question selection and failure to address OS Versioning],
-    [20], [Haj Hussein], [Toward Intelligent Intent-Based Network Slicing for IoT Systems: Enabling Technologies], [Lack of multi-domain research and failure to address OS Versioning across sensors],
+    [3],
+    [Chen],
+    [Application of Retrieval-Augmented Generation for Industrial Knowledge Management],
+    [Generates NL text, not machine-executable code],
+
+    [4],
+    [Bringhenti],
+    [Automation for Network Security Configuration: State of the Art and Research Trends],
+    [Lacks Syntactic Validator for vendor CLI],
+
+    [5],
+    [Kerboeuf],
+    [Design Methodology for 6G End-to-End System: Hexa-X-II Perspective],
+    [Ignores Firmware-level Syntax Drift at edge],
+
+    [6],
+    [Jacobs],
+    [Establishing Trust for Using Natural Language for Intent-Based Networking],
+    [Failure to handle out-of-vocabulary terms and a lack of OS Versioning awareness],
+
+    [7],
+    [Kou],
+    [GIA: Generative Intent Abstraction],
+    [High computational complexity and a failure to address OS Versioning at the hardware layer],
+
+    [8],
+    [Wang],
+    [Hierarchical Index Retrieval-Driven Wireless Network Intent Translation],
+    [Failure to address strict OS Versioning and a lack of Deterministic Syntactic Verification],
+
+    [9],
+    [Su],
+    [Hybrid RAG-Empowered Multimodal LLM for Secure Data Management in IoMT],
+    [Fails to address OS Versioning for IoMT sensors and lacks Syntactic Verification],
+
+    [10],
+    [Brodimas],
+    [Intent-Based Infrastructure and Service Orchestration Using Agentic-AI],
+    [SLMs are bottlenecked by 8K context limits; failure to address OS Versioning],
+
+    [11],
+    [Mekrache],
+    [Intent-Based Management of Next-Generation Networks: an LLM-Centric Approach],
+    [Lacks autonomous ML feasibility checks and fails to address OS Versioning for hardware],
+
+    [12],
+    [Orozco],
+    [Intent-Based Service Provisioning and Closed-Loop Automation for Cobot Migration],
+    [Difficulty integrating AI across diverse TechCos and failure to address OS Versioning],
+
+    [13],
+    [Zhang],
+    [Interactive AI With Retrieval-Augmented Generation for Next Generation Networking],
+    [Catastrophic context loss when RAG chunk sizes exceed 4000 tokens],
+
+    [14],
+    [Mehmood],
+    [Knowledge-Driven Intent Life-Cycle Management for Cellular Networks],
+    [RDF triples cannot adapt dynamically to different firmware (failure to address OS Versioning)],
+
+    [15],
+    [Huang],
+    [Large Language Models for Networking: Applications, Enabling Techniques, and Challenges],
+    [Calculator module suffers from extreme hallucinations; failure to address OS Versioning],
+
+    [16],
+    [Angi],
+    [LLNet: An Intent-Driven Approach Using a Small Language Model],
+    [Accuracy collapses without Few-Shot prompting; total failure to address OS Versioning],
+
+    [17],
+    [Hussein],
+    [Privacy-Preserving Intelligent Intent-Based Network Slicing for IoT Systems],
+    [Failure to address OS Versioning for individual sensors and lack of Syntactic Verification],
+
+    [18],
+    [Alabbasi],
+    [TeleOracle: Fine-Tuned Retrieval-Augmented Generation With Long-Context Support],
+    [Total inability to ingest multimodal data (tables/graphs) and a failure to address OS Versioning],
+
+    [19],
+    [Maatouk],
+    [TeleQnA: A Benchmark Dataset to Assess Large Language Models],
+    [Human subjectivity in question selection and failure to address OS Versioning],
+
+    [20],
+    [Haj Hussein],
+    [Toward Intelligent Intent-Based Network Slicing for IoT Systems: Enabling Technologies],
+    [Lack of multi-domain research and failure to address OS Versioning across sensors],
   ),
   kind: table,
   caption: [Literature Summary Table],
@@ -367,10 +452,10 @@ To transform unstructured PDF manuals into a machine-readable, retrieval-ready k
 The development and execution environment for the proposed synthesis system is built on a high-performance Linux-based stack to ensure sub-second latency for LLM inference and efficient vector search.
 - *Operating System*: Ubuntu 22.04 LTS (Jammy Jellyfish).
 - *Core Programming Environment*: Python 3.10+ with `uv` for deterministic dependency management.
-- *LLM Infrastructure*: 
-    - *Model*: Llama 3.1 8B Instruct.
-    - *Inference Engine*: Groq Cloud API (LPUs) for high-speed token generation (\<500ms TTFT).
-    - *Orchestration*: LangChain/LangGraph for stateful multi-stage pipelines.
+- *LLM Infrastructure*:
+  - *Model*: Llama 3.1 8B Instruct.
+  - *Inference Engine*: Groq Cloud API (LPUs) for high-speed token generation (\<500ms TTFT).
+  - *Orchestration*: LangChain/LangGraph for stateful multi-stage pipelines.
 - *Vector Database*: ChromaDB (Open Source) for metadata-filtered persistent vector storage.
 - *Embedding Model*: `intfloat/e5-small-v2` (384-dimensional dense vectors), selected after benchmark evaluation showing 72% improvement over baseline models.
 - *Verification Engine*: Batfish (Dockerized) for cross-vendor static configuration analysis.
@@ -414,17 +499,17 @@ The Intent Parser employs a two-stage extraction pipeline. In the first stage, a
 #figure(
   block(fill: luma(95%), inset: 8pt)[
     #text(size: 10pt)[
-    class StructuredIntent(BaseModel):
-    - vendor: Literal["cisco", "juniper"] = "cisco"
-    - os_version: Optional[str] = "17.6"
-    - protocol: Literal["ospf", "bgp", "acl", "vlan", "nat", "dhcp"]
-    - action: Literal["configure", "monitor", "debug"]
-    - network: Optional[str] = None
-    - subnet_mask: Optional[str] = None
-    - area_id: Optional[str] = None
-    - as_number: Optional[int] = None
-    - acl_number: Optional[int] = None
-    - vlan_id: Optional[int] = None
+      class StructuredIntent(BaseModel):
+      - vendor: Literal["cisco", "juniper"] = "cisco"
+      - os_version: Optional[str] = "17.6"
+      - protocol: Literal["ospf", "bgp", "acl", "vlan", "nat", "dhcp"]
+      - action: Literal["configure", "monitor", "debug"]
+      - network: Optional[str] = None
+      - subnet_mask: Optional[str] = None
+      - area_id: Optional[str] = None
+      - as_number: Optional[int] = None
+      - acl_number: Optional[int] = None
+      - vlan_id: Optional[int] = None
     ]
   ],
   caption: [StructuredIntent Pydantic Model Schema],
@@ -451,7 +536,7 @@ To quantify the reliability of the synthesis pipeline, a multi-dimensional metri
 2. *Hallucination Rate (HR)*: The percentage of configuration blocks containing "fabricated" keywords or parameters not found in the source documentation.
 3. *Semantic Faithfulness (SF)*: The degree to which the generated CLI accurately reflects the operator's high-level intent.
 4. *Cognitive Compression Ratio (CCR)*: The ratio of total knowledge base size to the size of the retrieved context presented to the LLM.
-    - Formula: $ "CCR" = ("Total Corpus Tokens") / ("Retrieved Context Tokens") $
+  - Formula: $ "CCR" = ("Total Corpus Tokens") / ("Retrieved Context Tokens") $
 
 == Testing Strategy
 The system underwent rigorous testing across three distinct layers to ensure end-to-end reliability:
@@ -463,9 +548,9 @@ The system underwent rigorous testing across three distinct layers to ensure end
 == Experimental Work and Simulation Environment
 Documentation was split into logical blocks rather than character counts to preserve hierarchy. Our chunking sensitivity analysis confirmed that a "Tiered" approach achieved a 40% lower hallucination rate.
 
-#figure(
-  image("images/figure_chunking_sensitivity.png", width: 80%),
-  caption: [Figure 1: Comparison of different chunking strategies showing that Tiered Hierarchical chunking minimizes LLM hallucinations by preserving context.],
+//#figure(
+image("images/figure_chunking_sensitivity.png", width: 80%),
+caption: [Figure 1: Comparison of different chunking strategies showing that Tiered Hierarchical chunking minimizes LLM hallucinations by preserving context.],
 )
 
 = RESULTS AND DISCUSSIONS <c5>
@@ -485,9 +570,7 @@ The results demonstrate a clear superiority of grounded synthesis over vanilla L
 #figure(
   table(
     columns: (1fr, 1fr, 1fr, 1fr),
-    table.header(
-      [Metric], [Proposed System], [Vanilla LLM (Baseline)], [Improvement],
-    ),
+    table.header([Metric], [Proposed System], [Vanilla LLM (Baseline)], [Improvement]),
     [Syntactic Validity], [87.0%], [64.0%], [+23.0%],
     [Hallucination Rate], [0.0%], [4.3%], [-4.3%],
     [Semantic Faithfulness], [82.6%], [52.2%], [+30.4%],
@@ -497,9 +580,9 @@ The results demonstrate a clear superiority of grounded synthesis over vanilla L
   caption: [Comparative Performance Results],
 )
 
-#figure(
-  image("images/performance_comparison.png", width: 80%),
-  caption: [Figure 3: Comparative analysis across four key reliability metrics. The Proposed System eliminates "Syntactic Fabrication" entirely through version-aware grounding.],
+//#figure(
+image("images/performance_comparison.png", width: 80%),
+caption: [Figure 3: Comparative analysis across four key reliability metrics. The Proposed System eliminates "Syntactic Fabrication" entirely through version-aware grounding.],
 )
 
 === Analysis of Hallucination Reduction
@@ -594,9 +677,7 @@ To validate the statistical significance of observed performance differences, a 
 #figure(
   table(
     columns: (1fr, 1fr, 1fr, 1fr),
-    table.header(
-      [Metric], [t-statistic], [p-value], [Significant],
-    ),
+    table.header([Metric], [t-statistic], [p-value], [Significant]),
     [Syntactic Validity], [8.42], [0.001], [Yes],
     [Hallucination Rate], [5.67], [0.002], [Yes],
     [Semantic Faithfulness], [6.31], [0.001], [Yes],
@@ -614,9 +695,7 @@ A detailed breakdown of the 13% syntactic failures in the proposed system reveal
 #figure(
   table(
     columns: (1fr, 1fr, 1fr),
-    table.header(
-      [Error Type], [Frequency], [Percentage],
-    ),
+    table.header([Error Type], [Frequency], [Percentage]),
     [Context Window Exhaustion], [6], [47%],
     [Multi-Device Coordination], [4], [28%],
     [Advanced Protocol Features], [3], [25%],
@@ -634,9 +713,7 @@ To understand the individual contribution of each system component, an ablation 
 #figure(
   table(
     columns: (2.5in, 50pt, 40pt, 50pt, 45pt),
-    table.header(
-      [Configuration], [SV], [HR], [SF], [CFR],
-    ),
+    table.header([Configuration], [SV], [HR], [SF], [CFR]),
     [Vanilla LLM], [64.0%], [4.3%], [52.2%], [36.0%],
     [RAG (no version-lock)], [71.0%], [2.1%], [61.0%], [29.0%],
     [Version-Lock + RAG (no Batfish)], [78.0%], [0.0%], [74.0%], [22.0%],
@@ -654,9 +731,7 @@ The knowledge base was evaluated for coverage across supported protocols and doc
 #figure(
   table(
     columns: (1fr, 1fr, 1fr),
-    table.header(
-      [Protocol/Feature], [Tests], [Pass Rate],
-    ),
+    table.header([Protocol/Feature], [Tests], [Pass Rate]),
     [Core Routing (BGP, OSPF)], [2], [100%],
     [Security (ACL, NAT)], [2], [100%],
     [Switching (VLAN)], [1], [100%],
@@ -704,9 +779,7 @@ End-to-end processing latency was measured across the evaluation benchmark:
 #figure(
   table(
     columns: (1fr, 1fr, 1fr),
-    table.header(
-      [Stage], [Avg Time], [% of Total],
-    ),
+    table.header([Stage], [Avg Time], [% of Total]),
     [Intent Parsing], [1.2s], [6%],
     [Version-Aware Retrieval], [2.8s], [14%],
     [LLM Synthesis], [15.3s], [76%],
