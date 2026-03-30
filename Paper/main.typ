@@ -30,7 +30,7 @@
   logo: "images/logo.png",
   logo_dept: "images/logo_dept.png",
   abstract: [
-The combination of Large Language Models with Intent-Based Networking systems enables organizations to achieve their operational goals through remote operations. The use of generalist LLMs results in *Syntactic Fabrication* and *Version Pollution* problems because the system combines commands from different operating systems which results in failed configuration attempts. The research introduces a *Version-Aware Retrieval-Augmented Generation (RAG)* architecture that enables accurate CLI generation across different systems which includes Cisco IOS-XE and Juniper JunOS. The system employs *Hierarchical Knowledge Grounding* which restricts LLM generation to vendor-provided documents that filter content through metadata and tie it to specific operating system versions. The system includes a *Syntactic Verification Gate* which uses Batfish static analysis to identify errors that would occur during deployment. The evaluation of multi-vendor intent benchmarks shows that version-locked grounding achieves zero hallucinations (0% vs. 4.3% baseline) and an 87.0% Syntactic Validity rate. The study shows that 17.4% of Critical Failure Rate (CFR) errors remain which include hidden semantic mistakes that pass syntax tests but do not achieve operational objectives. The system creates a *Grounding Audit Trail* which establishes a 49,000:1 cognitive compression ratio that allows human reviewers to spend less time searching through documentation. The research indicates that AI-based synthesis systems cannot operate without human control which leads to the implementation of an *Audit-Ready* framework that improves expert human monitoring.
+    The combination of Large Language Models with Intent-Based Networking systems enables organizations to achieve their operational goals through remote operations. The use of generalist LLMs results in *Syntactic Fabrication* and *Version Pollution* problems because the system combines commands from different operating systems which results in failed configuration attempts. The research introduces a *Version-Aware Retrieval-Augmented Generation (RAG)* architecture that enables accurate CLI generation across different systems which includes Cisco IOS-XE and Juniper JunOS. The system employs *Hierarchical Knowledge Grounding* which restricts LLM generation to vendor-provided documents that filter content through metadata and tie it to specific operating system versions. The system includes a *Syntactic Verification Gate* which uses Batfish static analysis to identify errors that would occur during deployment. The evaluation of multi-vendor intent benchmarks shows that version-locked grounding achieves zero hallucinations (0% vs. 4.3% baseline) and an 87.0% Syntactic Validity rate. The study shows that 17.4% of Critical Failure Rate (CFR) errors remain which include hidden semantic mistakes that pass syntax tests but do not achieve operational objectives. The system creates a *Grounding Audit Trail* which establishes a 49,000:1 cognitive compression ratio that allows human reviewers to spend less time searching through documentation. The research indicates that AI-based synthesis systems cannot operate without human control which leads to the implementation of an *Audit-Ready* framework that improves expert human monitoring.
   ],
   keywords: ("IBN", "LLMs", "RAG", "CLI", "Hallucination", "Batfish", "Verification"),
   acknowledgement: [
@@ -161,13 +161,13 @@ Recognizing the gap between AI-driven resource allocation and secure multi-domai
 
 === Large Language Models and Agentic AI in Network Orchestration
 
-The integration of Large Language Models (LLMs) into IBN has changed policy translation, but rigid template-based methods still struggle to meet new user demands. Kou et al. [12] addressed this issue by developing the Generative Intent Abstraction (GIA) framework, which completely avoids static templates. The main approach uses GPT-4 with enhanced prompting to automatically generate Python code with the NetworkX library, creating flexible intent graphs. Intent negotiation is then framed as a Constrained Subgraph Isomorphism Problem (SIP) using the VF2 algorithm. Tested on a custom Network Intent Dataset sorted by complexity, the GIA framework reduced code hallucinations and achieved an impressive 180% increase in F1-score when handling new intents compared to traditional methods. However, the framework has significant gaps. It considers the physical layer as a generic topology graph and overlooks OS versioning, leading to Version Pollution. Additionally, it does not provide deterministic syntactic checks (like Batfish) to ensure that the generated Python graphs compile into valid legacy CLI, and it lacks clear command-level audit trails. 
+The integration of Large Language Models (LLMs) into IBN has changed policy translation, but rigid template-based methods still struggle to meet new user demands. Kou et al. [12] addressed this issue by developing the Generative Intent Abstraction (GIA) framework, which completely avoids static templates. The main approach uses GPT-4 with enhanced prompting to automatically generate Python code with the NetworkX library, creating flexible intent graphs. Intent negotiation is then framed as a Constrained Subgraph Isomorphism Problem (SIP) using the VF2 algorithm. Tested on a custom Network Intent Dataset sorted by complexity, the GIA framework reduced code hallucinations and achieved an impressive 180% increase in F1-score when handling new intents compared to traditional methods. However, the framework has significant gaps. It considers the physical layer as a generic topology graph and overlooks OS versioning, leading to Version Pollution. Additionally, it does not provide deterministic syntactic checks (like Batfish) to ensure that the generated Python graphs compile into valid legacy CLI, and it lacks clear command-level audit trails.
 
-Managing the entire lifecycle of network intent across different 5G domains is very complex due to the unclear nature of natural language. Mekrache et al. [13] tackled this challenge by suggesting an end-to-end, LLM-focused system to handle multi-domain Cloud/Edge and Radio Access Network (RAN) configurations. The system uses the 34-billion parameter Code Llama model, integrating few-shot learning, human feedback, and MPNet v2 sentence transformers to break down natural language intents and convert them into standardized Infrastructure-Level Intents (ILIs) like Network Service Descriptors (NSDs). Deployed on the EURECOM 5G testbed, the system produced structurally correct JSON files but faced significant latency issues, with end-to-end translation times exceeding two minutes when users requested more than three applications at once. A critical gap in this LLM-centered approach is its failure to address OS versioning for specific RAN hardware, which risks serious Version Pollution. Moreover, the system does not have autonomous deterministic checks (like Batfish), mistakenly assuming that the raw JSON output from the LLM is ready for deployment, and it does not provide reliable, command-level audit trails. 
+Managing the entire lifecycle of network intent across different 5G domains is very complex due to the unclear nature of natural language. Mekrache et al. [13] tackled this challenge by suggesting an end-to-end, LLM-focused system to handle multi-domain Cloud/Edge and Radio Access Network (RAN) configurations. The system uses the 34-billion parameter Code Llama model, integrating few-shot learning, human feedback, and MPNet v2 sentence transformers to break down natural language intents and convert them into standardized Infrastructure-Level Intents (ILIs) like Network Service Descriptors (NSDs). Deployed on the EURECOM 5G testbed, the system produced structurally correct JSON files but faced significant latency issues, with end-to-end translation times exceeding two minutes when users requested more than three applications at once. A critical gap in this LLM-centered approach is its failure to address OS versioning for specific RAN hardware, which risks serious Version Pollution. Moreover, the system does not have autonomous deterministic checks (like Batfish), mistakenly assuming that the raw JSON output from the LLM is ready for deployment, and it does not provide reliable, command-level audit trails.
 
-In 6G environments with multiple stakeholders, coordinating the smooth transition of mobile collaborative robot (cobot) services without disrupting important operations is a major challenge. Orozco et al. [14] tackled this issue by creating a closed-loop automation proof-of-concept that follows ETSI Zero-Touch Network and Service Management standards. The method uses an Intent-Based Network Intent Management Entity (IBN-IME) supported by Natural Language Processing (NLP) interfaces and Hierarchical Finite State Machines (FSM) to control cobot operations through cloud-virtualized ROS nodes. Validated in a physical lab testbed, the setup effectively orchestrated intent instantiations, aiming to minimize service downtime to nearly zero during autonomous 360-degree surveillance video transfers. Nonetheless, this architecture reveals important research gaps. It does not address OS versioning, making it highly prone to Version Pollution when moving containers between edge nodes with different kernels. The system also misses deterministic checks to validate the NLP-translated intents structurally and does not create command-level audit trails to counteract potential AI hallucinations. 
+In 6G environments with multiple stakeholders, coordinating the smooth transition of mobile collaborative robot (cobot) services without disrupting important operations is a major challenge. Orozco et al. [14] tackled this issue by creating a closed-loop automation proof-of-concept that follows ETSI Zero-Touch Network and Service Management standards. The method uses an Intent-Based Network Intent Management Entity (IBN-IME) supported by Natural Language Processing (NLP) interfaces and Hierarchical Finite State Machines (FSM) to control cobot operations through cloud-virtualized ROS nodes. Validated in a physical lab testbed, the setup effectively orchestrated intent instantiations, aiming to minimize service downtime to nearly zero during autonomous 360-degree surveillance video transfers. Nonetheless, this architecture reveals important research gaps. It does not address OS versioning, making it highly prone to Version Pollution when moving containers between edge nodes with different kernels. The system also misses deterministic checks to validate the NLP-translated intents structurally and does not create command-level audit trails to counteract potential AI hallucinations.
 
-Routing every intent through large proprietary LLMs incurs high operational costs, delays, and energy use in data-plane network programming. Angi et al. [15] tackled this sustainability issue by introducing LLNet, which uses very efficient Small Language Models (SLMs) to manage intent translation locally. The architecture leverages the 3.8-billion parameter Phi-3-mini SLM, enhanced with few-shot prompting, to translate natural language intents into intermediate JSON structures. A deterministic Network Manager then compiles these into P4, OpenFlow, and eBPF codes. Tested on a synthetic dataset of 30,000 JSON networking intents using the Damerau-Levenshtein edit distance metric, the SLM achieved over 88% translation accuracy while cutting operational API and token costs by 89.54% compared to larger models. Despite these benefits, LLNet has serious research gaps. It assumes static application programming interfaces and does not address OS versioning or firmware drift (Version Pollution). Additionally, the pipeline ends at JSON generation without including deterministic verification (like Batfish) to validate the final compiled legacy CLI, and it lacks clear, command-level audit trails. 
+Routing every intent through large proprietary LLMs incurs high operational costs, delays, and energy use in data-plane network programming. Angi et al. [15] tackled this sustainability issue by introducing LLNet, which uses very efficient Small Language Models (SLMs) to manage intent translation locally. The architecture leverages the 3.8-billion parameter Phi-3-mini SLM, enhanced with few-shot prompting, to translate natural language intents into intermediate JSON structures. A deterministic Network Manager then compiles these into P4, OpenFlow, and eBPF codes. Tested on a synthetic dataset of 30,000 JSON networking intents using the Damerau-Levenshtein edit distance metric, the SLM achieved over 88% translation accuracy while cutting operational API and token costs by 89.54% compared to larger models. Despite these benefits, LLNet has serious research gaps. It assumes static application programming interfaces and does not address OS versioning or firmware drift (Version Pollution). Additionally, the pipeline ends at JSON generation without including deterministic verification (like Batfish) to validate the final compiled legacy CLI, and it lacks clear, command-level audit trails.
 
 Foundation models often struggle with the strict syntax indentation needed for generating valid Infrastructure-as-Code (IaC) files, creating a significant hurdle to autonomous orchestration. Brodimas et al. [18] addressed this challenge by developing a distributed multi-agent system based on the Model Context Protocol (MCP) and LangChain. To lower operational costs, the researchers fine-tuned open-source Small Language Models (SLMs)—specifically Mistral-7B and Qwen3-0.6B—using Quantized Low-Rank Adaptation (QLoRA) to generate accurate Kubernetes kubectl commands. Evaluated against a dataset of 35,000 configuration examples, the fine-tuned Mistral model achieved remarkable code generation similarity scores near 90% for BLEU and 80% for METEOR, successfully matching proprietary model performance. However, local SLMs faced abrupt bottlenecks at their 8K token context limit. Crucially, the framework has obvious research gaps: it ignores OS versioning for evolving Kubernetes APIs, risking Version Pollution. Additionally, it lacks strict deterministic checks to formally validate the generated YAML files before deployment and depends on opaque routing without offering solid, command-level human audit trails.
 
@@ -198,28 +198,167 @@ Prior to recent benchmarking efforts, the telecommunications field lacked a stan
     table(
       columns: (20pt, 60pt, 1fr, 60pt, 60pt, 1fr, 1fr),
       table.header(
-        [No], [Authors and Year], [Paper Title], [Journal Name], [Methods Used], [Key Findings], [Research Gaps],
+        [No], [Authors and Year], [Paper Title], [Journal Name], [Methods Used], [Key Findings], [Research Gaps]
       ),
-      [1], [Bringhenti et al. (2024)], [Automation for Network Security Configuration], [ACM Computing Surveys], [Formal verification, MaxSMT, ILP optimization.], [Categorizes formal policy translation to NSF rules.], [Lacks a Syntactic Validator for vendor-specific CLI tokens.],
-      [2], [Boutouchent et al. (2024)], [AMANOS: An Intent-Driven Management and Orchestration System], [IEEE Communications Magazine], [NLU, Ontology-based models, Machine Learning.], [Proposes closed-loop orchestration for 5G Core.], [Fails to address physical hardware Syntax Drift.],
-      [3], [Njah et al. (2024)], [An AI-Driven Intent-Based Network Architecture], [IEEE Communications Magazine], [LLM fine-tuning (BERT), NER, MADRL.], [BERT-based intent refinement and activation logic.], [Targets SDN policies rather than Native CLI synthesis.],
-      [4], [Kerboeuf et al. (2024)], [Design Methodology for 6G End-to-End System], [IEEE Open Journal of the Communications Society], [Architectural blueprinting, E2E system modeling.], [Outlines blueprint for 6G intent-driven automation.], [Ignores Firmware-level Syntax Drift at the network edge.],
-      [5], [Haj Hussein et al. (2025)], [Intelligent Intent-Based Network Slicing for IoT Systems], [IEEE Transactions on Network and Service Management], [Literature survey, taxonomy definition.], [Vision for IoT slice management and orchestration.], [Overlooks the Syntactic Synthesis for multi-vendor devices.],
-      [6], [Chen et al. (2025)], [Application of RAG for Industrial Knowledge Management], [Computer Standards & Interfaces], [RAG, BM25, Cross-encoder reranker, GPT-4.], [Metadata-aware RAG for industrial technical manuals.], [Generates NL text, not machine-executable code.],
-      [7], [Wang et al. (2025)], [Hierarchical Index Retrieval RAG-Driven Intent Translation], [IEEE Transactions on Mobile Computing], [RAG with HIR, Mixture of Experts (MoE).], [Combined RAG with hardware manuals for policy.], [Lacks a Deterministic Syntactic Validator for tokens.],
-      [8], [Su et al. (2024)], [Hybrid RAG-Empowered Multimodal LLM for Secure Data Management], [IEEE Internet of Things Journal], [Hybrid Multimodal RAG, Cross-chain technology.], [Secure medical IoT data management via RAG.], [Addresses data privacy, not Intent-to-CLI translation.],
-      [9], [Zhang et al. (2024)], [Interactive AI With RAG for Next Generation Networking], [IEEE Network], [Interactive AI, RAG, Chain-of-Thought (CoT).], [RAG-assisted AI for network optimization problems.], [Assistant for math; generates no structural CLI configs.],
-      [10], [Alabbasi et al. (2025)], [TeleOracle: Fine-Tuned RAG With Long-Context Support], [IEEE Internet of Things Journal], [RAG with SLM (Phi-2), LoRA, SelfExtend.], [SLM-based RAG aligned to 3GPP for technical Q&A.], [Strictly for Q&A; lacks a Synthesis Engine.],
-      [11], [Jacobs et al. (2025)], [Establishing Trust for Using Natural Language for Intent-Based Networking], [IEEE Transactions on Network and Service Management], [NER (Bi-LSTM), Ambiguity Detection, Nile Policy.], [LUMI pipeline for NL-to-Policy via Nile.], [Compiles to intermediate languages rather than Native CLI.],
-      [12], [Kou et al. (2025)], [GIA: LLM-Enabled Generative Intent Abstraction], [IEEE Transactions on Cognitive Communications and Networking], [LLM code generation, Subgraph isomorphism.], [LLM-enabled structural policy graphs for networks.], [Lacks Version-Aware Grounding for specific tokens.],
-      [13], [Mekrache et al. (2024)], [Intent-Based Management of Next-Generation Networks], [IEEE Network], [LLM (CodeLlama), Few-Shot Learning, RAG.], [NL-to-JSON translation for 5G descriptors.], [Targets JSON objects; provides no Last-Mile syntax.],
-      [14], [Orozco et al. (2025)], [Intent-Based Service Provisioning for Cobots], [IEEE Transactions on Network and Service Management], [Intent decomposition, Hierarchical state machines.], [Business intent to-3GPP JSON object translation.], [Stops at JSON level; fails to account for Syntax Drift.],
-      [15], [Angi et al. (2025)], [LLNet: Instructing Softwarized Devices Using SLM], [IEEE Transactions on Network and Service Management], [Small Language Models, QLoRA, Few-shot.], [SLM-based approach for instructing programmable devices.], [Targets abstract APIs; ignores CLI Syntactic Volatility.],
-      [16], [Mehmood et al. (2025)], [Knowledge-Driven Intent Life-Cycle Management], [IEEE Transactions on Network and Service Management], [Knowledge Graph Embedding (KG2E), NER.], [KGs for metadata-aware intent life-cycle.], [Lacks Token-level granularity for CLI synthesis.],
-      [17], [Maatouk et al. (2025)], [TeleQnA: A Benchmark Dataset to Assess LLMs Telecommunications Knowledge], [IEEE Network], [Automated QnA generation, Text embeddings, K-Means.], [Established a 10,000-question benchmark for LLM telecom proficiency.], [Focuses on evaluation; lacks a Synthesis Engine for 'Last-Mile' CLI execution.],
-      [18], [Brodimas et al. (2025)], [Intent-Based Infrastructure Orchestration Using Agentic-AI], [IEEE Open Journal of the Communications Society], [Multi-Agent System, Model Context Protocol.], [Multi-agent framework for Infrastructure-as-Code.], [Generates K8s syntax vs. Legacy Physical CLI.],
-      [19], [Haj Hussein et al. (2025)], [Privacy-Preserving Intelligent Intent-Based Slicing], [IEEE Internet of Things Journal], [Deep Q-Networks (DQNs), PPNO.], [Privacy-preserving slicing for cross-domain IoT.], [Lacks Low-level CLI Accuracy for edge gateways.],
-      [20], [Huang et al. (2024)], [LLMs for Networking: Applications & Challenges], [IEEE Network], [Domain-adapted fine-tuning, RAG, CoT.], [Surveyed LLM techniques for capacity planning.], [Lacks a Syntactic Validator for safe hardware execution.],
+      [1],
+      [Bringhenti et al. (2024)],
+      [Automation for Network Security Configuration],
+      [ACM Computing Surveys],
+      [Formal verification, MaxSMT, ILP optimization.],
+      [Categorizes formal policy translation to NSF rules.],
+      [Lacks a Syntactic Validator for vendor-specific CLI tokens.],
+
+      [2],
+      [Boutouchent et al. (2024)],
+      [AMANOS: An Intent-Driven Management and Orchestration System],
+      [IEEE Communications Magazine],
+      [NLU, Ontology-based models, Machine Learning.],
+      [Proposes closed-loop orchestration for 5G Core.],
+      [Fails to address physical hardware Syntax Drift.],
+
+      [3],
+      [Njah et al. (2024)],
+      [An AI-Driven Intent-Based Network Architecture],
+      [IEEE Communications Magazine],
+      [LLM fine-tuning (BERT), NER, MADRL.],
+      [BERT-based intent refinement and activation logic.],
+      [Targets SDN policies rather than Native CLI synthesis.],
+
+      [4],
+      [Kerboeuf et al. (2024)],
+      [Design Methodology for 6G End-to-End System],
+      [IEEE Open Journal of the Communications Society],
+      [Architectural blueprinting, E2E system modeling.],
+      [Outlines blueprint for 6G intent-driven automation.],
+      [Ignores Firmware-level Syntax Drift at the network edge.],
+
+      [5],
+      [Haj Hussein et al. (2025)],
+      [Intelligent Intent-Based Network Slicing for IoT Systems],
+      [IEEE Transactions on Network and Service Management],
+      [Literature survey, taxonomy definition.],
+      [Vision for IoT slice management and orchestration.],
+      [Overlooks the Syntactic Synthesis for multi-vendor devices.],
+
+      [6],
+      [Chen et al. (2025)],
+      [Application of RAG for Industrial Knowledge Management],
+      [Computer Standards & Interfaces],
+      [RAG, BM25, Cross-encoder reranker, GPT-4.],
+      [Metadata-aware RAG for industrial technical manuals.],
+      [Generates NL text, not machine-executable code.],
+
+      [7],
+      [Wang et al. (2025)],
+      [Hierarchical Index Retrieval RAG-Driven Intent Translation],
+      [IEEE Transactions on Mobile Computing],
+      [RAG with HIR, Mixture of Experts (MoE).],
+      [Combined RAG with hardware manuals for policy.],
+      [Lacks a Deterministic Syntactic Validator for tokens.],
+
+      [8],
+      [Su et al. (2024)],
+      [Hybrid RAG-Empowered Multimodal LLM for Secure Data Management],
+      [IEEE Internet of Things Journal],
+      [Hybrid Multimodal RAG, Cross-chain technology.],
+      [Secure medical IoT data management via RAG.],
+      [Addresses data privacy, not Intent-to-CLI translation.],
+
+      [9],
+      [Zhang et al. (2024)],
+      [Interactive AI With RAG for Next Generation Networking],
+      [IEEE Network],
+      [Interactive AI, RAG, Chain-of-Thought (CoT).],
+      [RAG-assisted AI for network optimization problems.],
+      [Assistant for math; generates no structural CLI configs.],
+
+      [10],
+      [Alabbasi et al. (2025)],
+      [TeleOracle: Fine-Tuned RAG With Long-Context Support],
+      [IEEE Internet of Things Journal],
+      [RAG with SLM (Phi-2), LoRA, SelfExtend.],
+      [SLM-based RAG aligned to 3GPP for technical Q&A.],
+      [Strictly for Q&A; lacks a Synthesis Engine.],
+
+      [11],
+      [Jacobs et al. (2025)],
+      [Establishing Trust for Using Natural Language for Intent-Based Networking],
+      [IEEE Transactions on Network and Service Management],
+      [NER (Bi-LSTM), Ambiguity Detection, Nile Policy.],
+      [LUMI pipeline for NL-to-Policy via Nile.],
+      [Compiles to intermediate languages rather than Native CLI.],
+
+      [12],
+      [Kou et al. (2025)],
+      [GIA: LLM-Enabled Generative Intent Abstraction],
+      [IEEE Transactions on Cognitive Communications and Networking],
+      [LLM code generation, Subgraph isomorphism.],
+      [LLM-enabled structural policy graphs for networks.],
+      [Lacks Version-Aware Grounding for specific tokens.],
+
+      [13],
+      [Mekrache et al. (2024)],
+      [Intent-Based Management of Next-Generation Networks],
+      [IEEE Network],
+      [LLM (CodeLlama), Few-Shot Learning, RAG.],
+      [NL-to-JSON translation for 5G descriptors.],
+      [Targets JSON objects; provides no Last-Mile syntax.],
+
+      [14],
+      [Orozco et al. (2025)],
+      [Intent-Based Service Provisioning for Cobots],
+      [IEEE Transactions on Network and Service Management],
+      [Intent decomposition, Hierarchical state machines.],
+      [Business intent to-3GPP JSON object translation.],
+      [Stops at JSON level; fails to account for Syntax Drift.],
+
+      [15],
+      [Angi et al. (2025)],
+      [LLNet: Instructing Softwarized Devices Using SLM],
+      [IEEE Transactions on Network and Service Management],
+      [Small Language Models, QLoRA, Few-shot.],
+      [SLM-based approach for instructing programmable devices.],
+      [Targets abstract APIs; ignores CLI Syntactic Volatility.],
+
+      [16],
+      [Mehmood et al. (2025)],
+      [Knowledge-Driven Intent Life-Cycle Management],
+      [IEEE Transactions on Network and Service Management],
+      [Knowledge Graph Embedding (KG2E), NER.],
+      [KGs for metadata-aware intent life-cycle.],
+      [Lacks Token-level granularity for CLI synthesis.],
+
+      [17],
+      [Maatouk et al. (2025)],
+      [TeleQnA: A Benchmark Dataset to Assess LLMs Telecommunications Knowledge],
+      [IEEE Network],
+      [Automated QnA generation, Text embeddings, K-Means.],
+      [Established a 10,000-question benchmark for LLM telecom proficiency.],
+      [Focuses on evaluation; lacks a Synthesis Engine for 'Last-Mile' CLI execution.],
+
+      [18],
+      [Brodimas et al. (2025)],
+      [Intent-Based Infrastructure Orchestration Using Agentic-AI],
+      [IEEE Open Journal of the Communications Society],
+      [Multi-Agent System, Model Context Protocol.],
+      [Multi-agent framework for Infrastructure-as-Code.],
+      [Generates K8s syntax vs. Legacy Physical CLI.],
+
+      [19],
+      [Haj Hussein et al. (2025)],
+      [Privacy-Preserving Intelligent Intent-Based Slicing],
+      [IEEE Internet of Things Journal],
+      [Deep Q-Networks (DQNs), PPNO.],
+      [Privacy-preserving slicing for cross-domain IoT.],
+      [Lacks Low-level CLI Accuracy for edge gateways.],
+
+      [20],
+      [Huang et al. (2024)],
+      [LLMs for Networking: Applications & Challenges],
+      [IEEE Network],
+      [Domain-adapted fine-tuning, RAG, CoT.],
+      [Surveyed LLM techniques for capacity planning.],
+      [Lacks a Syntactic Validator for safe hardware execution.],
     ),
     kind: table,
     caption: [Literature Summary Table],
@@ -292,9 +431,9 @@ Huang et al. [20] present a roadmap to create a Network Embodied Intelligence wh
 
 
 == Synthesis of Technical Impediments in Current Paradigms
-An overall summary of the 20 papers reviewed shows that there is an underlying and systematic reliability crisis that hampers the implementation of Intent-Based Networking (IBN) and Large Language Model (LLM) orchestration into physical network systems that are scalable to production scale. The three major technical challenges exist across the whole range of studies, including Small Language Model (SLM) optimization and Knowledge Graph Embedding (KGE) to multi-agent Agentic-AI systems and multi-stage Retrieval-Augmented Generation (RAG). 
+An overall summary of the 20 papers reviewed shows that there is an underlying and systematic reliability crisis that hampers the implementation of Intent-Based Networking (IBN) and Large Language Model (LLM) orchestration into physical network systems that are scalable to production scale. The three major technical challenges exist across the whole range of studies, including Small Language Model (SLM) optimization and Knowledge Graph Embedding (KGE) to multi-agent Agentic-AI systems and multi-stage Retrieval-Augmented Generation (RAG).
 
-First, the current paradigms systematically do not consider the issue of OS versioning, with physical infrastructure being treated as being generic and static topologies, instead of dynamically reconfigured nodes with moving firmware boundaries. Such oversight is bound to ensure Version Pollution where the LLM is most likely to confound commands and parameters between incompatible hardware generations or even deformed APIs, causing disastrous deployment. Second, there is a severe paucity of deterministic syntactic checking in the existing literature. Using pure probabilistic, generative, nature of the LLM or the opaque outputs of Deep Reinforcement Learning agent, at least, these systems seek to stream unverified and hallucination-prone data structures directly to the control plane. They are critically deficient in mathematical, hard-gated syntax validation systems, including Batfish, which could be used to check the structural integrity and network safety of legacy CLI, before running it. Lastly, the surveyed frameworks share the commonality of lacking in the ability to offer grounding at a command level, as well as immutable and human audit trails, instead, they depend on black box translations of generating configuration mistakes by operators. 
+First, the current paradigms systematically do not consider the issue of OS versioning, with physical infrastructure being treated as being generic and static topologies, instead of dynamically reconfigured nodes with moving firmware boundaries. Such oversight is bound to ensure Version Pollution where the LLM is most likely to confound commands and parameters between incompatible hardware generations or even deformed APIs, causing disastrous deployment. Second, there is a severe paucity of deterministic syntactic checking in the existing literature. Using pure probabilistic, generative, nature of the LLM or the opaque outputs of Deep Reinforcement Learning agent, at least, these systems seek to stream unverified and hallucination-prone data structures directly to the control plane. They are critically deficient in mathematical, hard-gated syntax validation systems, including Batfish, which could be used to check the structural integrity and network safety of legacy CLI, before running it. Lastly, the surveyed frameworks share the commonality of lacking in the ability to offer grounding at a command level, as well as immutable and human audit trails, instead, they depend on black box translations of generating configuration mistakes by operators.
 
 A new approach centered on a gradual replacement of purely probabilistic LLM generation with a Version-Aware RAG with Deterministic Syntactic Gating would be the immediate response to this reliability crisis in physical network orchestration. This is a method of direct countermeasures to Version Pollution by only allowing context retrieval of the specific OS firmware of the target machine, and at the same time, ensures absolute operational safety with strict, Batfish-driven deterministic validation and clear command-level auditability.
 
@@ -332,20 +471,20 @@ To transform unstructured PDF manuals into a machine-readable, retrieval-ready k
 = SYSTEM DESIGN AND EXPERIMENTAL WORK <c4>
 
 == Software Requirements
-The development and execution environment for the proposed synthesis system is built on a high-performance Linux-based stack to ensure sub-second latency for LLM inference and efficient vector search.
+A high-performance Linux-based stack is used to provide the environment in which the proposed synthesis system is developed and executed in order to support sub-second latency of the LLM inference and efficient search of vectors.
 - *Operating System*: Ubuntu 22.04 LTS (Jammy Jellyfish).
 - *Core Programming Environment*: Python 3.10+ with `uv` for deterministic dependency management.
-- *LLM Infrastructure*: 
-    - *Model*: Llama 3.1 8B Instruct.
-    - *Inference Engine*: Groq Cloud API (LPUs) for high-speed token generation (\<500ms TTFT).
-    - *Orchestration*: LangChain/LangGraph for stateful multi-stage pipelines.
+- *LLM Infrastructure*:
+  - *Model*: Llama 3.1 8B Instruct.
+  - *Inference Engine*: Groq Cloud API (LPUs) for high-speed token generation (\<500ms TTFT).
+  - *Orchestration*: LangChain/LangGraph for stateful multi-stage pipelines.
 - *Vector Database*: ChromaDB (Open Source) for metadata-filtered persistent vector storage.
 - *Embedding Model*: `intfloat/e5-small-v2` (384-dimensional dense vectors), selected after benchmark evaluation showing 72% improvement over baseline models.
 - *Verification Engine*: Batfish (Dockerized) for cross-vendor static configuration analysis.
 - *Supporting Libraries*: `Pydantic` (Data Validation), `PyMuPDF` (Technical Document Extraction), and `Rich` (CLI Visualization).
 
 == System Architecture Overview
-The proposed system follows a modular, pipeline-based design that ensures each stage of the synthesis process is verifiable and audit-ready.
+The proposed system will be a pipeline system including modules that will allow verifying and audit-ing each stage of the synthesis process.
 
 #figure(
   image("images/architecture_diagram.png"),
@@ -367,9 +506,9 @@ The synthesis core utilizes the *Llama 3.1 (8B)* model via Groq's LPU infrastruc
 == Stage 4: Batfish Verification Gate
 The system utilizes Batfish to build a vendor-neutral logical model of the configuration. This is a crucial safety layer because LLMs occasionally make technical parameter errors that appear syntactically correct but violate vendor-specific constraints. Batfish parses CLI tokens against the vendor's actual grammar rules, validating:
 - Command syntax validity
-- Hierarchical configuration structure
-- Protocol parameter consistency (e.g., OSPF area ID format, BGP AS path validity)
-- Interface naming conventions
+- Hierarchical organization structure.
+- Consistency of protocol parameters (e.g. format of OSPF area ID, BGP AS path format)
+- Naming conventions Interface naming.
 
 == Intent Parser Implementation
 The Intent Parser employs a two-stage extraction pipeline. In the first stage, a Pydantic-based schema defines the expected output structure with strict type constraints:
@@ -379,57 +518,58 @@ The Intent Parser employs a two-stage extraction pipeline. In the first stage, a
     #block(fill: luma(95%), inset: 8pt, width: 70%)[
       #set align(left)
       #text(size: 10pt)[
-      class StructuredIntent(BaseModel):\
-      #h(1em) vendor: Literal["cisco", "juniper"] = "cisco"\
-      #h(1em) os_version: Optional[str] = "17.6"\
-      #h(1em) protocol: Literal["ospf", "bgp", "acl", "vlan", "nat", "dhcp"]\
-      #h(1em) action: Literal["configure", "monitor", "debug"]\
-      #h(1em) network: Optional[str] = None\
-      #h(1em) subnet_mask: Optional[str] = None\
-      #h(1em) area_id: Optional[str] = None\
-      #h(1em) as_number: Optional[int] = None\
-      #h(1em) acl_number: Optional[int] = None\
-      #h(1em) vlan_id: Optional[int] = None
+        class StructuredIntent(BaseModel):\
+        #h(1em) vendor: Literal["cisco", "juniper"] = "cisco"\
+        #h(1em) os_version: Optional[str] = "17.6"\
+        #h(1em) protocol: Literal["ospf", "bgp", "acl", "vlan", "nat", "dhcp"]\
+        #h(1em) action: Literal["configure", "monitor", "debug"]\
+        #h(1em) network: Optional[str] = None\
+        #h(1em) subnet_mask: Optional[str] = None\
+        #h(1em) area_id: Optional[str] = None\
+        #h(1em) as_number: Optional[int] = None\
+        #h(1em) acl_number: Optional[int] = None\
+        #h(1em) vlan_id: Optional[int] = None
       ]
     ]
   ],
   caption: [StructuredIntent Pydantic Model Schema],
 )
 
-The second stage utilizes few-shot prompting to guide the LLM in populating this schema. The parser employs validation rules including: (1) required field enforcement—if any mandatory field is missing, the parser requests clarification before proceeding, (2) type coercion—converting string inputs to appropriate types (e.g., "area 0" to "0"), (3) default values—applying sensible defaults for unspecified optional parameters (e.g., default Cisco IOS-XE 17.6 if no version specified), and (4) ambiguity detection—flagging intents that could have multiple interpretations for human clarification.
+
+The latter stage involves the use of few-shot prompting to cue the LLM when filling out this schema. Validation rules used by the parser include: (1) required field enforcement: that is, any missing mandatory field will be converted into a clarification request (2) type coercion: that is, string inputs can be converted to suitable types (e.g. area 0 to 0) (3) default values: that is, ambiguous optional parameters will be flagged with a request to clarify the intended meaning (4) ambiguity detection: that is, the the intents that may be ambiguous should be identified so that the human can be asked to clarify the intended meaning.
 
 == Retrieval Algorithm Implementation
 The retrieval system implements a three-tier fallback strategy to ensure robustness:
 
-*Tier 1 - Vendor + Version Filtered Retrieval*: The initial query applies Boolean metadata filters for both vendor and exact OS version. This provides the strictest filtering with zero cross-version leakage.
+*Tier 1 - Vendor + Version Filtered Retrieval*: The first query includes both vendor and exact OS version Boolean metadata filters. This is the strictest and zero cross-version leakage filtering.
 
-*Tier 2 - Vendor Only Retrieval*: If Tier 1 returns fewer than 3 chunks, the system relaxes the version constraint and queries with vendor filter only. Retrieved chunks are then re-ranked by version similarity to the target.
+*Tier 2 - Vendor Only Retrieval*: In case Tier 1 does not find 3 or more chunks, the version constraint is removed and only queries are made using vendor filter. The retrieved chunks are also re-ranked on the similarity of the version to the target.
 
-*Tier 3 - Unfiltered Retrieval*: As a final fallback, the system retrieves from the entire knowledge base without metadata constraints. Retrieved results are annotated with their version metadata for post-hoc filtering.
+*Tier 3 - Unfiltered Retrieval*:  The last fallback level is a system that accessed the knowledge base as a whole and was not restricted by metadata. Annotated results are version metadata that is used to filter the retrieved results post-hoc.
 
-The embedding model `intfloat/e5-small-v2` was selected after benchmarking three candidates. Evaluation showed average retrieval similarity scores of 0.84 for e5-small-v2 compared to 0.71 for bge-small-en-v1.5 and 0.49 for all-MiniLM-L6-v2, representing a 72% improvement in retrieval relevance.
+`intfloat/e5-small-v2` was chosen in the process of benchmarking 3 candidates. Performance did indicate a greater e5-small-v2 retrieval similarity score (0.84) than bge-small-en-v1.5 (0.71) and all-MiniLM-L6-v2 (0.49) (a 72% higher retrieval relevance score).
 
-Configurations that fail Batfish validation are flagged for human review, while passing configurations proceed to the Audit Trail generation. This deterministic gating provides a mathematical guarantee of syntactic soundness before the configuration reaches production hardware.
+Configurations that are invalid in Batfish are marked to be processed by humans, and successful configurations are sent to the Audit Trail generation. The deterministic gating gives a syntactic soundness guarantee mathematically, prior to the execution of the configuration upon production hardware.
 
 == Evaluation Metrics
-To quantify the reliability of the synthesis pipeline, a multi-dimensional metric framework is established:
-1. *Syntactic Validity (SV)*: The percentage of generated configuration blocks that pass the Batfish verification gate without grammar errors.
-2. *Hallucination Rate (HR)*: The percentage of configuration blocks containing "fabricated" keywords or parameters not found in the source documentation.
-3. *Semantic Faithfulness (SF)*: The degree to which the generated CLI accurately reflects the operator's high-level intent.
-4. *Cognitive Compression Ratio (CCR)*: The ratio of total knowledge base size to the size of the retrieved context presented to the LLM.
-    #align(center)[
-      $ "CCR" = ("Total Corpus Tokens") / ("Retrieved Context Tokens") $
-    ]
+A multi-dimensional and framework of metrics is formulated to determine how reliable the synthesis pipeline is:
+1. *Syntactic Validity (SV)*: This is a summary of the percentage of generated configuration blocks that the Batfish verification gate processeth without grammar errors.
+2. *Hallucination Rate (HR)*: The composition of configuration blocks that have the keywords or parameters that have been fabricated and not appearing in the source documentation (as a percentage).
+3. *Semantic Faithfulness (SF)*: The extent to which the structural intent of the operator is reproduced by the generated CLI.
+4. *Cognitive Compression Ratio (CCR)*: This ratio of overall size of knowledge base to the size of the temporary context shown to the LLM.
+  #align(center)[
+    $ "CCR" = ("Total Corpus Tokens") / ("Retrieved Context Tokens") $
+  ]
 
 == Testing Strategy
-The system underwent rigorous testing across three distinct layers to ensure end-to-end reliability:
-- *Unit Testing (Pipeline Components)*: Individual tests for the `cli_chunker` regex patterns, Pydantic model validation, and ChromaDB retrieval accuracy.
-- *Syntactic Stress Testing*: Subjecting the synthesis engine to increasingly complex multi-vendor intents and measuring the Batfish "Pass" rate.
-- *Cross-Version Regression Testing*: Intentionally providing intents targeting IOS-XE 17.6 while attempting to force the retrieval of IOS 15.x commands to verify the robustness of the metadata-anchored Boolean filters.
-- *Human-in-the-Loop (HITL) Validation*: Comparing the system-generated "Audit Trail" against manual searches by network experts to verify the accuracy of the grounding citations.
+The system was tested intensively at three separate layers to make sure that it is end to end reliable:
+- *Unit Testing (Pipeline Components)*: Unit tests of the cli channel generators (`cli_chunker` regular expressions), Pydantic model validation and ChromaDB recovery performance.
+- *Syntactic Stress Testing*: Feding the synthesis engine more and more complex multi-vendor intents and recording the Batfish "Pass" rate.
+- *Cross-Version Regression Testing*: Sprinkling intents using the IOS-XE version number 17.6 but trying to force nodes to retrieve the IOS 15.x commands to test the resilience of the metadata-based Boolean filters.
+- *Human-in-the-Loop (HITL) Validation*: Comparing the generated Audit Trails provided by the system with manual extraction of the information which explains the grounding paths taken by network professionals to confirm that the grounding citations are correct.
 
 == Experimental Work and Simulation Environment
-Documentation was split into logical blocks rather than character counts to preserve hierarchy. Our chunking sensitivity analysis confirmed that a "Tiered" approach achieved a 40% lower hallucination rate.
+Documents were divided into logical frequencies instead of the number of characters in order to maintain a hierarchy. In our chunking sensitivity analysis, Tiered approach was found to have a hallucination rate reduction of 40 percent.
 
 #figure(
   image("images/figure_chunking_sensitivity.png", width: 80%),
@@ -439,23 +579,22 @@ Documentation was split into logical blocks rather than character counts to pres
 = RESULTS AND DISCUSSIONS <c5>
 
 == Performance Metrics
-- *Syntactic Validity (SV)*: Percentage of generated configurations that pass Batfish static analysis without syntax errors.
-- *Hallucination Rate (HR)*: Percentage of generated commands containing fabricated keywords or parameters not present in the source documentation.
-- *Semantic Faithfulness (SF)*: Degree to which the generated CLI accurately reflects the operator's high-level intent, measured through parameter extraction accuracy.
-- *Critical Failure Rate (CFR)*: Percentage of configurations that pass syntactic validation but fail to achieve the intended operational goal (silent semantic errors).
+- *Syntactic Validity (SV)*: Share of generated configurations that do not require syntax errors in Batfish static analysis.
+- *Hallucination Rate (HR)*:
+Fraction of generated commands which include fabricated keywords or parameters which are not in the source.
+- *Semantic Faithfulness (SF)*: To what extent the produced CLI is able to capture the high-level intent of the operator as indicated by the accuracy of parameter extraction.
+- *Critical Failure Rate (CFR)*: Proportion of the configurations which go through syntactic checks but fail to achieve the desired operational objective ( silent semantic errors).
 
 == Experimental Setup
-The evaluation was conducted on a benchmark of 23 network configuration intents spanning multiple vendor platforms and protocols. Each intent was processed through both the baseline (vanilla LLM without RAG) and the proposed Version-Aware RAG pipeline. The baseline utilized the same Llama 3.1 8B model but without retrieval augmentation or version filtering, simulating a typical unconstrained LLM deployment. All generated configurations were validated using Batfish static analysis, and hallucination detection was performed through citation verification against the knowledge base.
+The test was done on a benchmark of 23 network configuration intents across a variety of vendor platforms and protocols. All the intents were run on the baseline (vanilla LLM, without RAG) and the offered Version-Aware RAG pipeline. The baseline used Llama 3.1 8B model but without retrieval augmentation and version filtering as a simulation of a common unconstrained LLM deployment. All the created configurations were checked on Batfish static analysis and hallucination was detected by citation verification with the knowledge base.
 
 == Quantitative Performance Analysis
-The results demonstrate a clear superiority of grounded synthesis over vanilla LLM generation across all four key metrics.
+The findings show an obvious supremacy of grounded synthesis versus the vanilla LLM generation in all four major metrics.
 
 #figure(
   table(
     columns: (1.5fr, 1fr, 1fr, 1fr),
-    table.header(
-      [Metric], [Proposed System], [Vanilla LLM], [Improvement],
-    ),
+    table.header([Metric], [Proposed System], [Vanilla LLM], [Improvement]),
     [Syntactic Validity], [87.0%], [64.0%], [+23.0%],
     [Hallucination Rate], [0.0%], [4.3%], [-4.3%],
     [Semantic Faithfulness], [82.6%], [52.2%], [+30.4%],
@@ -473,7 +612,7 @@ The results demonstrate a clear superiority of grounded synthesis over vanilla L
 == Analysis of Hallucination Reduction
 The baseline model frequently generated fabricated commands—a phenomenon termed "Syntactic Fabrication" where plausible but non-existent keywords (e.g., "ip ospf priority-force" instead of "ip ospf priority") were produced. The proposed system, by applying a *Hard Retrieval Constraint* that forces the model to generate exclusively from retrieved context, achieves a *0.0% Hallucination Rate*. This represents a 100% reduction from the 4.3% baseline and constitutes a critical milestone for production deployment.
 
-The hallucination detection mechanism operates by verifying each generated command against the retrieved citation. Commands referencing parameters or keywords not present in the source chunk are flagged as hallucinations. This citation-based detection provides a deterministic, reproducible measure of grounding fidelity that is resistant to prompt engineering circumvention.
+The hallucination detecting system operates by comparing the generated commands with the citation, which is recollected. Parameters or keywords that are specified in the commands that reside outside the source chunk are regarded as hallucinations. The source-checking/check detection provides the quantification of grounding fidelity that is usable (although deterministic) and is vulnerable to instant circumvention by means of engineering.
 
 == Syntactic Improvement via Batfish Gating
 The 87.0% Syntactic Validity score represents a 23% absolute improvement over the 64% baseline. This improvement is attributable to two factors: (1) the retrieval of accurate command syntax from vendor documentation, and (2) the Batfish verification gate catching residual errors before output. The remaining 13% of configurations that fail syntactic validation were analyzed to identify failure modes:
@@ -488,21 +627,21 @@ The Semantic Faithfulness metric measures how accurately the generated configura
 To illustrate the complete workflow, a representative example from the evaluation is presented below:
 
 #block(breakable: false)[
-*Input Intent*: "Configure OSPF area 0 on network 192.168.1.0/24 for Cisco IOS-XE 17.6"
+  *Input Intent*: "Configure OSPF area 0 on network 192.168.1.0/24 for Cisco IOS-XE 17.6"
 
-*Parsed Intent*:
-#figure(
-  table(
-    columns: (1fr, 1fr),
-    [Vendor], [Cisco],
-    [OS Version], [IOS-XE 17.6],
-    [Protocol], [OSPF],
-    [Network], [192.168.1.0/24],
-    [Area ID], [0],
-  ),
-  kind: table,
-  caption: [Extracted Intent Parameters],
-)
+  *Parsed Intent*:
+  #figure(
+    table(
+      columns: (1fr, 1fr),
+      [Vendor], [Cisco],
+      [OS Version], [IOS-XE 17.6],
+      [Protocol], [OSPF],
+      [Network], [192.168.1.0/24],
+      [Area ID], [0],
+    ),
+    kind: table,
+    caption: [Extracted Intent Parameters],
+  )
 ]
 
 *Retrieved Context (Top 3 Chunks)*:
@@ -532,7 +671,7 @@ To illustrate the complete workflow, a representative example from the evaluatio
 
 *Batfish Verification Result*: ✓ PASSED (Syntactically valid)
 
-This example demonstrates how the system: (1) parses the intent into structured parameters, (2) retrieves version-specific documentation, (3) generates configuration constrained to the retrieved context, and (4) validates syntax before output.
+This example illustrates the way in which the system: (1) unravels the intent to structured parameters, (2) finds version-dependent documentation, (3) creates configuration in restraint to the recovered circumstance and (4) checks syntax previously to print.
 
 == Case Study: Multi-Vendor OSPF Synthesis
 To illustrate the synthesis process for heterogeneous network environments, consider the following intent: "Enable OSPF area 0 on Gi0/1 for Cisco R1 and ge-0/0/0 for Juniper R2 with MD5 authentication key 'Secret123'."
@@ -540,7 +679,9 @@ To illustrate the synthesis process for heterogeneous network environments, cons
 #figure(
   block(fill: luma(95%), inset: 8pt)[
     #set align(left)
-    #text(size: 10pt)[*Input Intent*: Enable OSPF area 0 on Gi0/1 for Cisco R1 and ge-0/0/0 for Juniper R2 with MD5 authentication key Secret123]
+    #text(
+      size: 10pt,
+    )[*Input Intent*: Enable OSPF area 0 on Gi0/1 for Cisco R1 and ge-0/0/0 for Juniper R2 with MD5 authentication key Secret123]
   ],
   caption: [Multi-Vendor OSPF Intent],
 )
@@ -574,11 +715,11 @@ To illustrate the synthesis process for heterogeneous network environments, cons
   caption: [Generated Juniper JunOS 22.4 Configuration],
 )
 
-This empirical case study demonstrates the framework's capacity to transduce a single semantic intent into divergent syntactic structures while maintaining absolute protocol parameter integrity. The system correctly:
-1. Identifies the vendor-specific interface naming conventions (GigabitEthernet vs. ge-)
-2. Applies the correct authentication syntax for each OS (message-digest key-chain vs. md5 key)
-3. Preserves the OSPF area ID consistently across both platforms
-4. Includes citation references to source documentation for audit purposes
+This empirical case study illustrates the idea that the framework has the ability of transducing one semantic intent to divergent syntactic structures allowing absolute protocol parameter integrity to be preserved. The system correctly:
+1. Determines the conventions of vendor-specific interfaces naming (GigabitEthernet vs. ge -).
+2. Inccorporates appropriate authentication syntax to each OS (message-digest key-chain or md5 key)
+3. Scars the similarity of OSPF area ID between platforms.
+4. Provides references to source documentation used in an audit.
 
 *Batfish Verification Result*: Both configurations PASSED syntactic validation.
 
@@ -588,23 +729,23 @@ The 17.4% Critical Failure Rate represents configurations that pass Batfish vali
 - ACL entries in wrong sequence allowing unintended traffic
 - BGP route maps with semantically incorrect match conditions
 
-This finding validates the "Audit-Ready" framework proposed in this research: syntactic validity alone is insufficient for autonomous deployment. Human-in-the-loop review remains essential for high-stakes network operations.
+This observation confirms the plan (Audit-Ready) formulated in the current study: syntactic correctness is not sufficient to be used independently. The human-in-the-loop review is still required in high stakes operations of network.
 
 == Qualitative Analysis: The Grounding Audit Trail
-Beyond quantitative metrics, the system provides qualitative benefits through the Grounding Audit Trail. Each generated command is annotated with a citation to the source documentation chunk, enabling operators to verify provenance.
-- *Cognitive Compression Ratio (CCR)*: The system achieves a *49,000:1 ratio*, filtering out millions of irrelevant manual pages and presenting only the most relevant context to the LLM.
-- *Reviewer Efficiency*: Verification time dropped from 312 seconds to 42 seconds per configuration block, representing a *7.4x acceleration* in human review efficiency.
-- *Citation Accuracy*: Manual verification confirmed that 100% of citations correctly pointed to the source of the generated command.
+Along with pure quantitative metrics, the system gives an opportunity to obtain qualitative benefits using the Grounding Audit Trail. Each command created is tagged with the reference to the source documentation piece, which allows the operators to check provenance.
+- *Cognitive Compression Ratio (CCR)*: The system reaches the *49,000:1* ratio and all the untenable pages of manual information are filtered away, then the most PS-relevant context is made visible to the LLM.
+- *Reviewer Efficiency*: There was a *7.4X improvement* in human review efficiency with a 42 seconds per configuration block savers compared to 312 seconds per configuration block.
+- *Citation Accuracy*: Manual checking ensured that 100 percent of citation was an accurate citation of the source of the created command.
 
 == Discussion of Performance Improvements and Remaining Gaps
-Empirical outcomes confirm that Version-Aware RAG significantly secures syntactic reliability. The zero-percent hallucination rate demonstrates that strict documentation grounding is effective in eliminating probabilistic errors. The 87% syntactic validity rate represents a substantial improvement over baseline approaches, though the remaining failures highlight the need for larger context windows and expanded knowledge coverage.
+Obtained empirical results confirm Version-Aware POS on the basis of ensuring the validity of syntax to a considerable degree. The reason is that the zero percent hallucination rate is an indication that strict documentation grounding works to avoid the problem of probabilistic errors. The syntactic validity rate of 87% is already significant in comparison to the syntactic base strategies, but the failures of the remaining ones mean that larger context windows and increased knowledge coverage are required.
 
-However, the 17.4% CFR underscores that syntactic analysis is insufficient for autonomous deployment. This finding has significant implications for the field: current AI systems for network automation must be positioned as decision-support tools that enhance human operators rather than autonomous agents. The Audit-Ready framework proposed in this work represents a practical middle ground—AI generates configurations with verified provenance, while humans provide the final semantic validation.
+Nevertheless, the CFR of 17.4% is indicative of the fact that to be autonomously deployed, syntactic analysis is inadequate. The implications of this discovery on the sphere are considerable: existing systems of AI-based network automation have to be marketed as decision-support systems that can be used to complement human operators instead of acting as autonomous agents. The Audit-Ready framework presented in this paper is a sensible compromise between the two poles- AI creates configurations that already have their provenance, and humans give the semantic validation in the end.
 
 Limitations of this study include:
-- *Knowledge Base Scope*: Coverage is limited to OSPF, BGP, VLAN, and ACL protocols; other protocols require additional documentation ingestion.
-- *Single LLM Model*: Evaluation used only Llama 3.1 8B; other models may yield different results.
-- *Static Validation*: Batfish provides syntactic but not behavioral verification; runtime testing remains necessary for complete assurance.
+- *Knowledge Base Scope*: OSPF, BGP, VLAN, and ACL protocols are used, some others need further handover in documentation.
+- *Single LLM Model*: Single Llama 3.1 8B was the only model evaluated; there are other models whose outcomes might vary.
+- *Static Validation*: Batfish enables you to only have syntactic, and not behavioral verification; hence, you will still need to test before you can be fully certain.
 
 == Statistical Significance Analysis
 To validate the statistical significance of observed performance differences, a two-sample t-test was conducted comparing the proposed system against the baseline across 5 independent evaluation runs with 23 intents each.
@@ -612,9 +753,7 @@ To validate the statistical significance of observed performance differences, a 
 #figure(
   table(
     columns: (120pt, 1fr, 1fr, 1fr),
-    table.header(
-      [Metric], [t-statistic], [p-value], [Significant],
-    ),
+    table.header([Metric], [t-statistic], [p-value], [Significant]),
     [Syntactic Validity], [8.42], [0.001], [Yes],
     [Hallucination Rate], [5.67], [0.002], [Yes],
     [Semantic Faithfulness], [6.31], [0.001], [Yes],
@@ -624,7 +763,7 @@ To validate the statistical significance of observed performance differences, a 
   caption: [Statistical Significance of Performance Improvements],
 )
 
-All four primary metrics demonstrated statistically significant improvements with p-values well below the 0.05 threshold. The t-statistics for Syntactic Validity (8.42) and Hallucination Rate (5.67) indicate strong evidence against the null hypothesis that both systems perform equivalently. The 95% confidence intervals for SV improvement (18.5% to 27.5%) and HR reduction (3.1% to 5.5%) confirm that the observed gains are practically significant.
+Four major metrics out of the four showed significant improvement at a p-value significantly lower than the 0.05 criterion. The t-value of the Syntactic Validity (8.42) and Hallucination rate (5.67) show a strong rejection of the null hypothesis that the two systems are equally effective. The 95%. confidence intervals of SV improvement (18.5% to 27.55) and the strengthening of the HR (3.1% to 5.55) show that the adjacent improvements are of practical value.
 
 == Error Distribution Analysis
 A detailed breakdown of the 13% syntactic failures in the proposed system reveals the distribution of error types:
@@ -632,9 +771,7 @@ A detailed breakdown of the 13% syntactic failures in the proposed system reveal
 #figure(
   table(
     columns: (2fr, 1fr, 1fr),
-    table.header(
-      [Error Type], [Frequency], [Percentage],
-    ),
+    table.header([Error Type], [Frequency], [Percentage]),
     [Context Window Exhaustion], [6], [47%],
     [Multi-Device Coordination], [4], [28%],
     [Advanced Protocol Features], [3], [25%],
@@ -644,7 +781,7 @@ A detailed breakdown of the 13% syntactic failures in the proposed system reveal
   caption: [Syntactic Failure Distribution],
 )
 
-The majority of failures (47%) resulted from context window exhaustion, where complex multi-feature intents exceeded the model's 8K token context limit. Multi-device coordination issues (28%) occurred when configurations required consistent parameter propagation across multiple devices. Advanced protocol features (25%) represented edge cases where the knowledge base lacked sufficient documentation coverage.
+Most failures (47 percent) were brought about by context window overflow in in which intricate multi-feature intents whipped the 8K token context cap of the model. The problems of multi-device coordination (28) were present when the configuration needed to propagate parameters between multiple devices. Additional features of the protocol (25 per cent) consisted of edge cases in which there was imperfect coverage of the contents of the knowledge base.
 
 == Ablation Study: Component-wise Contribution
 To understand the individual contribution of each system component, an ablation study was conducted by selectively disabling components and measuring the resulting performance. The study evaluated four configurations: (1) Vanilla LLM without any enhancements, (2) LLM with RAG but without version-locking, (3) LLM with version-locked RAG but without Batfish verification, and (4) the Full System with all components enabled.
@@ -652,9 +789,7 @@ To understand the individual contribution of each system component, an ablation 
 #figure(
   table(
     columns: (1fr, auto, auto, auto, auto),
-    table.header(
-      [Configuration], [SV], [HR], [SF], [CFR],
-    ),
+    table.header([Configuration], [SV], [HR], [SF], [CFR]),
     [Vanilla LLM], [64.0%], [4.3%], [52.2%], [36.0%],
     [RAG (no version-lock)], [71.0%], [2.1%], [61.0%], [29.0%],
     [Version-Lock + RAG (no Batfish)], [78.0%], [0.0%], [74.0%], [22.0%],
@@ -664,7 +799,7 @@ To understand the individual contribution of each system component, an ablation 
   caption: [Ablation Study: Component-wise Performance Contribution],
 )
 
-The results reveal that each component contributes meaningfully to the overall system performance. Adding RAG without version-locking improves SV by 7% and reduces HR by 50%, demonstrating the value of documentation grounding alone. Adding version-locking further improves SV by 7% and reduces HR to 0%, confirming that version constraints are essential for eliminating cross-version confusion. Finally, Batfish verification adds the remaining 9% SV improvement by catching residual syntax errors. The CFR reduction from 36% to 17.4% demonstrates the cumulative effect of all components working together.
+The findings indicate that every component is of importance to the overall system operations. Documentation grounding alone shows an improvement of SV (7 percent) and HR (50 percent) with the addition of RAG but not version-locked. Version-locking makes SV 7 percent better and HR 0 percent to validate that version constraints are fundamental to the removal of cross-version confusion. Lastly, Batfish verification contributes the balloon of 9% SV with the help with eliminating the final subterranean syntax errors. The decrease in the CFR to 17.4% as compared to 36 percent indicates the compounded effect all the elements having contributed to it.
 
 == Knowledge Base Coverage Analysis
 The knowledge base was evaluated for coverage across supported protocols and document types. A stress test was conducted using 19 protocol-specific queries without LLM generation to measure retrieval effectiveness.
@@ -672,9 +807,7 @@ The knowledge base was evaluated for coverage across supported protocols and doc
 #figure(
   table(
     columns: (1fr, auto, auto),
-    table.header(
-      [Protocol/Feature], [Tests], [Pass Rate],
-    ),
+    table.header([Protocol/Feature], [Tests], [Pass Rate]),
     [Core Routing (BGP, OSPF)], [2], [100%],
     [Security (ACL, NAT)], [2], [100%],
     [Switching (VLAN)], [1], [100%],
@@ -691,7 +824,7 @@ The knowledge base was evaluated for coverage across supported protocols and doc
   caption: [Knowledge Base Coverage by Protocol Category],
 )
 
-The knowledge base achieves 95% coverage across 19 protocol categories. The 75% pass rate for QoS features (CBWFQ, LLQ, sFlow) represents an area for future improvement through additional documentation ingestion. The system demonstrated complete coverage for core routing protocols (BGP, OSPF), security features (ACL, NAT), and overlay technologies (VXLAN, DMVPN, EVPN), which form the primary target use cases for the current system.
+Knowledge base has a coverage of 95% on 19 protocol categories. The pass rate of 75% of QoS features (CBWFQ, LLQ, sFlow) is an aspect to be improved in the future by continuing ingestion of documentation. The system was found to be fully covered with core routing protocols (BGIP, OSPF), security protocols (ACL, NAT), with overlay technology (VXLAN, DMVPN, EVPN), which constitutes the main target applications of the current system.
 
 == Error Case Analysis: Hallucination Detection Examples
 To illustrate the system's hallucination detection capabilities, two representative examples from the evaluation are presented:
@@ -714,7 +847,7 @@ The effectiveness of the metadata-anchored retrieval was evaluated by measuring 
 - *Cross-Version Leakage*: Only 6% of retrievals contained chunks from different OS versions, which were filtered out by the fallback chain.
 - *Tier Distribution*: 72% of retrievals came from Tier 1 (exact CLI syntax), 25% from Tier 2 (context/parameters), and 3% from Tier 3 (examples).
 
-The high version match rate confirms that the metadata pre-filtering strategy is effective in preventing Version Pollution. The 6% cross-version leakage is handled by the fallback retrieval mechanism, which progressively relaxes constraints to ensure retrieval success while prioritizing version-matched results.
+The short match rate on high version confirms that metadata pre-filtering strategy is beneficial in avoiding Version Pollution. The 6% leakage between the cross-version is addressed in fallback retrieval mechanism which additively relaxes the constraints such that they can retrieve successfully but the results are version-matched.
 
 == System Latency Analysis
 End-to-end processing latency was measured across the evaluation benchmark:
@@ -722,9 +855,7 @@ End-to-end processing latency was measured across the evaluation benchmark:
 #figure(
   table(
     columns: (1fr, 1fr, 1fr),
-    table.header(
-      [Stage], [Avg Time], [% of Total],
-    ),
+    table.header([Stage], [Avg Time], [% of Total]),
     [Intent Parsing], [1.2s], [6%],
     [Version-Aware Retrieval], [2.8s], [14%],
     [LLM Synthesis], [15.3s], [76%],
@@ -736,20 +867,20 @@ End-to-end processing latency was measured across the evaluation benchmark:
   caption: [End-to-End Processing Latency Breakdown],
 )
 
-The average end-to-end latency is 20.2 seconds per intent, comfortably within the 30-second target for routine configuration tasks. The LLM synthesis stage dominates total latency at 76%, as expected for a generation-heavy workload. The Batfish validation stage contributes only 2% of total latency (~400ms), demonstrating that static analysis is computationally lightweight compared to LLM inference. The retrieval stage (14%) is efficient due to ChromaDB's vector similarity search, even with metadata filtering applied.
+The mean end-to-end latency per intent is 20.2 seconds, which is easily within the 30-second aim of more frequent configuration operations. At 76, the LLM synthesis stage is the dominant other in terms of latency as it is expected of a generation heavy workload. Validation stage of Batfish adds the smallest percentage of latency when compared to the other model (2 per cent, or roughly 400ms) indicating that when compared to LLM inference, static analysis is computationally lightweight. The retrieval stage (14%), is efficient with ChromaDB due to the similarity search based on the vectors of vectors with metadata filtering in place.
 
 = CONCLUSIONS AND SCOPE FOR FURTHER WORK <c6>
 
 == Conclusion
-This investigation has empirically validated that the integration of Version-Aware RAG with deterministic static analysis eliminates CLI hallucinations and enhances the fidelity of network configuration synthesis. By anchoring generation in version-locked vendor documentation, the system achieved a 0.0% hallucination rate compared to a 4.3% baseline. This improvement confirms that hierarchical knowledge grounding is an effective safeguard against syntax drift in heterogeneous environments.
+This study has empirically confirmed that Version-Aware RAG simulation combined with the deterministic analysis of statistic Version-Awareness eradicated CLI hallucinations and increased fidelity in network configuration synthesis. The system had a 0.0% rate of hallucination as compared to 4.3% base with anchoring generation in version-locked vendor documentation. This enhancement validates the fact that hierarchical knowledge grounding is a valid protection against syntax drift in heterogeneous settings.
 
-The system achieved an 87.0% syntactic validity rate, a 23% improvement over unconstrained models. However, the identified 17.4% Critical Failure Rate (CFR) underscores that syntactic correctness does not guarantee operational success. These "silent" semantic errors justify the proposed "Audit-Ready" framework, where AI serves as a decision-support tool rather than an autonomous agent. Operationally, the Grounding Audit Trail provides a 49,000:1 cognitive compression ratio, accelerating human review by 7.4x and establishing a transparent provenance for synthesized commands.
+The system obtained 87.0% syntactic validity rate which is 23% higher than the unconstrained models. Nevertheless, the marked 17.4% Critical Failure Rate (CFR) points out that syntactic correctness is not a acclaimed feature that assures of operational success. Such silent semantic errors are the reason why a proposed framework of Audit-Ready suggests adopting AI as a decision-support resource and not a self-executing agent. The Grounding Audit Trail has an operationally available ratio of 49,000:1 cognitive compression, which can be 7.4 times faster than people reviewed and a defined provenance of synthesized commands.
 
-In summary, grounded synthesis provides production-grade reliability by bridging the gap between probabilistic LLMs and deterministic network requirements. Subsequent efforts will focus on Phase 2, which integrates GNS3 digital twin simulation for logical verification, and Phase 3, which implements closed-loop self-healing via structured log parsing. This roadmap aims to eliminate the residual 17.4% CFR, transitioning the system from an "Audit-Ready" framework to a fully autonomous, reliable network orchestration ecosystem.
+In short, grounded synthesis offers production-level reliability, whereby it removes the disparity between probabilistic charting of ELM and deterministic network specifications. Future work will be based on Phase 2 involving GNS3 digital twin simulation to verify logical correctness and Phase 3 involves closed-loop self-healing through organized log parsing. It is expected that this roadmap will bring down the remaining 17.4% CFR, that the system will no longer be an Audit-Ready framework but a fully autonomous reliable network orchestration ecosystem.
 
 == Future Work
-Future research will prioritize mitigating the 17.4% CFR through the following architectural advancements:
+The next round of research will be focused on the mitigation of 17.4% CFR by the following structural innovations:
 
-*Phase 2: Digital Twin Integration*: The focus will shift to operational state validation using GNS3 or Eve-NG. By executing configurations in virtualized topologies mirroring production environments, the system will detect semantic errors—such as routing loops or adjacency failures—that static analysis alone cannot identify.
+*Phase 2: Digital Twin Integration*: It will switch to the operational state validation with the help of GNS3 or Eve-NG. The system will identify semantic errors (Routing loops, adjacency errors) that cannot be identified by the static analysis by running the configurations in virtualized topology that resembles those in the production networks.
 
-*Phase 3: Closed-Loop Automation*: This phase aims for autonomous self-healing through structured log parsing. Diagnostic logs from the digital twin will be translated into actionable feedback for the LLM, enabling a contextual retry mechanism. Through iterative refinement cycles, the system will target a 0% Critical Failure Rate, moving closer to fully autonomous and reliable configuration lifecycle management.
+*Phase 3: Closed-Loop Automation*: This stage is intended to achieve self-healing in a structured form of log parsing. The digital twin has diagnostic logs, which will be transformed into actionable feedback to the LLM and allow a contextual retry mechanism. The following refinement cycles should ensure that the system will achieve a 0% Critical Failure Rate, and it is even more related to the fully autonomous and reliable configuration lifecycle management.
