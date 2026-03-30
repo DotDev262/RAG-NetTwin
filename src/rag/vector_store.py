@@ -176,7 +176,7 @@ class VectorStore:
         self,
         query: str,
         vendor: str = None,
-        os_version: str = str,
+        os_version: str = None,
         tier: int = None,
         n_results: int = 5,
     ) -> List[Dict]:
