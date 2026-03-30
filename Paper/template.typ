@@ -10,6 +10,7 @@
   assoc_prof: "",
   program_chair: "Dr. S. Natarajan",
   department: "Department of CSE",
+  department_cover: "Computer Science and Engineering",
   school: "Amrita School of Computing",
   university: "Amrita Vishwa Vidyapeetham",
   location: "Chennai - 601103",
@@ -66,6 +67,19 @@
       title-case(it.text)
     } else {
       it
+    }
+  }
+
+  // Helper to uppercase name without affecting titles (Dr., Mrs., Mr., Ms., Prof.)
+  let name-case(name) = {
+    let titles = ("Dr.", "Mrs.", "Mr.", "Ms.", "Prof.")
+    let parts = name.split(" ")
+    if parts.len() > 0 and parts.at(0) + "." in titles {
+      parts.at(0) + ". " + parts.slice(1).map(p => upper(p)).join(" ")
+    } else if parts.len() > 0 and parts.at(0) in titles {
+      parts.at(0) + " " + parts.slice(1).map(p => upper(p)).join(" ")
+    } else {
+      upper(name)
     }
   }
 
@@ -127,7 +141,7 @@
     #v(0.2em)
     #text(style: "italic")[in partial fulfilment for the award of the \ degree of]
     #v(0.4em)
-    #text(size: 12pt, weight: "bold")[#upper(degree) IN #upper(department)]
+    #text(size: 12pt, weight: "bold")[#upper(degree) IN #upper(department_cover)]
     
     #v(0.6em)
     #text(weight: "bold")[By]
@@ -175,7 +189,7 @@
     #set text(size: 14pt)
     This is to certify that this project report entitled *"#title"* is the bonafide work of *"#authors.map(a => [#a.name (#a.reg)]).join(" & ")"* who carried out the project work under my supervision.
     
-    #v(4fr)
+    #v(2fr)
     
     #grid(
       columns: (1fr, 1fr),
@@ -184,10 +198,9 @@
         #v(3em)
         #text(size: 12pt, weight: "bold")[SIGNATURE] \
         #v(1em)
-        #text(size: 14pt, weight: "bold")[#upper(chairperson)] \
-        #text(size: 12pt, weight: "bold")[CHAIRPERSON] \ \
-        #set par(leading: 0.8em)
-        #text(size: 12pt, weight: "bold")[
+        #text(size: 14pt, weight: "bold")[#name-case(chairperson)] \
+        #text(size: 12pt, weight: "bold")[CHAIRPERSON] \
+        #text(size: 12pt)[
           #department \
           #school \
           #university \
@@ -198,11 +211,9 @@
         #v(3em)
         #text(size: 12pt, weight: "bold")[SIGNATURE] \
         #v(1em)
-        #text(size: 14pt, weight: "bold")[#upper(supervisor)] \
-        #text(size: 12pt, weight: "bold")[SUPERVISOR] \ \
-        #set par(leading: 0.8em)
-        #text(size: 12pt, weight: "bold")[
-          Assistant Professor, \
+        #text(size: 14pt, weight: "bold")[#name-case(supervisor)] \
+        #text(size: 12pt, weight: "bold")[SUPERVISOR] \
+        #text(size: 12pt)[
           #department \
           #school \
           #university \
@@ -220,7 +231,7 @@
         #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
       ],
       align(center)[
-        #text(size: 14pt, weight: "bold")[EXTERNAL EXAMINER]
+        #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
       ]
     )
     #v(0.5fr)
