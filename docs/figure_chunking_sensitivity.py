@@ -53,35 +53,12 @@ for bar, val in zip(bars, hr_values):
         fontweight="bold",
     )
 
-# Highlight the Tiered (Ours) sweet spot with an arrow
-tiered_idx = strategies.index("Tiered\n(Ours)")
-tiered_bar = bars[tiered_idx]
-ax.annotate(
-    "SWEET SPOT\n1.4% HR",
-    xy=(tiered_bar.get_x() + tiered_bar.get_width() / 2, tiered_bar.get_height()),
-    xytext=(
-        tiered_bar.get_x() + tiered_bar.get_width() / 2 + 0.8,
-        tiered_bar.get_height() + 0.8,
-    ),
-    fontsize=10,
-    fontweight="bold",
-    color="#2ca02c",
-    arrowprops=dict(arrowstyle="->", color="#2ca02c", lw=2),
-    ha="left",
-)
-
 # Add baseline reference line
 ax.axhline(y=1.4, color="#2ca02c", linestyle="--", alpha=0.3, linewidth=1)
 
 # Styling
 ax.set_ylabel("Hallucination Rate (%)", fontsize=14)
 ax.set_xlabel("Chunking Strategy", fontsize=14)
-ax.set_title(
-    "Figure 2: Chunking Sensitivity Analysis (N=50 intents)\n"
-    + "Tiered Hierarchical Approach Outperforms All Flat Strategies",
-    fontsize=14,
-    fontweight="bold",
-)
 ax.set_ylim(0, 4.5)
 ax.set_xlim(-0.5, len(strategies) - 0.5)
 
@@ -102,17 +79,6 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=10)
 # Grid
 ax.yaxis.grid(True, linestyle="--", alpha=0.5)
 ax.set_axisbelow(True)
-
-# Add annotation for improvement
-ax.annotate(
-    f"Best flat strategy: 1.6%\nTiered improvement: +14%",
-    xy=(0.02, 0.98),
-    xycoords="axes fraction",
-    fontsize=9,
-    ha="left",
-    va="top",
-    bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
-)
 
 plt.tight_layout()
 plt.savefig("figure_chunking_sensitivity.png", dpi=300, bbox_inches="tight")

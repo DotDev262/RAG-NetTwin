@@ -2,6 +2,8 @@
   title: "",
   authors: (),
   supervisor: "",
+  internal_examiner_1: "",
+  internal_examiner_2: "",
   chancellor: "Sri Mata Amritanandamayi Devi",
   admin_director: "",
   campus_director: "",
@@ -49,8 +51,17 @@
     numbering: n => numbering("1.1", counter(heading).at(here()).at(0), n),
     supplement: "Table"
   )
+  show figure.where(kind: table): it => {
+    set align(center)
+    v(12.5pt, weak: true)
+    if it.has("caption") {
+      it.caption
+      v(10pt, weak: true)
+    }
+    it.body
+    v(12.5pt, weak: true)
+  }
   show figure: set block(breakable: false)
-  show table: set block(breakable: false)
   show table.cell.where(y: 0): set align(center)
 
   // Helper for "Capitalize Each Word" (Title Case)
@@ -83,16 +94,18 @@
     }
   }
 
-  show heading.where(level: 2): it => {
-    v(2em, weak: true)
+  show heading.where(level: 2): it => context {
+    let before = query(selector(heading).before(here()))
+    let is_first = if before.len() > 0 { before.last().level == 1 } else { false }
+    v(if is_first { 0.3em } else { 1.5em }, weak: true)
     set text(size: 12pt, weight: "bold")
     set align(left)
     it
-    v(0.8em)
+    v(0.2em)
   }
 
   show heading.where(level: 3): it => {
-    v(1.5em, weak: true)
+    v(1.2em, weak: true)
     set text(size: 12pt, weight: "bold")
     set align(left)
     it
@@ -108,15 +121,15 @@
     if it.numbering != none {
       pagebreak(weak: true)
       v(2em)
-      [CHAPTER-#counter(heading).display()]
-      v(0.5em)
+      [CHAPTER #counter(heading).display()]
+v(0.2em)
       upper(it.body)
-      v(1em)
+      v(0.3em)
     } else {
       pagebreak(weak: true)
       v(2em)
       upper(it.body)
-      v(1em)
+      v(0.3em)
     }
   }
 
@@ -139,9 +152,10 @@
     #text(size: 16pt, weight: "bold")[#university]
     
     #v(0.2em)
-    #text(style: "italic")[in partial fulfilment for the award of the \ degree of]
+    #text(style: "italic")[in partial fulfilment for the award of the degree of]
     #v(0.4em)
-    #text(size: 12pt, weight: "bold")[#upper(degree) IN #upper(department_cover)]
+    #text(size: 14pt, weight: "bold")[#upper(degree) \ IN \
+    #upper(department_cover)]
     
     #v(0.6em)
     #text(weight: "bold")[By]
@@ -185,41 +199,47 @@
     #v(1.5em)
     
     #set align(left)
-    #set par(first-line-indent: 2em, justify: true, leading: 0.8em)
+    #set par(first-line-indent: 0pt, justify: true, leading: 0.8em)
     #set text(size: 14pt)
-    This is to certify that this project report entitled *"#title"* is the bonafide work of *"#authors.map(a => [#a.name (#a.reg)]).join(" & ")"* who carried out the project work under my supervision.
+    This is to certify that this project report entitled *"#title"* is the bonafide work of *"#authors.map(a => [#a.name (#a.reg)]).join(" and ")"* who carried out the project work under my supervision.
     
     #v(2fr)
     
     #grid(
       columns: (1fr, 1fr),
       gutter: 1.5em,
-      align(center)[
-        #v(3em)
-        #text(size: 12pt, weight: "bold")[SIGNATURE] \
-        #v(1em)
-        #text(size: 14pt, weight: "bold")[#name-case(chairperson)] \
-        #text(size: 12pt, weight: "bold")[CHAIRPERSON] \
-        #text(size: 12pt)[
-          #department \
-          #school \
-          #university \
-          #location
+      {
+        set par(first-line-indent: 0pt)
+        align(left)[
+          #v(3em)
+          #text(size: 12pt, weight: "bold")[SIGNATURE] \
+          #v(1em)
+          #text(size: 14pt, weight: "bold")[#name-case(chairperson)] \
+          #text(size: 12pt, weight: "bold")[CHAIRPERSON] \
+          #text(size: 12pt)[
+            #department \
+            #school \
+            #university \
+            #location
+          ]
         ]
-      ],
-      align(center)[
-        #v(3em)
-        #text(size: 12pt, weight: "bold")[SIGNATURE] \
-        #v(1em)
-        #text(size: 14pt, weight: "bold")[#name-case(supervisor)] \
-        #text(size: 12pt, weight: "bold")[SUPERVISOR] \
-        #text(size: 12pt)[
-          #department \
-          #school \
-          #university \
-          #location
+      },
+      {
+        set par(first-line-indent: 0pt)
+        align(right)[
+          #v(3em)
+          #text(size: 12pt, weight: "bold")[SIGNATURE] \
+          #v(1em)
+          #text(size: 14pt, weight: "bold")[#name-case(supervisor)] \
+          #text(size: 12pt, weight: "bold")[SUPERVISOR] \
+          #text(size: 12pt)[
+            #department \
+            #school \
+            #university \
+            #location
+          ]
         ]
-      ]
+      }
     )
     
     #v(2.5fr)
@@ -227,14 +247,23 @@
     #grid(
       columns: (1fr, 1fr),
       gutter: 1.5em,
-      align(center)[
-        #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
-      ],
-      align(center)[
-        #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
-      ]
+      {
+        set par(first-line-indent: 0pt)
+        align(left)[
+          #v(3em)
+          #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
+        ]
+      },
+      {
+        set par(first-line-indent: 0pt)
+        align(right)[
+          #v(3em)
+          #text(size: 14pt, weight: "bold")[INTERNAL EXAMINER]
+        ]
+      }
     )
-    #v(0.5fr)
+    
+    #v(1em)
   ]
 
   // --- 4. Declaration ---
@@ -246,20 +275,20 @@
     #v(1.5em)
     
     #set align(left)
-    #set par(first-line-indent: 2em, justify: true, leading: 0.8em)
+    #set par(first-line-indent: 0pt, justify: true, leading: 0.8em)
     #text(size: 14pt)[#declaration]
     #v(4fr)
     #grid(
       columns: (1fr, 1fr),
       gutter: 1.5em,
       [],
-      align(center)[
-        #authors.map(a => [
-          #v(5em)
-          #text(size: 12pt, weight: "bold")[SIGNATURE] \
-          #text(size: 12pt, weight: "bold")[#a.name] \
-          #text(size: 12pt, weight: "bold")[(#a.reg)]
-        ]).join()
+      align(right)[
+        #v(5em)
+        #text(size: 14pt, weight: "bold")[SIGNATURE] \
+        #v(0.5em)
+        #box(width: 10cm, text(size: 12pt, weight: "bold", hyphenate: false)[#authors.at(0).name & #authors.at(1).name]) \
+        #v(0.3em)
+        #box(width: 10cm, text(size: 12pt, weight: "bold", hyphenate: false)[(#authors.at(0).reg) & (#authors.at(1).reg)])
       ]
     )
   ]
@@ -311,8 +340,6 @@
       align: center,
       [*CHAPTER* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
-    v(-0.5em)
-    line(length: 100%, stroke: 0.5pt)
     v(0.5em)
 
     show outline.entry: it => {
@@ -355,8 +382,6 @@
       align: center,
       [*TABLE* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
-    v(-0.5em)
-    line(length: 100%, stroke: 0.5pt)
     v(0.5em)
 
     show outline.entry: it => {
@@ -389,8 +414,6 @@
       align: center,
       [*FIGURE* \ *NO.*], [*TITLE*], [*PAGE* \ *NO.*]
     )
-    v(-0.5em)
-    line(length: 100%, stroke: 0.5pt)
     v(0.5em)
 
     show outline.entry: it => {
@@ -418,7 +441,7 @@
       columns: (60pt, 20pt, 1fr),
       align: (left, left),
       gutter: 1em,
-      ..abbreviations.map(a => ([#a.at(0)], [-], [#a.at(1)])).flatten()
+      ..abbreviations.map(a => ([*#a.at(0)*], [-], [#a.at(1)])).flatten()
     )
     pagebreak()
   }
@@ -434,9 +457,9 @@
   body
 
   if bib_path != none {
-    heading(level: 1, numbering: "1.1", outlined: true)[References]
+    heading(numbering: none, outlined: true)[#upper([References])]
     set par(first-line-indent: 0pt, justify: false)
-    bibliography(bib_path, title: none, style: "ieee", full: true)
+    bibliography(bib_path, title: none, style: "ieee_sorted.csl", full: true)
   }
 
   if publications != [] {

@@ -23,7 +23,6 @@ rects2 = ax.bar(x + width/2, rag_nettwin_scores, width, label='Proposed System',
 
 # Add labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Score (%)')
-ax.set_title('Phase 1 Performance Comparison: Proposed System vs. Vanilla LLM', pad=20, fontweight='bold')
 ax.set_xticks(x)
 ax.set_xticklabels(metrics)
 ax.set_ylim(0, 115) # Room for labels
@@ -41,10 +40,6 @@ def autolabel(rects):
 
 autolabel(rects1)
 autolabel(rects2)
-
-# Add a footnote/insight
-plt.figtext(0.5, 0.01, "N=23 Intents (OSPF, BGP, ACL). The Proposed System eliminates hallucinations and significantly boosts reliability.", 
-            ha="center", fontsize=10, bbox={"facecolor":"orange", "alpha":0.1, "pad":5})
 
 fig.tight_layout()
 

@@ -104,12 +104,10 @@ Tier 3: GNS3 Full Simulation (~3-5min, traffic tests)
 
 ### **Validation**:
 - **Tier 1**: Batfish (Docker container)
-- **Tier 2**: Containerlab (Docker-based)
-- **Tier 3**: GNS3 (local VM)
 
 ### **Utilities**:
 - **PDF Processing**: pypdf, pdfplumber
-- **Embeddings**: sentence-transformers (all-MiniLM)
+- **Embeddings**: sentence-transformers
 - **Testing**: pytest
 - **Docs**: Markdown, Jupyter notebooks
 
