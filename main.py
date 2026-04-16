@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src"
 
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
+from exporter.gns3_exporter import GNS3Exporter
 from utils import setup_logger
 from config import settings
 from llm import LLMProvider
@@ -76,9 +77,11 @@ def main():
     # Initialize core components
     # IntentParser: Converts NL to StructuredIntent
     # ConfigGenerator: Generates configs from intents
+    # GNS3Exporter: Generates Digital Twin topology
     try:
         parser = IntentParser()
         generator = ConfigGenerator()
+        exporter = GNS3Exporter()
         logger.info("Components initialized successfully")
     except Exception as e:
         logger.error(f"Initialization Error: {e}", exc_info=True)
@@ -150,6 +153,15 @@ def main():
                     print(
                         "   Start validators: sudo ./scripts/install_validators_ubuntu.sh --verify"
                     )
+
+            # Step 5: Export Digital Twin Topology
+            print("\n[5/4] Exporting Digital Twin (Topology-as-Code)...")
+            try:
+                topo_path = exporter.export(structured_intent)
+                print(f"      ✓ Digital Twin topology exported to: {topo_path}")
+            except Exception as e:
+                logger.error(f"Export Error: {e}")
+                print(f"      [!] Export failed: {e}")
 
             logger.info("Intent processing complete")
 
