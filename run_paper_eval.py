@@ -41,6 +41,7 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime, timedelta
+from ciscoconfparse import CiscoConfParse
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -507,8 +508,8 @@ class PaperQualityEvaluator:
 
         CFR (Config Faithfulness Rate) measures whether the generated config
         includes all the critical parameters specified in the intent.
-        This catches cases where the LLM omits important values like
-        IP addresses, VLAN IDs, AS numbers, etc.
+        This version uses CiscoConfParse (AST) for Cisco and structured matching
+        for Juniper to reduce false negatives from regex.
 
         Args:
             intent: StructuredIntent with parameters to check.
@@ -523,6 +524,30 @@ class PaperQualityEvaluator:
 
         import re
         import ast
+
+        # Detect vendor to apply correct AST/parser
+        is_juniper = (
+            any(
+                config.strip().startswith(prefix)
+                for prefix in [
+                    "set ",
+                    "firewall",
+                    "protocols ",
+                    "interfaces ",
+                    "routing-options",
+                ]
+            )
+            or "set " in config[:1000]
+        )
+
+        # Initialize AST for Cisco
+        parse = None
+        if not is_juniper:
+            try:
+                # CiscoConfParse expects a list of lines
+                parse = CiscoConfParse(config.splitlines(), syntax="ios")
+            except Exception as e:
+                logger.warning(f"CiscoConfParse failed to initialize: {e}. Falling back to regex.")
 
         for key, val in intent.parameters.items():
             # Check if this is a critical parameter
@@ -547,7 +572,7 @@ class PaperQualityEvaluator:
             if not is_critical:
                 continue
 
-            # Handle potential list of values (e.g., VLANs 10,20,30)
+            # Handle potential list of values (e.g., VLANs [10,20,30])
             if isinstance(val, list):
                 vals = val
             elif isinstance(val, str) and val.startswith("[") and val.endswith("]"):
@@ -563,6 +588,34 @@ class PaperQualityEvaluator:
             for v in vals:
                 val_str = str(v).strip()
 
+                # --- Vendor Specific AST Check ---
+                if parse and not is_juniper:
+                    # Use Cisco AST to find the value
+                    found = False
+                    
+                    # 1. IP Address checks
+                    if "." in val_str and self._is_ip_like(val_str):
+                        # Search for objects containing this IP
+                        if parse.find_objects(re.escape(val_str)):
+                            found = True
+                    
+                    # 2. VLAN checks
+                    elif "vlan" in key_lower:
+                        if parse.find_objects(f"^vlan {re.escape(val_str)}$"):
+                            found = True
+                        elif parse.find_objects(f"vlan {re.escape(val_str)}"):
+                            found = True
+                            
+                    # 3. AS/Area checks
+                    elif any(k in key_lower for k in ["as", "area", "neighbor"]):
+                        if parse.find_objects(re.escape(val_str)):
+                            found = True
+                    
+                    if found:
+                        continue
+                    # If not found via AST, we'll try regex fallback below
+
+                # --- Structured/Regex Check (Juniper or Cisco Fallback) ---
                 # Determine parameter type and check accordingly
                 if "/" in val_str and val_str.split("/")[0].replace(".", "").isdigit():
                     # IP/CIDR parameter - pass FULL value including prefix
@@ -575,6 +628,10 @@ class PaperQualityEvaluator:
                 elif "." in val_str and self._is_ip_like(val_str):
                     # IP address parameter - pass full value
                     if not self._config_contains_ip(config, val_str):
+                        return True
+                else:
+                    # Generic string match for other critical params
+                    if val_str.lower() not in config.lower():
                         return True
 
         return False

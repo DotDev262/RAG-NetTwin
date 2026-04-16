@@ -28,6 +28,7 @@ Note:
 import os
 import tempfile
 import shutil
+import json
 from pathlib import Path
 from pybatfish.client.session import Session
 from pybatfish.datamodel import Interface
@@ -83,6 +84,20 @@ class BatfishValidator(NetworkValidator):
         super().__init__(tier=1)
         self.host = settings.batfish_host
         self.session = None
+        self.known_gaps = set()
+
+        # Load known Batfish gaps from config
+        try:
+            config_path = Path("config/batfish_gaps.json")
+            if config_path.exists():
+                with open(config_path, "r") as f:
+                    data = json.load(f)
+                    self.known_gaps = set(data.get("batfish_known_gaps", []))
+                logger.info(f"Loaded {len(self.known_gaps)} known Batfish gaps.")
+            else:
+                logger.warning(f"Batfish gaps config not found at {config_path}")
+        except Exception as e:
+            logger.error(f"Failed to load Batfish gaps config: {e}")
 
         try:
             # Try to connect to Batfish
@@ -195,15 +210,6 @@ class BatfishValidator(NetworkValidator):
             # Step 3: Run Analysis Questions
             issues = []
 
-            # Known Batfish parser gaps: commands that are valid but not in Batfish parser
-            # These would cause false positive PARSE_ISSUEs if not filtered
-            batfish_known_gaps = {
-                "ip ssh v2",  # Valid SSH config
-                "vlan database",  # Old but valid VLAN config syntax
-                "ip ssh authentication-type password",  # Valid SSH auth
-                "ip ssh key-exchange group",  # Valid SSH KEX
-            }
-
             # Check for configuration parsing issues
             parse_status = self.session.q.initIssues().answer().frame()
             if not parse_status.empty:
@@ -239,7 +245,7 @@ class BatfishValidator(NetworkValidator):
 
                     # Filter out known Batfish parser gaps
                     # These are valid commands that Batfish doesn't support yet
-                    if any(cmd in line_text for cmd in batfish_known_gaps):
+                    if any(cmd in line_text for cmd in self.known_gaps):
                         continue
 
                     # Handle specific known warnings
