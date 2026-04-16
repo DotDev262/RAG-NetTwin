@@ -26,9 +26,19 @@
     echo hello from $GREET
   '';
 
+  scripts.batfish-start.exec = ''
+    if ! docker ps --format '{{.Names}}' | grep -q "^batfish$"; then
+      echo "Starting Batfish container..."
+      docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/batfish
+    else
+      echo "Batfish container is already running."
+    fi
+  '';
+
   # https://devenv.sh/basics/
   enterShell = ''
     echo "Python environment with uv enabled."
     uv --version
+    batfish-start
   '';
 }
