@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 import json
 import os
+import hashlib
 from config import settings
 
 
@@ -94,10 +95,16 @@ class VectorStore:
             )
         )
 
-        # Get or create collection with cosine similarity metric
-        # Using "cosine" because we're comparing normalized embeddings
+        # Get or create collection for documentation
         self.collection = self.client.get_or_create_collection(
             name=settings.collection_name,
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=sentence_transformer_ef,
+        )
+
+        # Get or create collection for few-shot intent parsing examples (Recommendation 2)
+        self.few_shot_collection = self.client.get_or_create_collection(
+            name="intent_few_shot",
             metadata={"hnsw:space": "cosine"},
             embedding_function=sentence_transformer_ef,
         )
@@ -261,6 +268,40 @@ class VectorStore:
             )
 
         return formatted_results
+
+    def add_few_shot_examples(self, examples: List[Dict[str, str]]):
+        """
+        Adds examples to the few-shot collection.
+        Each example should have 'intent' (NL) and 'structured' (JSON string).
+        """
+        if not examples:
+            return
+        
+        ids = [hashlib.md5(ex["intent"].encode()).hexdigest() for ex in examples]
+        documents = [ex["intent"] for ex in examples]
+        metadatas = [{"structured": ex["structured"]} for ex in examples]
+        
+        self.few_shot_collection.add(ids=ids, documents=documents, metadatas=metadatas)
+        print(f"Added {len(examples)} examples to few-shot collection.")
+
+    def retrieve_few_shot(self, query: str, n_results: int = 3) -> List[Dict]:
+        """
+        Retrieves the most similar intent-to-json examples.
+        """
+        results = self.few_shot_collection.query(
+            query_texts=[query], n_results=n_results
+        )
+        
+        formatted = []
+        if not results["ids"] or not results["ids"][0]:
+            return formatted
+            
+        for i in range(len(results["ids"][0])):
+            formatted.append({
+                "intent": results["documents"][0][i],
+                "structured": results["metadatas"][0][i]["structured"]
+            })
+        return formatted
 
     def get_stats(self) -> Dict:
         """

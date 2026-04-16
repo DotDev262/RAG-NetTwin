@@ -6,6 +6,7 @@ from config import settings
 from llm import LLMProvider
 from enum import Enum
 from parser.inventory_resolver import InventoryResolver
+from rag.vector_store import VectorStore
 from utils import setup_logger
 
 logger = setup_logger("IntentParser")
@@ -93,6 +94,7 @@ IMPORTANT VENDOR DETECTION:
             schema=BatchStructuredIntent, model=model_name, temperature=0
         )
         self.inventory_resolver = InventoryResolver()
+        self.vector_store = VectorStore()
 
     def parse_batch(
         self, texts: List[str], chunk_size: int = 3
@@ -120,6 +122,12 @@ IMPORTANT VENDOR DETECTION:
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         count = len(texts)
         
+        # Recommendation 2: Dynamic Few-Shot Retrieval (use first intent in chunk as anchor)
+        few_shot_examples = self.vector_store.retrieve_few_shot(texts[0], n_results=3)
+        examples_str = ""
+        for i, ex in enumerate(few_shot_examples):
+            examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
+
         system_prompt = f"""You are a network automation expert. 
 Translate the following list of {count} natural language intents into a structured JSON list.
 
@@ -129,6 +137,9 @@ RULES:
 1. You MUST return a list containing EXACTLY {count} intent objects.
 2. For each intent, choose the most specific 'action' from the allowed values: {actions_str}.
 3. The 'original_text' for each object MUST match the input text exactly from the provided list.
+
+### FEW-SHOT EXAMPLES ###
+{examples_str if examples_str else "No specific examples found."}
 """
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -159,6 +170,12 @@ RULES:
         """Translates NL text to StructuredIntent object."""
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         
+        # Recommendation 2: Dynamic Few-Shot Retrieval
+        few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
+        examples_str = ""
+        for i, ex in enumerate(few_shot_examples):
+            examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
+
         system_prompt = f"""You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.
 
 {IntentParser.VENDOR_DETECTION_INSTRUCTIONS}
@@ -166,36 +183,8 @@ RULES:
 You MUST choose the most specific 'action' from the following allowed values: {actions_str}.
 Populate the 'requirements' list with any relevant constraints, such as 'no_downtime' if the user emphasizes minimal disruption, or 'validate_only' if the intent is purely for verification.
 
-Examples:
-Natural Language: "Create OSPF area 0 on Router-A for interface Gig0/1."
-Structured Intent:
-{{
-  "protocol": "OSPF",
-  "action": "create",
-  "devices": [{{ "name": "Router-A", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}],
-  "parameters": {{ "area": "0", "interface": "Gig0/1" }},
-  "requirements": []
-}}
-
-Natural Language: "Set up BGP on Juniper MX router."
-Structured Intent:
-{{
-  "protocol": "BGP",
-  "action": "create",
-  "devices": [{{ "name": "Router-A", "vendor": "juniper", "os_type": "junos", "os_version": "21.4" }}],
-  "parameters": {{}},
-  "requirements": []
-}}
-
-Natural Language: "Remove BGP neighbor 10.0.0.2 from Router-B."
-Structured Intent:
-{{
-  "protocol": "BGP",
-  "action": "delete",
-  "devices": [{{ "name": "Router-B", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6" }}],
-  "parameters": {{ "neighbor_ip": "10.0.0.2" }},
-  "requirements": ["no_downtime"]
-}}
+### FEW-SHOT EXAMPLES ###
+{examples_str if examples_str else "No specific examples found, use your general knowledge."}
 """
         prompt = ChatPromptTemplate.from_messages(
             [
