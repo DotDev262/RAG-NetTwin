@@ -81,9 +81,13 @@ class GNS3Validator(NetworkValidator):
                 logger.info(f"Created links")
             
             # 3. Start Topology
-            logger.info("Starting nodes (waiting 30s for boot)...")
+            logger.info("Starting nodes...")
             requests.post(f"{self.base_url}/projects/{self.project_id}/nodes/start", json={})
-            time.sleep(30) # Wait for IOS to boot
+            
+            # Intelligent Polling: Wait for nodes to reach a ready state (max 120s)
+            boot_success = self._wait_for_nodes_boot(nodes)
+            if not boot_success:
+                logger.warning("Some nodes may not have booted fully, proceeding with config push anyway.")
             
             # 4. Push Configs
             results = {}
@@ -106,6 +110,58 @@ class GNS3Validator(NetworkValidator):
         except Exception as e:
             logger.error(f"Tier 3 validation failed: {e}")
             return {"status": "ERROR", "tier": 3, "error": str(e)}
+
+    def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 120) -> bool:
+        """
+        Polls the console of all nodes until a prompt is detected.
+        Returns True if all nodes are ready, False if timeout reached.
+        """
+        start_time = time.time()
+        pending_nodes = list(nodes.keys())
+        
+        logger.info(f"Polling console for {len(pending_nodes)} nodes...")
+        
+        while time.time() - start_time < timeout and pending_nodes:
+            for node_name in list(pending_nodes):
+                node_id = nodes[node_name]
+                try:
+                    # Get console info
+                    resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                    if resp.status_code != 200:
+                        continue
+                    
+                    node_info = resp.json()
+                    console_port = node_info.get('console')
+                    console_host = node_info.get('console_host', 'localhost')
+                    if console_host == '0.0.0.0':
+                        console_host = self.host
+
+                    if not console_port:
+                        continue
+
+                    # Try a non-blocking Telnet check
+                    with socket.create_connection((console_host, console_port), timeout=2):
+                        tn = telnetlib.Telnet(console_host, console_port, timeout=2)
+                        tn.write(b"\r\n")
+                        # Look for common prompts: Router>, Router#, Switch>, user:
+                        # We use expect with a short timeout
+                        idx, match, text = tn.expect([b">", b"#", b"login:", b"user:"], timeout=2)
+                        tn.close()
+                        
+                        if idx != -1:
+                            logger.info(f"Node {node_name} is READY (detected prompt)")
+                            pending_nodes.remove(node_name)
+                except (ConnectionRefusedError, socket.timeout, EOFError):
+                    # Still booting
+                    continue
+                except Exception as e:
+                    logger.debug(f"Polling error for {node_name}: {e}")
+                    continue
+            
+            if pending_nodes:
+                time.sleep(2) # Wait between polls
+                
+        return len(pending_nodes) == 0
 
     def _create_project(self, name: str) -> str:
         payload = {"name": name}
