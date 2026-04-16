@@ -1,0 +1,12 @@
+[allowlist]
+description = "Allowlist for Cisco documentation and research files"
+paths = [
+    '''data/raw_docs/.*''',
+    '''data/processed/.*''',
+    '''data/processed_chunks/.*'''
+]
+# Also allow specific generic keys often found in Cisco examples
+regexes = [
+    '''BOOMR_API_key''',
+    '''Service Key:'''
+]

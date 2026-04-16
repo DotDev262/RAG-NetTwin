@@ -8,6 +8,8 @@
   packages = [ 
     pkgs.git
     pkgs.uv
+    pkgs.pre-commit
+    pkgs.gitleaks
   ];
 
   # https://devenv.sh/languages/
@@ -40,5 +42,6 @@
     echo "Python environment with uv enabled."
     uv --version
     batfish-start
+    pre-commit install
   '';
 }
