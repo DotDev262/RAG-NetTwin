@@ -38,125 +38,79 @@ class HallucinationReport(BaseModel):
 
     Attributes:
         is_hallucinated: Boolean indicating if hallucinations were detected.
-            True if suspicious commands OR invalid citations found.
         reason: Human-readable explanation of why detection failed.
-            None if no hallucinations detected.
-        suspicious_commands: List of detected placeholder patterns
-            (e.g., ["<YOUR_IP>", "<ENTER_AS>"]).
-        invalid_citations: List of citation IDs that don't match
-            retrieved sources (indicates citation fabrication).
+        suspicious_commands: List of detected placeholder patterns.
+        invalid_citations: List of citation IDs that don't match retrieved sources.
+        ungrounded_commands: List of commands not found in retrieved documentation.
     """
 
     is_hallucinated: bool
     reason: Optional[str] = None
     suspicious_commands: List[str] = Field(default_factory=list)
     invalid_citations: List[str] = Field(default_factory=list)
+    ungrounded_commands: List[str] = Field(default_factory=list)
 
 
 class HallucinationDetector:
     """
     Detects common LLM hallucinations in network configurations.
 
-    This detector identifies two types of hallucinations:
-    1. Placeholder Hallucinations: LLM uses placeholder values instead of
-       actual configuration (e.g., <YOUR_IP> instead of 192.168.1.1)
-    2. Citation Hallucinations: LLM cites sources that weren't actually
-       retrieved, which could indicate the config wasn't grounded
-
-    The detector uses regex patterns to identify common placeholder formats
-    and validates that cited sources exist in the retrieved results.
-
-    Attributes:
-        HALLUCINATION_PATTERNS: List of regex patterns for detecting
-            common placeholder formats. These are ordered by specificity
-            from most specific to most general.
-
-    False Positive Handling:
-        - Citation brackets [Ref: ...] are removed before pattern matching
-        - Valid Cisco syntax like <password> is NOT flagged (only <YOUR_PASSWORD>)
+    This detector identifies three types of hallucinations:
+    1. Placeholder Hallucinations: LLM uses placeholder values (<YOUR_IP>).
+    2. Citation Hallucinations: LLM cites sources that weren't retrieved.
+    3. Grounding Hallucinations: LLM generates commands not present in docs.
     """
-
-    # Common hallucinated commands or placeholders
-    # Ordered from specific to general to catch most common cases first
+    
+    # ... existing patterns ...
     HALLUCINATION_PATTERNS = [
-        r"<YOUR_[A-Z_]+>",  # <YOUR_PASSWORD>, <YOUR_IP>, etc.
-        r"<ENTER_[A-Z_]+>",  # <ENTER_IP>, <ENTER_AS>, etc.
-        r"<SAMPLE_[A-Z_]+>",  # <SAMPLE_IP>, etc.
-        r"<EXAMPLE_[A-Z_]+>",  # <EXAMPLE_IP>, etc.
-        r"<CHANGE_ME>",  # <CHANGE_ME>
-        r"<REPLACE_[A-Z_]+>",  # <REPLACE_THIS>
-        r"<PASSWORD\d+>",  # <PASSWORD1>, <PASSWORD123>, etc. (numeric suffixes)
-        r"<[A-Z_]+\d+>",  # Generic ALL CAPS with numbers like <AS123>
-        r"ENTER_IP_HERE",  # Standalone placeholders
+        r"<YOUR_[A-Z_]+>",
+        r"<ENTER_[A-Z_]+>",
+        r"<SAMPLE_[A-Z_]+>",
+        r"<EXAMPLE_[A-Z_]+>",
+        r"<CHANGE_ME>",
+        r"<REPLACE_[A-Z_]+>",
+        r"<PASSWORD\d+>",
+        r"<[A-Z_]+\d+>",
+        r"ENTER_IP_HERE",
         r"YOUR_AS_NUMBER",
-        r"command-not-found",  # Command failure indicator
-        r"PLACEHOLDER",  # Generic placeholder
-        r"dummy-config",  # Dummy configuration marker
-        r"\[.*?\]",  # Square brackets (but exclude citations - handled separately)
+        r"command-not-found",
+        r"PLACEHOLDER",
+        r"dummy-config",
+        r"\[.*?\]",
     ]
 
     def detect(
-        self, config: str, citations: List[str], valid_source_ids: List[str]
+        self, config: str, citations: List[str], valid_source_ids: List[str], retrieved_texts: List[str] = None
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
-
-        This method performs two checks:
-        1. Pattern matching: Scan for placeholder patterns in the config
-        2. Citation validation: Ensure all cited sources exist in valid sources
-
-        Args:
-            config: The generated configuration text to analyze.
-            citations: List of citation IDs from the LLM response.
-            valid_source_ids: List of valid source IDs from RAG retrieval.
-                These are the IDs of actually retrieved chunks.
-
-        Returns:
-            HallucinationReport containing:
-                - is_hallucinated: True if any issues found
-                - reason: Explanation if hallucinated, None otherwise
-                - suspicious_commands: List of detected placeholders
-                - invalid_citations: List of citations not in valid sources
-
-        Example:
-            >>> detector = HallucinationDetector()
-            >>> report = detector.detect(
-            ...     config="ip address <YOUR_IP> 255.255.255.0",
-            ...     citations=["src_001"],
-            ...     valid_source_ids=["src_001", "src_002"]
-            ... )
-            >>> report.is_hallucinated
-            True
-            >>> report.suspicious_commands
-            ['<YOUR_IP>']
         """
         suspicious = []
         invalid_cites = []
+        ungrounded = []
 
-        # Step 1: Remove citation references from config to avoid false positives
-        # The pattern [Ref: ...] contains square brackets that would match
-        # our generic pattern, so we strip them before pattern matching
+        # Step 1: Remove citation references from config
         config_clean = re.sub(r"\[Ref: [^\]]+\]", "", config)
 
-        # Step 2: Check for placeholder patterns in cleaned config
-        # Iterate through all hallucination patterns and collect matches
+        # Step 2: Check for placeholder patterns
         for pattern in self.HALLUCINATION_PATTERNS:
             matches = re.findall(pattern, config_clean)
             if matches:
-                # Extend with unique matches (set to deduplicate)
                 suspicious.extend(list(set(matches)))
 
         # Step 3: Check citation validity
-        # If LLM cites sources that weren't retrieved, that's suspicious
-        # This could indicate the LLM fabricated citations
         for cite in citations:
             if cite not in valid_source_ids:
                 invalid_cites.append(cite)
 
-        # Determine overall hallucination status
-        is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0
+        # Step 4: Command Grounding Check (Recommendation 2)
+        if retrieved_texts:
+            ungrounded = self._check_command_grounding(config_clean, retrieved_texts)
 
-        # Build reason string if hallucinations detected
+        # Determine overall hallucination status
+        is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0
+
+        # Build reason string
         reason = None
         if is_hallucinated:
             reasons = []
@@ -164,6 +118,8 @@ class HallucinationDetector:
                 reasons.append(f"Placeholders found: {suspicious}")
             if invalid_cites:
                 reasons.append(f"Invalid citations: {invalid_cites}")
+            if ungrounded:
+                reasons.append(f"Ungrounded commands: {ungrounded}")
             reason = "; ".join(reasons)
 
         return HallucinationReport(
@@ -171,4 +127,37 @@ class HallucinationDetector:
             reason=reason,
             suspicious_commands=suspicious,
             invalid_citations=invalid_cites,
+            ungrounded_commands=ungrounded
         )
+
+    def _check_command_grounding(self, config: str, docs: List[str]) -> List[str]:
+        """
+        Check if CLI keywords in config are present in the retrieved docs.
+        """
+        ungrounded = []
+        full_doc_text = "\n".join(docs).lower()
+        
+        # Simple heuristic: extract commands (first 2-3 words of each line)
+        for line in config.splitlines():
+            line = line.strip()
+            if not line or line.startswith(("!", "#", "comment")):
+                continue
+            
+            # Extract keywords (e.g., "router ospf", "interface gigabitethernet")
+            # We ignore numbers/IPs/params at the end
+            parts = line.split()
+            if len(parts) >= 2:
+                # Try 2-word keyword match (e.g., "router ospf")
+                keyword = f"{parts[0]} {parts[1]}".lower()
+                # Remove version numbers if present (e.g., "ospf 1" -> "ospf")
+                keyword = re.sub(r"\d+", "", keyword).strip()
+                
+                if keyword not in full_doc_text:
+                    ungrounded.append(line)
+            elif len(parts) == 1:
+                # Try 1-word keyword match (e.g., "exit")
+                keyword = parts[0].lower()
+                if keyword not in full_doc_text and len(keyword) > 3:
+                    ungrounded.append(line)
+        
+        return ungrounded

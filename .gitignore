@@ -19,5 +19,7 @@ devenv.local.yaml
 # direnv
 .direnv
 
-# pre-commit
-.pre-commit-config.yaml
+# GNS3 & Local Research Assets
+refplat-*/
+refplat-*.zip
+iourc

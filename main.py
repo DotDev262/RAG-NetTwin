@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src"
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
 from exporter.gns3_exporter import GNS3Exporter
-from utils import setup_logger
+from utils import setup_logger, generate_audit_report
 from config import settings
 from llm import LLMProvider
 
@@ -148,6 +148,37 @@ def main():
                         )
                         for issue in validation_result.get("issues", [])[:3]:
                             print(f"   - [{issue['type']}] {issue['details']}")
+                        
+                        # Step 4.5: Interactive Refinement (Recommendation 4)
+                        print("\nWould you like me to attempt a self-correction based on these errors? (y/n)")
+                        choice = input("> ").strip().lower()
+                        if choice == 'y':
+                            print("Refining configuration...")
+                            error_text = "\n".join([i['details'] for i in validation_result.get("issues", [])])
+                            
+                            # Get vendor/version for the device
+                            device_intent = next((d for d in structured_intent.devices if d.name == device_name), None)
+                            vendor = device_intent.vendor if device_intent else "cisco"
+                            version = device_intent.os_version if device_intent else "17.6"
+                            
+                            fixed_config = generator.refine(
+                                device_name=device_name,
+                                config=data["config"],
+                                error_feedback=error_text,
+                                vendor=vendor,
+                                os_version=version
+                            )
+                            
+                            print("\nFixed Configuration:")
+                            print("```")
+                            print(fixed_config)
+                            print("```")
+                            
+                            print("Re-validating fixed configuration...")
+                            re_validation = validator.validate({device_name: fixed_config}, structured_intent)
+                            print(f"✅ Re-validation Status: {re_validation.get('status')}")
+                            # Update data with fixed config for downstream steps (like export)
+                            data["config"] = fixed_config
                 except Exception as e:
                     print(f"\n⚠️  Tier 1 Validation not available: {e}")
                     print(
@@ -155,13 +186,22 @@ def main():
                     )
 
             # Step 5: Export Digital Twin Topology
-            print("\n[5/4] Exporting Digital Twin (Topology-as-Code)...")
+            print("\n[5/6] Exporting Digital Twin (Topology-as-Code)...")
             try:
                 topo_path = exporter.export(structured_intent)
                 print(f"      ✓ Digital Twin topology exported to: {topo_path}")
             except Exception as e:
                 logger.error(f"Export Error: {e}")
                 print(f"      [!] Export failed: {e}")
+
+            # Step 6: Generate Grounding Audit Report (Recommendation 5)
+            print("\n[6/6] Generating Grounding Audit Report...")
+            try:
+                audit_path = generate_audit_report(structured_intent, configs)
+                print(f"      ✓ Audit report generated at: {audit_path}")
+            except Exception as e:
+                logger.error(f"Audit Error: {e}")
+                print(f"      [!] Audit report failed: {e}")
 
             logger.info("Intent processing complete")
 

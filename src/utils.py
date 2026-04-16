@@ -515,55 +515,57 @@ class JsonFormatter(logging.Formatter):
         return log_obj.model_dump_json()
 
 
-def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
+def generate_audit_report(
+    intent: Any, 
+    configs: Dict[str, Any], 
+    output_dir: str = "results/audits"
+) -> str:
     """
-    Configures a structured logger.
-
-    This function creates a logger with both console and file handlers.
-    The console handler provides human-readable output (using rich if
-    available), while the file handler writes structured JSON logs.
-
-    Args:
-        name: Logger name (typically __name__ of the module).
-        log_file: Name of the log file (default: "rag_net.log").
-        level: Logging level (default: logging.INFO).
-
-    Returns:
-        Configured logger instance.
-
-    Example:
-        >>> logger = setup_logger(__name__)
-        >>> logger.info("Starting intent parsing")
-        2024-01-15 10:30:00 - intent_parser - INFO - Starting intent parsing
+    Generates a structured Markdown 'Grounding Audit Report' for an intent.
+    (Recommendation 5)
     """
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_text = re.sub(r'[^\w\s-]', '', intent.original_text[:30]).strip().replace(" ", "_")
+    filename = f"audit_{timestamp}_{safe_text}.md"
+    filepath = os.path.join(output_dir, filename)
 
-    # Create logs directory
-    log_path = Path("logs")
-    log_path.mkdir(exist_ok=True)
+    report = [
+        f"# Grounding Audit Report",
+        f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"**Original Intent:** {intent.original_text}",
+        f"\n## 1. Structured Intent Analysis",
+        f"- **Protocol:** {intent.protocol}",
+        f"- **Action:** {intent.action}",
+        f"- **Parameters:** `{json.dumps(intent.parameters)}`",
+        f"\n## 2. Generation & Grounding Details"
+    ]
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+    for device_name, data in configs.items():
+        report.append(f"### Device: {device_name}")
+        report.append(f"#### Reasoning Path\n{data.get('reasoning', 'N/A')}")
+        
+        report.append(f"#### Retrieved Documentation Snippets")
+        # In a real scenario, we'd pass the actual texts here. 
+        # For now, we list the source IDs.
+        sources = data.get('retrieved_sources', [])
+        if sources:
+            report.append(f"- **Sources used:** {', '.join(sources)}")
+        else:
+            report.append("- *No documentation retrieved (Lite path used or no matches).*")
 
-    # Clear existing handlers to avoid duplicates
-    if logger.handlers:
-        logger.handlers.clear()
+        report.append(f"#### Generated Configuration\n```\n{data.get('config', 'N/A')}\n```")
+        
+        if "validation" in data:
+            val = data["validation"]
+            report.append(f"#### Validation Results (Tier 1)")
+            report.append(f"- **Status:** {val.get('status')}")
+            if val.get("issues"):
+                report.append(f"- **Issues found:**")
+                for issue in val["issues"]:
+                    report.append(f"  - [{issue['type']}] {issue['details']}")
 
-    # Console Handler (Human readable, using rich if available)
-    try:
-        from rich.logging import RichHandler
-
-        console_handler = RichHandler(rich_tracebacks=True, markup=True)
-    except ImportError:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-
-    logger.addHandler(console_handler)
-
-    # File Handler (JSON structured)
-    file_handler = logging.FileHandler(log_path / log_file)
-    file_handler.setFormatter(JsonFormatter())
-    logger.addHandler(file_handler)
-
-    return logger
+    with open(filepath, "w") as f:
+        f.write("\n".join(report))
+    
+    return filepath
