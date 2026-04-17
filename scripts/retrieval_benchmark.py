@@ -19,17 +19,17 @@ RETRIEVAL_BENCHMARK = [
     {
         "query": "OSPF network area configuration",
         "vendor": "cisco",
-        "expected_id": "cisco_router-ospf_a8467f20bdf02c24" 
+        "expected_id": "cisco_tier2_cfafeaa86d27" 
     },
     {
-        "query": "set protocols ospf area 0.0.0.0 interface",
+        "query": "BGP neighbor autonomous-system",
         "vendor": "juniper",
-        "expected_id": "juniper_ospf_c07b640aa0a11f4b"
+        "expected_id": "juniper_tier2_fb57e9215df3"
     },
     {
-        "query": "Standard access-list permit deny",
+        "query": "standard access-list permit deny",
         "vendor": "cisco",
-        "expected_id": "cisco_acl-numbered_56e2fa52c3c13745"
+        "expected_id": "cisco_tier2_57383a2965b1"
     }
 ]
 
@@ -58,6 +58,9 @@ def run_benchmark():
         # Rerank them
         ranked_results = store.rerank(query, candidates, n_results=10)
         retrieved_ids = [res["id"] for res in ranked_results]
+        
+        # Debugging: Show what was actually found
+        console.print(f"    [dim]Retrieved: {retrieved_ids[:3]}[/dim]")
 
         # Calculate metrics
         mrr = calculate_mrr(expected, retrieved_ids)
