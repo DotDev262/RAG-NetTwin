@@ -152,7 +152,6 @@ class ConfigGenerator:
         if not is_lite:
             for (vendor, search_version), devices in device_groups.items():
                 # Recommendation 5: Check Semantic Cache first
-                # We use the first device name as a proxy for the group's needs
                 cached_response = self.vector_store.check_cache(
                     structured_intent.original_text, 
                     structured_intent.parameters, 
@@ -165,20 +164,38 @@ class ConfigGenerator:
                         configs[dev.name] = cached_response
                     continue
 
-                # Not in cache, perform retrieval ONCE for the whole group
-                results = self.vector_store.retrieve(
-                    query=query,
-                    vendor=vendor,
-                    os_version=search_version,
-                    n_results=2,
-                )
+                # Recommendation 1: Balanced Hierarchical Retrieval
+                # We explicitly fetch 1 Syntax chunk (Tier 1) and 1 Conceptual chunk (Tier 2/3)
+                results = []
                 
+                # 1. Fetch Precise CLI Block (Tier 1)
+                syntax_chunks = self.vector_store.retrieve(
+                    query=query, vendor=vendor, os_version=search_version, tier=1, n_results=1
+                )
+                if syntax_chunks:
+                    results.extend(syntax_chunks)
+                
+                # 2. Fetch Conceptual Context (Tier 2 or 3)
+                # We look for Tier 2 first as it has parameter definitions
+                concept_chunks = self.vector_store.retrieve(
+                    query=query, vendor=vendor, os_version=search_version, tier=2, n_results=1
+                )
+                if not concept_chunks:
+                    # Fallback to Tier 3 for broad context
+                    concept_chunks = self.vector_store.retrieve(
+                        query=query, vendor=vendor, os_version=search_version, tier=3, n_results=1
+                    )
+                
+                if concept_chunks:
+                    results.extend(concept_chunks)
+
+                # Fallback: If hierarchy is empty (e.g. version mismatch), use standard top-k
                 if not results:
+                    logger.warning(f"Hierarchical retrieval empty for {vendor}, using fallback")
                     results = self.vector_store.retrieve(query=query, vendor=vendor, n_results=2)
                 
                 if not results:
-                    logger.warning(f"No docs found for {vendor}/{search_version}, trying unfiltered")
-                    results = self.vector_store.retrieve(query=query, n_results=1)
+                    results = self.vector_store.retrieve(query=query, n_results=2)
 
                 for dev in devices:
                     full_context_map[dev.name] = results
