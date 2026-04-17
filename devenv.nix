@@ -11,6 +11,8 @@
     pkgs.pre-commit
     pkgs.gitleaks
     pkgs.jdk17
+    pkgs.zlib
+    pkgs.stdenv.cc.cc.lib
   ];
 
   # https://devenv.sh/languages/
@@ -47,6 +49,7 @@
   enterShell = ''
     export UV_PYTHON_DOWNLOADS=auto
     export UV_PYTHON_PREFERENCE=managed
+    export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.zlib}/lib:$LD_LIBRARY_PATH"
     echo "Python environment with uv enabled."
     uv --version
     batfish-start

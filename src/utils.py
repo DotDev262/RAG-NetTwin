@@ -515,6 +515,35 @@ class JsonFormatter(logging.Formatter):
         return log_obj.model_dump_json()
 
 
+def calculate_mrr(relevant_id: str, retrieved_ids: List[str]) -> float:
+    """
+    Calculates Mean Reciprocal Rank (MRR).
+    (Recommendation 3 Elite)
+    """
+    try:
+        rank = retrieved_ids.index(relevant_id) + 1
+        return 1.0 / rank
+    except ValueError:
+        return 0.0
+
+
+def calculate_ndcg(relevant_id: str, retrieved_ids: List[str]) -> float:
+    """
+    Calculates Normalized Discounted Cumulative Gain (NDCG) for a single relevant item.
+    (Recommendation 3 Elite)
+    """
+    import numpy as np
+    try:
+        rank = retrieved_ids.index(relevant_id) + 1
+        # DCG = rel / log2(rank + 1). Here rel is binary (1 for the ground truth)
+        dcg = 1.0 / np.log2(rank + 1)
+        # IDCG is always 1.0 / log2(1 + 1) = 1.0 for a single relevant item
+        idcg = 1.0
+        return dcg / idcg
+    except ValueError:
+        return 0.0
+
+
 def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
     """
     Configures a structured logger.
