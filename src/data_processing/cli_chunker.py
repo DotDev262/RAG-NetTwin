@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_processing.pdf_extractor import extract_text_from_pdf
 from rag.vector_store import VectorStore
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Cisco IOS CLI patterns - captures command blocks with context
 # Each tuple: (regex_pattern, command_category)
@@ -157,6 +157,45 @@ def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
     return chunks
 
 
+def extract_semantic_chunks(text: str, vendor: str, tier: int = 2) -> List[Dict]:
+    """
+    Extracts high-level semantic chunks (Recommendation 1).
+    Tier 2: Semantic Paragraphs (~500 chars)
+    Tier 3: Full Sections (~1500 chars)
+    """
+    if tier == 2:
+        chunk_size = 500
+        overlap = 50
+    else:
+        chunk_size = 1500
+        overlap = 150
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        length_function=len,
+        separators=["\n\n", "\n", " ", ""],
+    )
+
+    docs = splitter.split_text(text)
+    chunks = []
+
+    for i, doc_text in enumerate(docs):
+        # Generate unique ID based on content
+        content_hash = hashlib.md5(doc_text.encode()).hexdigest()[:12]
+        
+        chunks.append({
+            "id": f"{vendor}_tier{tier}_{content_hash}",
+            "text": f"Tier {tier} Context ({vendor}):\n{doc_text}",
+            "vendor": vendor,
+            "os_version": "ios-xe-17.6" if vendor == "cisco" else "junos-21.4",
+            "command_type": "conceptual",
+            "tier": tier
+        })
+
+    return chunks
+
+
 def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
     """
     Process a PDF and extract CLI examples with context.
@@ -178,10 +217,20 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
 
     # Extract CLI from each page
     for page in pages:
-        chunks = extract_cli_examples(page["text"], vendor)
-        all_chunks.extend(chunks)
+        # Tier 1: Precise CLI blocks
+        tier1 = extract_cli_examples(page["text"], vendor)
+        all_chunks.extend(tier1)
+        
+        # Tier 2: Conceptual paragraphs
+        tier2 = extract_semantic_chunks(page["text"], vendor, tier=2)
+        all_chunks.extend(tier2)
+        
+        # Tier 3: Broad sections (every 3 pages to simulate sections)
+        # (This is a simplified sectioning strategy for research)
+        tier3 = extract_semantic_chunks(page["text"], vendor, tier=3)
+        all_chunks.extend(tier3)
 
-    print(f"    Found {len(all_chunks)} CLI examples")
+    print(f"    Found {len(all_chunks)} chunks across 3 tiers")
     return all_chunks
 
 
