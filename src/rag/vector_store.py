@@ -37,6 +37,7 @@ import json
 import os
 import hashlib
 from rank_bm25 import BM25Okapi
+from sentence_transformers import CrossEncoder
 from config import settings
 
 
@@ -121,6 +122,14 @@ class VectorStore:
         self.bm25 = None
         self.corpus_map = {} # chunk_id -> chunk_data
         self._initialize_bm25()
+
+        # Reranker: Cross-Encoder (Recommendation 1 Elite)
+        try:
+            self.reranker = CrossEncoder(settings.reranker_model_name)
+            print(f"Reranker initialized: {settings.reranker_model_name}")
+        except Exception as e:
+            print(f"Failed to initialize Reranker: {e}")
+            self.reranker = None
 
         print(f"Connected to ChromaDB at {self.persist_dir}")
         print(f"Collection '{settings.collection_name}' ready")
@@ -449,6 +458,26 @@ class VectorStore:
             })
             
         return final_results
+
+    def rerank(self, query: str, chunks: List[Dict], n_results: int = 1) -> List[Dict]:
+        """
+        Uses the local Cross-Encoder to re-score and rank chunks.
+        """
+        if not self.reranker or not chunks:
+            return chunks[:n_results]
+
+        # Prepare pairs for the Cross-Encoder: (Query, Document)
+        pairs = [[query, chunk["text"]] for chunk in chunks]
+        
+        # Get scores (higher is better)
+        scores = self.reranker.predict(pairs)
+        
+        # Attach scores to chunks and sort
+        for i, score in enumerate(scores):
+            chunks[i]["rerank_score"] = float(score)
+            
+        ranked = sorted(chunks, key=lambda x: x["rerank_score"], reverse=True)
+        return ranked[:n_results]
 
     def get_stats(self) -> Dict:
         """

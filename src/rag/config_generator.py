@@ -176,28 +176,31 @@ class ConfigGenerator:
                 results = []
                 
                 if retrieval_mode == "tiered":
-                    # Balanced Hierarchical Hybrid Retrieval (Recommendation 1 + Hybrid)
-                    # 1. Fetch Precise CLI Block (Tier 1)
-                    syntax_chunks = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, tier=1, n_results=1
+                    # Balanced Hierarchical Hybrid Retrieval + Reranking (Elite Strategy)
+                    # 1. Fetch more candidates (n_results=5) for the Reranker to choose from
+                    syntax_candidates = self.vector_store.hybrid_retrieve(
+                        query=query, vendor=vendor, os_version=search_version, tier=1, n_results=5
                     )
-                    if syntax_chunks: results.extend(syntax_chunks)
-                    
-                    # 2. Fetch Conceptual Context (Tier 2 or 3)
-                    concept_chunks = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, tier=2, n_results=1
+                    concept_candidates = self.vector_store.hybrid_retrieve(
+                        query=query, vendor=vendor, os_version=search_version, tier=2, n_results=5
                     )
-                    if not concept_chunks:
-                        concept_chunks = self.vector_store.hybrid_retrieve(
-                            query=query, vendor=vendor, os_version=search_version, tier=3, n_results=1
+                    if not concept_candidates:
+                        concept_candidates = self.vector_store.hybrid_retrieve(
+                            query=query, vendor=vendor, os_version=search_version, tier=3, n_results=5
                         )
-                    if concept_chunks: results.extend(concept_chunks)
+                    
+                    # 2. Use local Cross-Encoder to pick the absolute winner for each tier
+                    if syntax_candidates:
+                        results.extend(self.vector_store.rerank(query, syntax_candidates, n_results=1))
+                    if concept_candidates:
+                        results.extend(self.vector_store.rerank(query, concept_candidates, n_results=1))
                 
                 elif retrieval_mode == "flat":
-                    # Standard Top-K Hybrid Retrieval (Ablation Baseline)
-                    results = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, n_results=2
+                    # Flat Hybrid + Reranking
+                    flat_candidates = self.vector_store.hybrid_retrieve(
+                        query=query, vendor=vendor, os_version=search_version, n_results=10
                     )
+                    results = self.vector_store.rerank(query, flat_candidates, n_results=2)
 
                 # Recommendation 3: Semantic Sanity Check
                 # If similarity scores are too low (distance too high), flag as ungrounded

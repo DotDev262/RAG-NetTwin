@@ -97,6 +97,7 @@ class Settings(BaseSettings):
     # Vector DB Settings
     chroma_persist_dir: str = "./data/chroma_db"
     embedding_model_name: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+    reranker_model_name: str = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
     collection_name: str = "network_docs"
 
     # LLM Model Settings
