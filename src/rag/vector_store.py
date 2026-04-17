@@ -109,6 +109,13 @@ class VectorStore:
             embedding_function=sentence_transformer_ef,
         )
 
+        # Get or create collection for Semantic Cache (Recommendation 5)
+        self.cache_collection = self.client.get_or_create_collection(
+            name="intent_cache",
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=sentence_transformer_ef,
+        )
+
         print(f"Connected to ChromaDB at {self.persist_dir}")
         print(f"Collection '{settings.collection_name}' ready")
 
@@ -302,6 +309,40 @@ class VectorStore:
                 "structured": results["metadatas"][0][i]["structured"]
             })
         return formatted
+
+    def check_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, threshold: float = 0.05) -> Optional[Dict]:
+        """
+        Checks the semantic cache for a matching intent.
+        Threshold: 0.0 means identical, 0.05 is very similar.
+        """
+        # We include parameters in the query to increase specificity
+        query = f"{intent_text} {json.dumps(parameters)}"
+        
+        results = self.cache_collection.query(
+            query_texts=[query], 
+            n_results=1,
+            where={"vendor": vendor}
+        )
+        
+        if results["ids"] and results["ids"][0] and results["distances"][0][0] <= threshold:
+            return json.loads(results["metadatas"][0][0]["response"])
+        return None
+
+    def update_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, response: Dict[str, Any]):
+        """
+        Adds a successfully generated configuration to the semantic cache.
+        """
+        query = f"{intent_text} {json.dumps(parameters)}"
+        cache_id = hashlib.md5(f"{vendor}:{query}".encode()).hexdigest()
+        
+        self.cache_collection.add(
+            ids=[cache_id],
+            documents=[query],
+            metadatas=[{
+                "vendor": vendor,
+                "response": json.dumps(response)
+            }]
+        )
 
     def get_stats(self) -> Dict:
         """

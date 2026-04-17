@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 import json
 import re
+import hashlib
 
 from rag.vector_store import VectorStore
 from parser.intent_parser import StructuredIntent
@@ -114,102 +115,77 @@ class ConfigGenerator:
 
     def generate(self, structured_intent: StructuredIntent) -> Dict[str, Any]:
         """
-        Generates CLI configuration for each device using structured output.
-
-        This method implements a two-phase generation approach:
-
-        Phase 1 - Retrieval:
-            - Checks if intent is "lite" (show/verify commands, simple tasks)
-            - For non-lite intents, retrieves relevant docs from ChromaDB
-            - Uses vendor+version filtering for accurate syntax matching
-            - Implements fallback chain: vendor+version → vendor only → unfiltered
-
-        Phase 2 - Generation:
-            - Builds device-specific prompts with vendor syntax rules
-            - Uses structured LLM output for consistent format
-            - Adds citation comments using vendor-appropriate syntax
-            - Returns configs with confidence scores and reasoning
-
-        Args:
-            structured_intent: Parsed intent containing:
-                - protocol: Network protocol (e.g., OSPF, BGP, ACL)
-                - action: Operation type (create, update, delete, etc.)
-                - devices: List of target devices with vendor/os info
-                - parameters: Key-value pairs for configuration
-
-        Returns:
-            Dict mapping device names to their configuration object containing:
-                - config: CLI commands with citation comments
-                - retrieved_sources: List of source document IDs used
-                - valid_source_ids: Valid ChromaDB chunk IDs from retrieval
-                - confidence: Confidence score (0.0-1.0)
-                - reasoning: Step-by-step explanation of choices
-
-        Raises:
-            Exception: If LLM generation fails for any device. The error
-                is logged and an ERROR config is returned for that device.
-
-        Example:
-            >>> from parser.intent_parser import IntentParser
-            >>> parser = IntentParser()
-            >>> generator = ConfigGenerator()
-            >>> intent = parser.parse("Configure OSPF area 0 on Router-A")
-            >>> configs = generator.generate(intent)
-            >>> print(configs["Router-A"]["config"])
+        Generates CLI configuration for each device.
+        Optimized with Semantic Cache (Rec 5) and Consolidated Retrieval (Rec 3).
         """
         configs = {}
-
-        # Determine if this is a "Lite" intent (simple parameters, common protocols)
-        # Lite intents don't need RAG retrieval - they use standard commands
         is_lite = self._check_lite_intent(structured_intent)
+        
+        # Build query once for all devices
+        query = (
+            f"{structured_intent.protocol} {structured_intent.action} "
+            + " ".join(structured_intent.parameters.keys())
+        )
 
-        # 1. Retrieval Phase: Fetch documentation from ChromaDB
-        # Skip retrieval for lite intents to save tokens and API calls
+        # 1. Group devices by vendor + version for Consolidated Retrieval (Recommendation 3)
+        device_groups = {}
+        for device in structured_intent.devices:
+            group_key = (device.vendor, self._normalize_version(device))
+            if group_key not in device_groups:
+                device_groups[group_key] = []
+            device_groups[group_key].append(device)
+
         full_context_map = {}
+
+        # 2. Retrieval Phase (Per Group, not per Device)
         if not is_lite:
-            for device in structured_intent.devices:
-                # Normalize version to match knowledge base format (e.g., ios-xe-17.6)
-                search_version = self._normalize_version(device)
-
-                # Build query from protocol, action, and parameters
-                # Example: "ospf create area network router"
-                query = (
-                    f"{structured_intent.protocol} {structured_intent.action} "
-                    + " ".join(structured_intent.parameters.keys())
+            for (vendor, search_version), devices in device_groups.items():
+                # Recommendation 5: Check Semantic Cache first
+                # We use the first device name as a proxy for the group's needs
+                cached_response = self.vector_store.check_cache(
+                    structured_intent.original_text, 
+                    structured_intent.parameters, 
+                    vendor
                 )
+                
+                if cached_response:
+                    logger.info(f"Semantic Cache Hit for vendor {vendor}!")
+                    for dev in devices:
+                        configs[dev.name] = cached_response
+                    continue
 
-                # Context Deduplication: Only fetch documentation for this device's specific needs
-                # First attempt: vendor + version filtered retrieval
+                # Not in cache, perform retrieval ONCE for the whole group
                 results = self.vector_store.retrieve(
                     query=query,
-                    vendor=device.vendor,
+                    vendor=vendor,
                     os_version=search_version,
-                    n_results=2,  # Reduced for token efficiency
+                    n_results=2,
                 )
-
-                # Fallback 1: Try without version filter but KEEP vendor filter
-                # This handles cases where exact version isn't in KB
+                
                 if not results:
-                    results = self.vector_store.retrieve(
-                        query=query, vendor=device.vendor, n_results=2
-                    )
-
-                # Fallback 2: Last resort - any vendor but warn about hallucination risk
-                # Only used when no vendor-specific docs are available
+                    results = self.vector_store.retrieve(query=query, vendor=vendor, n_results=2)
+                
                 if not results:
-                    logger.warning(
-                        f"No docs found for {device.vendor}/{search_version}, trying unfiltered"
-                    )
+                    logger.warning(f"No docs found for {vendor}/{search_version}, trying unfiltered")
                     results = self.vector_store.retrieve(query=query, n_results=1)
 
-                full_context_map[device.name] = results
+                for dev in devices:
+                    full_context_map[dev.name] = results
         else:
-            logger.info(
-                f"Lite-RAG path activated for intent: {structured_intent.original_text[:50]}..."
-            )
+            logger.info(f"Lite-RAG path activated.")
 
-        # 2. Generation Phase: Generate CLI for each device
+        # 3. Generation Phase
         for device in structured_intent.devices:
+            # If already served by cache, skip generation
+            if device.name in configs:
+                continue
+
+            device_context = ""
+            if device.name in full_context_map:
+                for res in full_context_map[device.name]:
+                    device_context += f"ID: {res['id']}\nText: {res['text']}\n---\n"
+            
+            # ... prompt preparation and LLM call (keep existing logic) ...
             # Prepare device-specific context to save tokens
             # Only include retrieved docs for this specific device
             device_context = ""
@@ -301,8 +277,16 @@ class ConfigGenerator:
                     ],
                     "confidence": response.confidence_score,
                     "reasoning": response.reasoning_path,
-                    "usage": {},  # Placeholder as structured LLM might hide raw usage
+                    "usage": {},  # Placeholder
                 }
+
+                # Recommendation 5: Update Semantic Cache
+                self.vector_store.update_cache(
+                    structured_intent.original_text,
+                    structured_intent.parameters,
+                    device.vendor,
+                    configs[device.name]
+                )
             except Exception as e:
                 logger.error(f"Generation failed for {device.name}: {e}")
                 configs[device.name] = {"config": "ERROR", "error": str(e)}
