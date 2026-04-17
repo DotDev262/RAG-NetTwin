@@ -172,7 +172,7 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
         List of extracted CLI example chunks from all pages.
     """
     print(f"  Processing {Path(pdf_path).name}...")
-    pages = extract_text_from_pdf(pdf_path)
+    pages = extract_text_from_pdf(pdf_path, use_hybrid=False)
 
     all_chunks = []
 
@@ -237,16 +237,13 @@ def reindex_with_cli_focus():
             chunks = process_file_with_cli_extraction(pdf, "juniper")
             all_chunks.extend(chunks)
 
-    # Deduplicate by content (use first 100 chars as key)
-    seen = set()
-    unique_chunks = []
+    # Deduplicate by ID (use dictionary)
+    unique_chunks_map = {}
     for chunk in all_chunks:
-        key = chunk["text"][:100].lower()
-        if key not in seen:
-            seen.add(key)
-            unique_chunks.append(chunk)
+        unique_chunks_map[chunk["id"]] = chunk
 
-    print(f"\nTotal unique CLI examples: {len(unique_chunks)}")
+    unique_chunks = list(unique_chunks_map.values())
+    print(f"\nTotal unique CLI examples by ID: {len(unique_chunks)}")
 
     # Add to vector store
     if unique_chunks:

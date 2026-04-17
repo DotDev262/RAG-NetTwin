@@ -32,7 +32,7 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import json
 import os
 import hashlib

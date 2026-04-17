@@ -38,7 +38,7 @@ dependencies = [
     "llama-cpp-python>=0.3.16",
     "einops>=0.8.2",
     "ciscoconfparse>=1.9.0",
-    "opendataloader-pdf[hybrid]>=2.2.1",
+    "opendataloader-pdf>=2.2.1",
 ]
 
 [tool.uv.sources]
