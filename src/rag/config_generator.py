@@ -193,10 +193,10 @@ class ConfigGenerator:
                 if device.name in configs:
                     continue
 
+                # Recommendation 4: Distill context for token efficiency
                 device_context = ""
                 if device.name in full_context_map:
-                    for res in full_context_map[device.name]:
-                        device_context += f"ID: {res['id']}\nText: {res['text']}\n---\n"
+                    device_context = self.distill_context(full_context_map[device.name])
                 
                 futures.append(
                     executor.submit(
@@ -307,6 +307,39 @@ class ConfigGenerator:
         except Exception as e:
             logger.error(f"Generation failed for {device.name}: {e}")
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
+
+    def distill_context(self, raw_chunks: List[Dict]) -> str:
+        """
+        Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.
+        Extracts ONLY CLI blocks and key configuration context.
+        """
+        distilled = ""
+        # Regex to find CLI blocks (lines starting with common network keywords or 'set')
+        cli_pattern = re.compile(
+            r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$", 
+            re.IGNORECASE
+        )
+        
+        for res in raw_chunks:
+            text = res['text']
+            # 1. Extract CLI lines
+            cli_lines = cli_pattern.findall(text)
+            
+            # 2. Extract prose that looks like a definition (contains 'is used to' or 'specifies')
+            prose_context = []
+            for line in text.splitlines():
+                if any(k in line.lower() for k in ["is used to", "specifies", "defines", "mandatory"]):
+                    prose_context.append(line.strip())
+            
+            if cli_lines or prose_context:
+                distilled += f"ID: {res['id']}\n"
+                if cli_lines:
+                    distilled += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
+                if prose_context:
+                    distilled += "RULES:\n" + "\n".join(prose_context[:3]) + "\n"
+                distilled += "---\n"
+                
+        return distilled
 
     def _check_lite_intent(self, intent: StructuredIntent) -> bool:
         """
