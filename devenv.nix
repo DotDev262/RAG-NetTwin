@@ -10,6 +10,7 @@
     pkgs.uv
     pkgs.pre-commit
     pkgs.gitleaks
+    pkgs.jdk17
   ];
 
   # https://devenv.sh/languages/
@@ -30,8 +31,13 @@
 
   scripts.batfish-start.exec = ''
     if ! docker ps --format '{{.Names}}' | grep -q "^batfish$"; then
-      echo "Starting Batfish container..."
-      docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/batfish
+      if docker ps -a --format '{{.Names}}' | grep -q "^batfish$"; then
+        echo "Starting existing Batfish container..."
+        docker start batfish
+      else
+        echo "Creating and starting new Batfish container..."
+        docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/batfish
+      fi
     else
       echo "Batfish container is already running."
     fi
@@ -39,6 +45,8 @@
 
   # https://devenv.sh/basics/
   enterShell = ''
+    export UV_PYTHON_DOWNLOADS=auto
+    export UV_PYTHON_PREFERENCE=managed
     echo "Python environment with uv enabled."
     uv --version
     batfish-start

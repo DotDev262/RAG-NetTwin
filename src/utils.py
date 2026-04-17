@@ -515,6 +515,36 @@ class JsonFormatter(logging.Formatter):
         return log_obj.model_dump_json()
 
 
+def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
+    """
+    Configures a structured logger.
+    """
+    # Create logs directory
+    log_path = Path("logs")
+    log_path.mkdir(exist_ok=True)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    # Clear existing handlers to avoid duplicates
+    if logger.handlers:
+        logger.handlers.clear()
+
+    # Console Handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    logger.addHandler(console_handler)
+
+    # File Handler (JSON structured)
+    file_handler = logging.FileHandler(log_path / log_file)
+    file_handler.setFormatter(JsonFormatter())
+    logger.addHandler(file_handler)
+
+    return logger
+
+
 def generate_audit_report(
     intent: Any, 
     configs: Dict[str, Any], 
