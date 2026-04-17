@@ -40,6 +40,7 @@ dependencies = [
     "ciscoconfparse>=1.9.0",
     "opendataloader-pdf>=2.2.1",
     "rank_bm25>=0.2.2",
+    "dspy-ai>=2.5.0",
 ]
 
 [tool.uv.sources]

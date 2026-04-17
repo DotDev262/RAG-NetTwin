@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from config import settings
 from llm import LLMProvider
+import dspy
 from enum import Enum
 from parser.inventory_resolver import InventoryResolver
 from rag.vector_store import VectorStore
@@ -26,6 +27,30 @@ class DeviceIntent(BaseModel):
     os_version: Optional[str] = Field(
         description="OS version, e.g., 17.6, 21.4", default=None
     )
+
+
+class IntentSignature(dspy.Signature):
+    """
+    Translate a natural language network intent into a structured JSON-like format.
+    You must identify the protocol, action, target devices, and all critical parameters.
+    """
+    intent = dspy.InputField(desc="The natural language intent from the user.")
+    context = dspy.InputField(desc="Relevant examples or documentation snippets.")
+    
+    protocol = dspy.OutputField(desc="Primary network protocol (e.g., OSPF, BGP).")
+    action = dspy.OutputField(desc="Allowed values: 'create', 'update', 'delete', 'verify', etc.")
+    devices = dspy.OutputField(desc="List of devices with 'name', 'vendor', and 'os_type'.")
+    parameters = dspy.OutputField(desc="Dictionary of key-value parameters (e.g., area, as_number).")
+    requirements = dspy.OutputField(desc="List of constraints (e.g., no_downtime).")
+
+
+class DSPyIntentParser(dspy.Module):
+    def __init__(self):
+        super().__init__()
+        self.generate_intent = dspy.ChainOfThought(IntentSignature)
+
+    def forward(self, intent, context=""):
+        return self.generate_intent(intent=intent, context=context)
 
 
 class ActionType(str, Enum):
@@ -95,6 +120,11 @@ IMPORTANT VENDOR DETECTION:
         )
         self.inventory_resolver = InventoryResolver()
         self.vector_store = VectorStore()
+        
+        # Recommendation 3: Initialize DSPy Engine
+        lm = LLMProvider.get_dspy_lm(model=model_name)
+        dspy.settings.configure(lm=lm)
+        self.dspy_parser = DSPyIntentParser()
 
     def parse_batch(
         self, texts: List[str], chunk_size: int = 3
@@ -167,8 +197,7 @@ RULES:
         return batch_result.intents
 
     def parse(self, text: str) -> StructuredIntent:
-        """Translates NL text to StructuredIntent object."""
-        actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
+        """Translates NL text to StructuredIntent object using DSPy."""
         
         # Recommendation 2: Dynamic Few-Shot Retrieval
         few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
@@ -176,27 +205,54 @@ RULES:
         for i, ex in enumerate(few_shot_examples):
             examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
 
+        # Recommendation 3: Use Compiled DSPy Logic
+        try:
+            response = self.dspy_parser(intent=text, context=examples_str)
+            
+            # Helper to safely parse lists/dicts from strings
+            import ast
+            def safe_eval(val, default):
+                if not val: return default
+                if isinstance(val, (list, dict)): return val
+                try: return ast.literal_eval(val)
+                except: return default
+
+            intent = StructuredIntent(
+                original_text=text,
+                protocol=response.protocol,
+                action=response.action,
+                devices=safe_eval(response.devices, []),
+                parameters=safe_eval(response.parameters, {}),
+                requirements=safe_eval(response.requirements, [])
+            )
+            self._resolve_device_metadata(intent)
+            return intent
+        except Exception as e:
+            logger.error(f"DSPy parsing failed: {e}. Falling back to standard LLM.")
+            return self._legacy_parse(text, examples_str)
+
+    def _legacy_parse(self, text: str, examples_str: str) -> StructuredIntent:
+        """Original LangChain-based parsing logic (Fallback)."""
+        actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         system_prompt = f"""You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.
 
 {IntentParser.VENDOR_DETECTION_INSTRUCTIONS}
 
 You MUST choose the most specific 'action' from the following allowed values: {actions_str}.
-Populate the 'requirements' list with any relevant constraints, such as 'no_downtime' if the user emphasizes minimal disruption, or 'validate_only' if the intent is purely for verification.
+Populate the 'requirements' list with any relevant constraints.
 
 ### FEW-SHOT EXAMPLES ###
-{examples_str if examples_str else "No specific examples found, use your general knowledge."}
+{examples_str}
 """
-        prompt = ChatPromptTemplate.from_messages(
-            [
+        prompt = ChatPromptTemplate.from_messages([
                 ("system", system_prompt),
                 ("human", "{{input}}"),
             ],
             template_format="jinja2"
         )
-
         chain = prompt | self.structured_llm
         intent = chain.invoke({"input": text})
-        intent.original_text = text  # Ensure this is set
+        intent.original_text = text
         self._resolve_device_metadata(intent)
         return intent
 
