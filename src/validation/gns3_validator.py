@@ -164,6 +164,42 @@ class GNS3Validator(NetworkValidator):
         
         return verification_results
 
+    def get_network_state(
+        self, 
+        nodes: Dict[str, str], 
+        commands: List[str] = ["show ip route", "show ip interface brief"]
+    ) -> Dict[str, Any]:
+        """
+        Captures a snapshot of the network state for Blast Radius analysis (Recommendation 3).
+        """
+        logger.info(f"Capturing network state baseline ({len(commands)} commands)...")
+        state = {}
+        
+        for device_name, node_id in nodes.items():
+            try:
+                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                node_info = resp.json()
+                console_port = node_info.get('console')
+                console_host = node_info.get('console_host', 'localhost')
+                if console_host == '0.0.0.0': console_host = self.host
+
+                with socket.create_connection((console_host, console_port), timeout=5):
+                    tn = telnetlib.Telnet(console_host, console_port, timeout=5)
+                    
+                    device_state = {}
+                    for cmd in commands:
+                        tn.write(cmd.encode("ascii") + b"\r\n")
+                        time.sleep(1)
+                        output = tn.read_very_eager().decode("ascii", errors="ignore")
+                        device_state[cmd] = output
+                    
+                    tn.close()
+                    state[device_name] = device_state
+            except Exception as e:
+                logger.error(f"State capture failed for {device_name}: {e}")
+        
+        return state
+
     def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 120) -> bool:
         """
         Polls the console of all nodes until a prompt is detected.

@@ -33,6 +33,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src"
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
 from exporter.gns3_exporter import GNS3Exporter
+from evaluation.blast_radius_analyzer import BlastRadiusAnalyzer
 from utils import setup_logger, generate_audit_report
 from config import settings
 from llm import LLMProvider
@@ -82,6 +83,7 @@ def main():
         parser = IntentParser()
         generator = ConfigGenerator()
         exporter = GNS3Exporter()
+        blast_analyzer = BlastRadiusAnalyzer()
         logger.info("Components initialized successfully")
     except Exception as e:
         logger.error(f"Initialization Error: {e}", exc_info=True)
@@ -212,20 +214,38 @@ def main():
                     print("\n[7/7] Running Closed-Loop Functional Verification...")
                     gns3 = GNS3Validator()
                     
-                    # 1. Create Twin Topology and Push Configs
-                    # We pass the configs we generated (host -> config_string)
-                    # GNS3Validator expects hostname -> config mapping
-                    config_map = {name: data["config"] for name, data in configs.items()}
-                    
-                    # Initial validation (creates project, starts nodes, pushes config)
-                    result = gns3.validate(config_map, structured_intent)
+                    # Initial validation (creates project, starts nodes)
+                    # We modify validate() behavior slightly to allow baseline capture
+                    result = gns3.validate({}, structured_intent) # Create topology only
                     
                     if result.get("status") == "ERROR":
                         print(f"      [!] GNS3 Error: {result.get('error')}")
                     else:
-                        # 2. Run Verification Commands
+                        # 1. Capture Pre-Change Baseline
+                        print("      ✓ Capturing Pre-Change Baseline...")
+                        pre_state = gns3.get_network_state(result.get("nodes", {}))
+                        
+                        # 2. Push Configs
+                        print("      ✓ Pushing Configurations...")
+                        config_map = {name: data["config"] for name, data in configs.items()}
+                        gns3.push_configs(result.get("nodes", {}), config_map)
+                        
+                        # 3. Run Verification Commands
                         v_data = {name: data.get("verification_commands", []) for name, data in configs.items()}
                         v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
+                        
+                        # 4. Capture Post-Change State
+                        print("      ✓ Capturing Post-Change State...")
+                        post_state = gns3.get_network_state(result.get("nodes", {}))
+                        
+                        # 5. Analyze Blast Radius
+                        print("\n[8/7] Analyzing Blast Radius (Impact Assessment)...")
+                        analysis = blast_analyzer.analyze(user_input, pre_state, post_state)
+                        print("\n--- Blast Radius Analysis ---")
+                        print(analysis)
+                        print("------------------------------")
+                        
+                        # ... existing functional results display ...
                         
                         print("\n--- Functional Verification Results ---")
                         for dev, v_list in v_results.items():
