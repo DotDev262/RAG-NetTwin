@@ -120,13 +120,21 @@ class ConfigGenerator:
         self.vector_store = VectorStore()
         self.coordinator = MultiVendorCoordinator()
 
-    def generate(self, structured_intent: StructuredIntent) -> Dict[str, Any]:
+    def generate(
+        self, 
+        structured_intent: StructuredIntent, 
+        retrieval_mode: str = "tiered"
+    ) -> Dict[str, Any]:
         """
         Generates CLI configuration for each device.
-        Optimized with Semantic Cache (Rec 5) and Consolidated Retrieval (Rec 3).
+        retrieval_mode: 'tiered' (ours), 'flat' (standard top-k), or 'none' (baseline).
         """
         configs = {}
+        # Recommendation 3: Intent Sanity Check
+        configs["_sanity_check"] = {"is_grounded": True, "warnings": []}
+
         is_lite = self._check_lite_intent(structured_intent)
+        if retrieval_mode == "none": is_lite = True # Force baseline for ablation
         
         # Recommendation 2 (Multi-Vendor): Extract shared constraints
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
@@ -138,7 +146,7 @@ class ConfigGenerator:
             + " ".join(structured_intent.parameters.keys())
         )
 
-        # 1. Group devices by vendor + version for Consolidated Retrieval (Recommendation 3)
+        # 1. Group devices by vendor + version for Consolidated Retrieval
         device_groups = {}
         for device in structured_intent.devices:
             group_key = (device.vendor, self._normalize_version(device))
@@ -148,61 +156,69 @@ class ConfigGenerator:
 
         full_context_map = {}
 
-        # 2. Retrieval Phase (Per Group, not per Device)
+        # 2. Retrieval Phase
         if not is_lite:
             for (vendor, search_version), devices in device_groups.items():
-                # Recommendation 5: Check Semantic Cache first
-                cached_response = self.vector_store.check_cache(
-                    structured_intent.original_text, 
-                    structured_intent.parameters, 
-                    vendor
-                )
-                
-                if cached_response:
-                    logger.info(f"Semantic Cache Hit for vendor {vendor}!")
-                    for dev in devices:
-                        configs[dev.name] = cached_response
-                    continue
+                # Recommendation 5: Check Semantic Cache first (only in tiered/flat modes)
+                if retrieval_mode != "none":
+                    cached_response = self.vector_store.check_cache(
+                        structured_intent.original_text, 
+                        structured_intent.parameters, 
+                        vendor
+                    )
+                    
+                    if cached_response:
+                        logger.info(f"Semantic Cache Hit for vendor {vendor}!")
+                        for dev in devices:
+                            configs[dev.name] = cached_response
+                        continue
 
-                # Recommendation 1: Balanced Hierarchical Retrieval
-                # We explicitly fetch 1 Syntax chunk (Tier 1) and 1 Conceptual chunk (Tier 2/3)
                 results = []
                 
-                # 1. Fetch Precise CLI Block (Tier 1)
-                syntax_chunks = self.vector_store.retrieve(
-                    query=query, vendor=vendor, os_version=search_version, tier=1, n_results=1
-                )
-                if syntax_chunks:
-                    results.extend(syntax_chunks)
-                
-                # 2. Fetch Conceptual Context (Tier 2 or 3)
-                # We look for Tier 2 first as it has parameter definitions
-                concept_chunks = self.vector_store.retrieve(
-                    query=query, vendor=vendor, os_version=search_version, tier=2, n_results=1
-                )
-                if not concept_chunks:
-                    # Fallback to Tier 3 for broad context
-                    concept_chunks = self.vector_store.retrieve(
-                        query=query, vendor=vendor, os_version=search_version, tier=3, n_results=1
+                if retrieval_mode == "tiered":
+                    # Balanced Hierarchical Retrieval (Recommendation 1)
+                    # 1. Fetch Precise CLI Block (Tier 1)
+                    syntax_chunks = self.vector_store.retrieve(
+                        query=query, vendor=vendor, os_version=search_version, tier=1, n_results=1
                     )
+                    if syntax_chunks: results.extend(syntax_chunks)
+                    
+                    # 2. Fetch Conceptual Context (Tier 2 or 3)
+                    concept_chunks = self.vector_store.retrieve(
+                        query=query, vendor=vendor, os_version=search_version, tier=2, n_results=1
+                    )
+                    if not concept_chunks:
+                        concept_chunks = self.vector_store.retrieve(
+                            query=query, vendor=vendor, os_version=search_version, tier=3, n_results=1
+                        )
+                    if concept_chunks: results.extend(concept_chunks)
                 
-                if concept_chunks:
-                    results.extend(concept_chunks)
+                elif retrieval_mode == "flat":
+                    # Standard Top-K Retrieval (Ablation Baseline)
+                    results = self.vector_store.retrieve(
+                        query=query, vendor=vendor, os_version=search_version, n_results=2
+                    )
 
-                # Fallback: If hierarchy is empty (e.g. version mismatch), use standard top-k
-                if not results:
-                    logger.warning(f"Hierarchical retrieval empty for {vendor}, using fallback")
-                    results = self.vector_store.retrieve(query=query, vendor=vendor, n_results=2)
-                
-                if not results:
-                    results = self.vector_store.retrieve(query=query, n_results=2)
+                # Recommendation 3: Semantic Sanity Check
+                # If similarity scores are too low (distance too high), flag as ungrounded
+                if results:
+                    # ChromaDB distance > 1.2 usually indicates poor semantic match
+                    avg_distance = sum(res.get('distance', 0) for res in results) / len(results)
+                    if avg_distance > 1.2:
+                        warning = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
+                        configs["_sanity_check"]["warnings"].append(warning)
+                        configs["_sanity_check"]["is_grounded"] = False
+                else:
+                    warning = f"No documentation found in KB for {vendor}/{search_version} '{structured_intent.protocol}'."
+                    configs["_sanity_check"]["warnings"].append(warning)
+                    configs["_sanity_check"]["is_grounded"] = False
 
                 for dev in devices:
                     full_context_map[dev.name] = results
         else:
-            logger.info(f"Lite-RAG path activated.")
+            logger.info(f"Lite-RAG path activated (Retrieval Mode: {retrieval_mode}).")
 
-        # 3. Generation Phase: Parallelized with ThreadPoolExecutor (Recommendation 2)
+        # 3. Generation Phase: Parallelized
         futures = []
         with ThreadPoolExecutor(max_workers=5) as executor:
             for device in structured_intent.devices:

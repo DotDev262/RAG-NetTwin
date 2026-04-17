@@ -93,9 +93,71 @@ def generate_latency_plot(data):
     plt.savefig(output_path, dpi=300)
     print(f"✅ Latency distribution saved to: {output_path}")
 
+def generate_ablation_plot():
+    """
+    Generates a combined chart for Ablation Study (Recommendation 1).
+    """
+    modes = ["none", "flat", "tiered"]
+    summary = []
+    
+    for mode in modes:
+        filepath = f"results/paper_evaluation_{mode}_latest.json"
+        if not os.path.exists(filepath):
+            continue
+            
+        with open(filepath, "r") as f:
+            data = json.load(f)
+            
+        results = data.get("results", [])
+        mode_data = [r["rag_nettwin"] for r in results if "rag_nettwin" in r and r["rag_nettwin"].get("status") != "ERROR"]
+        
+        if not mode_data: continue
+        
+        pass_count = sum(1 for d in mode_data if d.get("status") in ["PASS", "WARNING"])
+        hal_count = sum(1 for d in mode_data if any(h.get("is_hallucinated") for h in d.get("hallucinations", [])))
+        cfr_count = sum(1 for d in mode_data if d.get("cfr_failure", False))
+        
+        label_map = {"none": "No RAG", "flat": "Flat RAG", "tiered": "Tiered RAG (Ours)"}
+        
+        summary.append({
+            "Strategy": label_map[mode],
+            "Syntactic Validity": (pass_count / len(mode_data)) * 100,
+            "Hallucination-Free": ((len(mode_data) - hal_count) / len(mode_data)) * 100,
+            "CFR Faithfulness": ((len(mode_data) - cfr_count) / len(mode_data)) * 100
+        })
+
+    if not summary:
+        print("No ablation data found to plot.")
+        return
+
+    df = pd.DataFrame(summary).melt(id_vars="Strategy", var_name="Metric", value_name="Score (%)")
+
+    plt.figure(figsize=(14, 8))
+    ax = sns.barplot(data=df, x="Metric", y="Score (%)", hue="Strategy", palette="viridis")
+    
+    for p in ax.patches:
+        if p.get_height() > 0:
+            ax.annotate(f'{p.get_height():.1f}%', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()), 
+                        ha = 'center', va = 'center', 
+                        xytext = (0, 9), 
+                        textcoords = 'offset points',
+                        fontweight='bold')
+
+    plt.title("Ablation Study: Impact of Hierarchical RAG Strategy", fontsize=14, pad=20)
+    plt.ylim(0, 115)
+    plt.tight_layout()
+    
+    output_path = "results/ablation_study.png"
+    plt.savefig(output_path, dpi=300)
+    print(f"✅ Ablation Study chart saved to: {output_path}")
+
 if __name__ == "__main__":
     data = load_data()
     if data:
         os.makedirs("results", exist_ok=True)
         generate_performance_plot(data)
         generate_latency_plot(data)
+    
+    # Also attempt ablation plot if files exist
+    generate_ablation_plot()
