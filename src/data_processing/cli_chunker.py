@@ -217,20 +217,26 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
 
     # Extract CLI from each page
     for page in pages:
-        # Tier 1: Precise CLI blocks
+        # Step 1: Create the "Parent" chunk for this page (Tier 2)
+        # This provides the conceptual anchor for all CLI blocks on the same page
+        tier2_parents = extract_semantic_chunks(page["text"], vendor, tier=2)
+        all_chunks.extend(tier2_parents)
+        
+        # We pick the first Tier 2 chunk as the primary parent for this page
+        parent_id = tier2_parents[0]["id"] if tier2_parents else None
+
+        # Step 2: Tier 1: Precise CLI blocks (linked to Parent)
         tier1 = extract_cli_examples(page["text"], vendor)
+        if parent_id:
+            for c in tier1:
+                c["parent_id"] = parent_id # Critical link for Recommendation Elite
         all_chunks.extend(tier1)
         
-        # Tier 2: Conceptual paragraphs
-        tier2 = extract_semantic_chunks(page["text"], vendor, tier=2)
-        all_chunks.extend(tier2)
-        
-        # Tier 3: Broad sections (every 3 pages to simulate sections)
-        # (This is a simplified sectioning strategy for research)
+        # Step 3: Tier 3: Broad sections
         tier3 = extract_semantic_chunks(page["text"], vendor, tier=3)
         all_chunks.extend(tier3)
 
-    print(f"    Found {len(all_chunks)} chunks across 3 tiers")
+    print(f"    Found {len(all_chunks)} chunks across linked hierarchy")
     return all_chunks
 
 
@@ -295,6 +301,7 @@ def reindex_with_cli_focus():
                     "os_version": c["os_version"],
                     "tier": c["tier"],
                     "command_type": c["command_type"],
+                    "parent_id": c.get("parent_id", ""),
                     "source": "cli_focused",
                 }
                 for c in batch

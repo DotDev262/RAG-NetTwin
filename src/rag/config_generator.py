@@ -216,6 +216,10 @@ class ConfigGenerator:
                     configs["_sanity_check"]["warnings"].append(warning)
                     configs["_sanity_check"]["is_grounded"] = False
 
+                if results:
+                    # Recommendation Elite: Fetch Parent Grounding Context
+                    results = self.vector_store.retrieve_with_parents(results)
+
                 for dev in devices:
                     full_context_map[dev.name] = results
         else:

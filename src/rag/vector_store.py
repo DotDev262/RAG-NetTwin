@@ -479,6 +479,34 @@ class VectorStore:
         ranked = sorted(chunks, key=lambda x: x["rerank_score"], reverse=True)
         return ranked[:n_results]
 
+    def retrieve_with_parents(self, results: List[Dict]) -> List[Dict]:
+        """
+        Enhances results by fetching parent documents for any Tier 1 chunks.
+        (Recommendation Elite: Knowledge Graph Readiness)
+        """
+        enhanced_results = list(results)
+        parent_ids_to_fetch = []
+        
+        # 1. Identify parents needed
+        for res in results:
+            parent_id = res["metadata"].get("parent_id")
+            if parent_id and parent_id != "":
+                # Check if parent is already in the results
+                if not any(r["id"] == parent_id for r in enhanced_results):
+                    parent_ids_to_fetch.append(parent_id)
+        
+        # 2. Fetch parents from the corpus map (fast lookup)
+        if parent_ids_to_fetch and self.corpus_map:
+            logger.info(f"Fetching {len(parent_ids_to_fetch)} parent documents for grounding path...")
+            for pid in set(parent_ids_to_fetch):
+                if pid in self.corpus_map:
+                    parent_chunk = self.corpus_map[pid]
+                    # Tag as parent for LLM transparency
+                    parent_chunk["metadata"]["is_parent_context"] = True
+                    enhanced_results.append(parent_chunk)
+                    
+        return enhanced_results
+
     def get_stats(self) -> Dict:
         """
         Get database statistics.
