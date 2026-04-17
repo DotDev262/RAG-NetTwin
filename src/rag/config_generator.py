@@ -33,6 +33,7 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rag.vector_store import VectorStore
+from rag.multi_vendor_coordinator import MultiVendorCoordinator
 from parser.intent_parser import StructuredIntent
 from config import settings
 from llm import LLMProvider
@@ -117,6 +118,7 @@ class ConfigGenerator:
             schema=DeviceConfigOutput, model=model_name, temperature=0.0
         )
         self.vector_store = VectorStore()
+        self.coordinator = MultiVendorCoordinator()
 
     def generate(self, structured_intent: StructuredIntent) -> Dict[str, Any]:
         """
@@ -126,6 +128,10 @@ class ConfigGenerator:
         configs = {}
         is_lite = self._check_lite_intent(structured_intent)
         
+        # Recommendation 2 (Multi-Vendor): Extract shared constraints
+        constraints = self.coordinator.extract_shared_constraints(structured_intent)
+        coordination_prompt = self.coordinator.build_coordination_prompt(constraints)
+
         # Build query once for all devices
         query = (
             f"{structured_intent.protocol} {structured_intent.action} "
@@ -197,7 +203,8 @@ class ConfigGenerator:
                         self._generate_single_device, 
                         device, 
                         structured_intent, 
-                        device_context
+                        device_context,
+                        coordination_prompt
                     )
                 )
 
@@ -220,13 +227,18 @@ class ConfigGenerator:
                         res
                     )
 
+        # Recommendation 2 (Post-Check): Verify all configs aligned on shared parameters
+        alignment_report = self.coordinator.verify_alignment(configs, constraints)
+        configs["_interoperability_report"] = alignment_report
+
         return configs
 
     def _generate_single_device(
         self, 
         device: Any, 
         structured_intent: StructuredIntent, 
-        device_context: str
+        device_context: str,
+        coordination_prompt: str = ""
     ) -> Dict[str, Any]:
         """
         Helper to generate config for a single device (for parallelization).
@@ -238,10 +250,11 @@ class ConfigGenerator:
                     "system",
                     "You are an expert {vendor} {os_version} CLI configuration specialist. "
                     "CRITICAL RULES:\n"
-                    "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax (interface, router ospf, ip route, access-list, etc.)\n"
-                    "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax (set interfaces, set protocols ospf, set routing-options, etc.)\n"
+                    "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax.\n"
+                    "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax.\n"
                     "3. NEVER mix syntax between vendors.\n"
-                    "4. If context contains wrong vendor docs, IGNORE them and use your knowledge of the correct vendor.",
+                    "4. RESPECT all shared constraints provided in the task."
+                    "{coordination_prompt}",
                 ),
                 (
                     "human",
@@ -274,6 +287,7 @@ class ConfigGenerator:
                 "device_name": device.name,
                 "vendor": device.vendor,
                 "os_version": device.os_version or "latest",
+                "coordination_prompt": coordination_prompt
             })
 
             config_text = "\n".join(response.commands)
