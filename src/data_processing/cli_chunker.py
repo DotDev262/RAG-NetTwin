@@ -294,23 +294,29 @@ def reindex_with_cli_focus():
     unique_chunks = list(unique_chunks_map.values())
     print(f"\nTotal unique CLI examples by ID: {len(unique_chunks)}")
 
-    # Add to vector store
+    # Add to vector store in batches (Recommendation: stay under 5000)
     if unique_chunks:
-        texts = [c["text"] for c in unique_chunks]
-        metadatas = [
-            {
-                "vendor": c["vendor"],
-                "os_version": c["os_version"],
-                "tier": c["tier"],
-                "command_type": c["command_type"],
-                "source": "cli_focused",
-            }
-            for c in unique_chunks
-        ]
-        ids = [c["id"] for c in unique_chunks]
+        batch_size = 5000
+        for i in range(0, len(unique_chunks), batch_size):
+            batch = unique_chunks[i : i + batch_size]
+            
+            texts = [c["text"] for c in batch]
+            metadatas = [
+                {
+                    "vendor": c["vendor"],
+                    "os_version": c["os_version"],
+                    "tier": c["tier"],
+                    "command_type": c["command_type"],
+                    "source": "cli_focused",
+                }
+                for c in batch
+            ]
+            ids = [c["id"] for c in batch]
 
-        vector_store.collection.add(ids=ids, documents=texts, metadatas=metadatas)
-        print(f"Added {len(unique_chunks)} CLI-focused chunks")
+            vector_store.collection.add(ids=ids, documents=texts, metadatas=metadatas)
+            print(f"Added batch {i//batch_size + 1}: {len(batch)} chunks")
+        
+        print(f"Successfully added {len(unique_chunks)} total chunks across all tiers.")
 
     # Print statistics
     vendor_counts = {}
