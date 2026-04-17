@@ -262,7 +262,7 @@ def reindex_with_cli_focus():
         filename = pdf.name.lower()
         
         # Vendor detection logic
-        if any(k in filename for k in ["cisco", "catalyst", "ios", "xe", "nexus"]):
+        if any(k in filename for k in ["cisco", "catalyst", "ios", "xe", "nexus", "programmability"]):
             vendor = "cisco"
         elif any(k in filename for k in ["junos", "juniper", "junoos", "mx", "ex", "srx", "qfx"]):
             vendor = "juniper"
