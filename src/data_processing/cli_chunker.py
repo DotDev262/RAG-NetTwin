@@ -236,19 +236,7 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
 
 def reindex_with_cli_focus():
     """
-    Re-index the vector store with CLI-focused chunks.
-
-    This standalone function processes documentation PDFs and
-    populates the vector store with CLI examples that have context.
-    It:
-    1. Clears the existing collection
-    2. Processes Cisco and Juniper PDFs
-    3. Deduplicates by content
-    4. Adds unique chunks to the vector store
-    5. Prints statistics
-
-    Note:
-        Adjust PDF file paths as needed for your documentation set.
+    Re-index the vector store by automatically discovering all PDFs in raw_docs.
     """
     vector_store = VectorStore()
 
@@ -257,34 +245,34 @@ def reindex_with_cli_focus():
     try:
         existing = vector_store.collection.get()
         if existing.get("ids"):
-            vector_store.collection.delete(ids=existing["ids"])
+            # Chroma has limits on delete batch size too
+            ids = existing["ids"]
+            for i in range(0, len(ids), 5000):
+                vector_store.collection.delete(ids=ids[i:i+5000])
     except Exception as e:
         print(f"  Note: {e}")
 
     all_chunks = []
+    raw_dir = Path("data/raw_docs")
+    pdf_files = list(raw_dir.glob("*.pdf"))
+    
+    print(f"📁 Found {len(pdf_files)} PDFs in {raw_dir}")
 
-    # Process Cisco PDFs - these have the most CLI examples
-    cisco_pdfs = [
-        "data/raw_docs/catalyst_9300_cmdref_17_6.pdf",
-        "data/raw_docs/catalyst_9500_cmdref_17_6.pdf",
-        "data/raw_docs/catalyst_9200_config_guide_17_6.pdf",
-    ]
-
-    for pdf in cisco_pdfs:
-        if Path(pdf).exists():
-            chunks = process_file_with_cli_extraction(pdf, "cisco")
-            all_chunks.extend(chunks)
-
-    # Process Juniper PDFs
-    juniper_pdfs = [
-        "data/raw_docs/junos-cli.pdf",
-        "data/raw_docs/junos-ospf.pdf",
-    ]
-
-    for pdf in juniper_pdfs:
-        if Path(pdf).exists():
-            chunks = process_file_with_cli_extraction(pdf, "juniper")
-            all_chunks.extend(chunks)
+    for pdf in pdf_files:
+        filename = pdf.name.lower()
+        
+        # Vendor detection logic
+        if any(k in filename for k in ["cisco", "catalyst", "ios", "xe", "nexus"]):
+            vendor = "cisco"
+        elif any(k in filename for k in ["junos", "juniper", "mx", "ex", "srx"]):
+            vendor = "juniper"
+        else:
+            # Skip unknown vendors to maintain research quality
+            print(f"  ⏩ Skipping {pdf.name} (unknown vendor)")
+            continue
+            
+        chunks = process_file_with_cli_extraction(str(pdf), vendor)
+        all_chunks.extend(chunks)
 
     # Deduplicate by ID (use dictionary)
     unique_chunks_map = {}
