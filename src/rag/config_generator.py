@@ -30,6 +30,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import json
 import re
 import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rag.vector_store import VectorStore
 from parser.intent_parser import StructuredIntent
@@ -67,6 +68,10 @@ class DeviceConfigOutput(BaseModel):
     )
     reasoning_path: str = Field(
         description="Step-by-step reasoning for the chosen commands"
+    )
+    verification_commands: List[str] = Field(
+        description="CLI commands to verify the configuration works (e.g., show ip ospf neighbor)",
+        default_factory=list
     )
     explanation: Optional[str] = Field(
         description="Brief summary of the changes", default=None
@@ -174,124 +179,120 @@ class ConfigGenerator:
         else:
             logger.info(f"Lite-RAG path activated.")
 
-        # 3. Generation Phase
-        for device in structured_intent.devices:
-            # If already served by cache, skip generation
-            if device.name in configs:
-                continue
+        # 3. Generation Phase: Parallelized with ThreadPoolExecutor (Recommendation 2)
+        futures = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            for device in structured_intent.devices:
+                # If already served by cache, skip generation
+                if device.name in configs:
+                    continue
 
-            device_context = ""
-            if device.name in full_context_map:
-                for res in full_context_map[device.name]:
-                    device_context += f"ID: {res['id']}\nText: {res['text']}\n---\n"
-            
-            # ... prompt preparation and LLM call (keep existing logic) ...
-            # Prepare device-specific context to save tokens
-            # Only include retrieved docs for this specific device
-            device_context = ""
-            if device.name in full_context_map:
-                for res in full_context_map[device.name]:
-                    device_context += f"ID: {res['id']}\nText: {res['text']}\n---\n"
-
-            # Build prompt with explicit vendor syntax rules
-            # Critical: Prevent cross-vendor syntax mixing
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        "You are an expert {vendor} {os_version} CLI configuration specialist. "
-                        "CRITICAL RULES:\n"
-                        "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax (interface, router ospf, ip route, access-list, etc.)\n"
-                        "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax (set interfaces, set protocols ospf, set routing-options, etc.)\n"
-                        "3. NEVER mix syntax between vendors.\n"
-                        "4. If context contains wrong vendor docs, IGNORE them and use your knowledge of the correct vendor.\n"
-                        "CISCO examples: interface GigabitEthernet0/1, router bgp 65000, neighbor 10.1.1.1 remote-as 65001, ip access-list extended ACL_NAME\n"
-                        "JUNIPER examples: set interfaces ge-0/0/0 unit 0 family inet address 10.1.1.1/24, set protocols ospf area 0.0.0.0 interface ge-0/0/0",
-                    ),
-                    (
-                        "human",
-                        "### TASK ###\n"
-                        "Device: {device_name} ({vendor} {os_version})\n"
-                        "Intent: {intent_text}\n"
-                        "Parameters: {intent_params}\n\n"
-                        "### DOCUMENTATION ###\n"
-                        "{device_context}\n\n"
-                        "### INSTRUCTIONS ###\n"
-                        "1. If documentation is provided above, prefer it for vendor/version-specific syntax.\n"
-                        "2. If no documentation (standard commands), use your base knowledge of {vendor} CLI.\n"
-                        "3. Output the data in the required structured format.\n"
-                        "4. CRITICAL: Generate ONLY commands matching the specified vendor. Do not mix syntax.",
-                    ),
-                ]
-            )
-
-            try:
-                # Create LangChain chain with prompt and structured LLM
-                # The structured LLM will return a DeviceConfigOutput object
-                chain = prompt | self.structured_llm
-
-                # If no RAG context, use base knowledge with explicit instructions
-                # This handles lite intents and retrieval failures
-                lite_context = (
-                    device_context
-                    if device_context
-                    else f"STANDARD COMMAND: Use your base knowledge of {device.vendor} {device.os_version} CLI syntax. "
-                    f"CRITICAL: Generate ONLY {device.vendor} commands. Do NOT mix vendor syntax."
-                )
-
-                # Invoke the chain with all required variables
-                response = chain.invoke(
-                    {
-                        "intent_params": json.dumps(structured_intent.parameters),
-                        "intent_text": structured_intent.original_text,
-                        "device_context": lite_context,
-                        "device_name": device.name,
-                        "vendor": device.vendor,
-                        "os_version": device.os_version,
-                    }
-                )
-
-                # Map structured response back to legacy format for compatibility
-                # Join commands into single multiline string
-                config_text = "\n".join(response.commands)
-
-                # Add citation comments for "Grounding Audit Trail"
-                # Use vendor-appropriate comment character: ! for Cisco, # for Juniper
-                comment_char = (
-                    "#" if (device.vendor or "").lower() == "juniper" else "!"
-                )
-                if response.citations:
-                    citation_text = (
-                        f"{comment_char} Based on [Ref: "
-                        + ", ".join(response.citations)
-                        + "]"
+                device_context = ""
+                if device.name in full_context_map:
+                    for res in full_context_map[device.name]:
+                        device_context += f"ID: {res['id']}\nText: {res['text']}\n---\n"
+                
+                futures.append(
+                    executor.submit(
+                        self._generate_single_device, 
+                        device, 
+                        structured_intent, 
+                        device_context
                     )
-                    config_text = citation_text + "\n" + config_text
-
-                # Build response dict with all metadata
-                configs[device.name] = {
-                    "config": config_text,
-                    "retrieved_sources": response.citations or [],
-                    "valid_source_ids": [
-                        res["id"] for res in full_context_map.get(device.name, [])
-                    ],
-                    "confidence": response.confidence_score,
-                    "reasoning": response.reasoning_path,
-                    "usage": {},  # Placeholder
-                }
-
-                # Recommendation 5: Update Semantic Cache
-                self.vector_store.update_cache(
-                    structured_intent.original_text,
-                    structured_intent.parameters,
-                    device.vendor,
-                    configs[device.name]
                 )
-            except Exception as e:
-                logger.error(f"Generation failed for {device.name}: {e}")
-                configs[device.name] = {"config": "ERROR", "error": str(e)}
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                res = future.result()
+                device_name = res["device_name"]
+                
+                # Merge into final configs
+                configs[device_name] = res
+                
+                # Update Semantic Cache
+                if res.get("config") != "ERROR":
+                    # Find the device vendor for the cache
+                    device = next(d for d in structured_intent.devices if d.name == device_name)
+                    self.vector_store.update_cache(
+                        structured_intent.original_text,
+                        structured_intent.parameters,
+                        device.vendor,
+                        res
+                    )
 
         return configs
+
+    def _generate_single_device(
+        self, 
+        device: Any, 
+        structured_intent: StructuredIntent, 
+        device_context: str
+    ) -> Dict[str, Any]:
+        """
+        Helper to generate config for a single device (for parallelization).
+        """
+        # Build prompt with explicit vendor syntax rules
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are an expert {vendor} {os_version} CLI configuration specialist. "
+                    "CRITICAL RULES:\n"
+                    "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax (interface, router ospf, ip route, access-list, etc.)\n"
+                    "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax (set interfaces, set protocols ospf, set routing-options, etc.)\n"
+                    "3. NEVER mix syntax between vendors.\n"
+                    "4. If context contains wrong vendor docs, IGNORE them and use your knowledge of the correct vendor.",
+                ),
+                (
+                    "human",
+                    "### TASK ###\n"
+                    "Device: {device_name} ({vendor} {os_version})\n"
+                    "Intent: {intent_text}\n"
+                    "Parameters: {intent_params}\n\n"
+                    "### DOCUMENTATION ###\n"
+                    "{device_context}\n\n"
+                    "### INSTRUCTIONS ###\n"
+                    "1. Use provided documentation for vendor-specific syntax.\n"
+                    "2. Output strictly in the requested structured format.\n"
+                    "3. CRITICAL: Generate ONLY commands matching the specified vendor.",
+                ),
+            ]
+        )
+
+        try:
+            chain = prompt | self.structured_llm
+            
+            lite_context = (
+                device_context if device_context 
+                else f"Use your base knowledge of {device.vendor} {device.os_version} syntax."
+            )
+
+            response = chain.invoke({
+                "intent_params": json.dumps(structured_intent.parameters),
+                "intent_text": structured_intent.original_text,
+                "device_context": lite_context,
+                "device_name": device.name,
+                "vendor": device.vendor,
+                "os_version": device.os_version or "latest",
+            })
+
+            config_text = "\n".join(response.commands)
+            comment_char = "#" if (device.vendor or "").lower() == "juniper" else "!"
+            
+            if response.citations:
+                config_text = f"{comment_char} Based on [Ref: {', '.join(response.citations)}]\n" + config_text
+
+            return {
+                "device_name": device.name,
+                "config": config_text,
+                "verification_commands": response.verification_commands or [],
+                "retrieved_sources": response.citations or [],
+                "confidence": response.confidence_score,
+                "reasoning": response.reasoning_path,
+            }
+        except Exception as e:
+            logger.error(f"Generation failed for {device.name}: {e}")
+            return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
     def _check_lite_intent(self, intent: StructuredIntent) -> bool:
         """

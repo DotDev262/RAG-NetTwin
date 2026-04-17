@@ -111,6 +111,59 @@ class GNS3Validator(NetworkValidator):
             logger.error(f"Tier 3 validation failed: {e}")
             return {"status": "ERROR", "tier": 3, "error": str(e)}
 
+        except Exception as e:
+            logger.error(f"Config push failed: {e}")
+            return False
+
+    def verify_functional(
+        self, 
+        nodes: Dict[str, str], 
+        verification_data: Dict[str, List[str]]
+    ) -> Dict[str, Any]:
+        """
+        Closed-Loop Verification (Recommendation 1).
+        Executes verification commands and returns output.
+        """
+        logger.info("Starting Functional Intent Verification...")
+        # Wait for network convergence
+        time.sleep(10)
+        
+        verification_results = {}
+        
+        for device_name, commands in verification_data.items():
+            if device_name not in nodes or not commands:
+                continue
+                
+            node_id = nodes[device_name]
+            logger.info(f"Verifying {device_name}...")
+            
+            try:
+                # Get console info
+                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                node_info = resp.json()
+                console_port = node_info.get('console')
+                console_host = node_info.get('console_host', 'localhost')
+                if console_host == '0.0.0.0': console_host = self.host
+
+                with socket.create_connection((console_host, console_port), timeout=5):
+                    tn = telnetlib.Telnet(console_host, console_port, timeout=5)
+                    
+                    outputs = []
+                    for cmd in commands:
+                        tn.write(cmd.encode("ascii") + b"\r\n")
+                        time.sleep(1) # Wait for command output
+                        # Read until prompt
+                        output = tn.read_very_eager().decode("ascii", errors="ignore")
+                        outputs.append({"command": cmd, "output": output})
+                    
+                    tn.close()
+                    verification_results[device_name] = outputs
+            except Exception as e:
+                logger.error(f"Verification failed for {device_name}: {e}")
+                verification_results[device_name] = [{"error": str(e)}]
+        
+        return verification_results
+
     def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 120) -> bool:
         """
         Polls the console of all nodes until a prompt is detected.

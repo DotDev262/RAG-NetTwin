@@ -203,6 +203,48 @@ def main():
                 logger.error(f"Audit Error: {e}")
                 print(f"      [!] Audit report failed: {e}")
 
+            # Step 7: Functional Verification (Recommendation 1)
+            print("\nWould you like to run Functional Verification in GNS3? (y/n)")
+            run_func = input("> ").strip().lower()
+            if run_func == 'y':
+                try:
+                    from validation.gns3_validator import GNS3Validator
+                    print("\n[7/7] Running Closed-Loop Functional Verification...")
+                    gns3 = GNS3Validator()
+                    
+                    # 1. Create Twin Topology and Push Configs
+                    # We pass the configs we generated (host -> config_string)
+                    # GNS3Validator expects hostname -> config mapping
+                    config_map = {name: data["config"] for name, data in configs.items()}
+                    
+                    # Initial validation (creates project, starts nodes, pushes config)
+                    result = gns3.validate(config_map, structured_intent)
+                    
+                    if result.get("status") == "ERROR":
+                        print(f"      [!] GNS3 Error: {result.get('error')}")
+                    else:
+                        # 2. Run Verification Commands
+                        v_data = {name: data.get("verification_commands", []) for name, data in configs.items()}
+                        v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
+                        
+                        print("\n--- Functional Verification Results ---")
+                        for dev, v_list in v_results.items():
+                            print(f"Device: {dev}")
+                            for vr in v_list:
+                                if "error" in vr:
+                                    print(f"  ❌ Error: {vr['error']}")
+                                else:
+                                    print(f"  > {vr['command']}")
+                                    # Show first few lines of output
+                                    out_lines = vr['output'].strip().splitlines()
+                                    for line in out_lines[:5]:
+                                        print(f"    {line}")
+                                    if len(out_lines) > 5:
+                                        print(f"    ... ({len(out_lines)-5} more lines)")
+                        print("---------------------------------------")
+                except Exception as e:
+                    print(f"      [!] Functional Verification failed: {e}")
+
             logger.info("Intent processing complete")
 
         except Exception as e:
