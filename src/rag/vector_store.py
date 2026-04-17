@@ -36,6 +36,7 @@ from typing import List, Dict, Any, Optional
 import json
 import os
 import hashlib
+from rank_bm25 import BM25Okapi
 from config import settings
 
 
@@ -116,8 +117,44 @@ class VectorStore:
             embedding_function=sentence_transformer_ef,
         )
 
+        # Hybrid Search: BM25 components
+        self.bm25 = None
+        self.corpus_map = {} # chunk_id -> chunk_data
+        self._initialize_bm25()
+
         print(f"Connected to ChromaDB at {self.persist_dir}")
         print(f"Collection '{settings.collection_name}' ready")
+
+    def _initialize_bm25(self):
+        """
+        Builds the BM25 index from current ChromaDB contents.
+        """
+        try:
+            # Fetch ALL chunks for the BM25 index
+            all_data = self.collection.get()
+            if not all_data["ids"]:
+                return
+
+            tokenized_corpus = []
+            for i in range(len(all_data["ids"])):
+                chunk_id = all_data["ids"][i]
+                text = all_data["documents"][i]
+                metadata = all_data["metadatas"][i]
+                
+                # Store in map for fast lookup during retrieval
+                self.corpus_map[chunk_id] = {
+                    "id": chunk_id,
+                    "text": text,
+                    "metadata": metadata
+                }
+                
+                # Tokenize for BM25 (simple whitespace + punctuation split)
+                tokenized_corpus.append(text.lower().split())
+
+            self.bm25 = BM25Okapi(tokenized_corpus)
+            print(f"BM25 Index initialized with {len(tokenized_corpus)} documents.")
+        except Exception as e:
+            print(f"Failed to initialize BM25: {e}")
 
     def add_chunks(self, chunks: List[Any], batch_size: int = 5000):
         """
@@ -343,6 +380,75 @@ class VectorStore:
                 "response": json.dumps(response)
             }]
         )
+
+    def hybrid_retrieve(
+        self,
+        query: str,
+        vendor: str = None,
+        os_version: str = None,
+        tier: int = None,
+        n_results: int = 5,
+        k: int = 60 # RRF constant
+    ) -> List[Dict]:
+        """
+        Performs Hybrid Search using Reciprocal Rank Fusion (RRF).
+        Combines Semantic (Vector) and Keyword (BM25) results.
+        """
+        # 1. Semantic Search
+        vector_results = self.retrieve(query, vendor, os_version, tier, n_results=n_results*2)
+        
+        # 2. Keyword Search (BM25)
+        if not self.bm25:
+            return vector_results # Fallback
+            
+        tokenized_query = query.lower().split()
+        # Get top matching docs from BM25
+        bm25_scores = self.bm25.get_scores(tokenized_query)
+        
+        # Sort BM25 results by score and apply filters manually
+        bm25_ranked = []
+        all_ids = list(self.corpus_map.keys())
+        for idx, score in enumerate(bm25_scores):
+            if score > 0:
+                chunk_id = all_ids[idx]
+                chunk = self.corpus_map[chunk_id]
+                
+                # Apply metadata filters
+                meta = chunk["metadata"]
+                if vendor and meta.get("vendor") != vendor: continue
+                if os_version and meta.get("os_version") != os_version: continue
+                if tier and meta.get("tier") != tier: continue
+                
+                bm25_ranked.append(chunk_id)
+        
+        bm25_ranked = bm25_ranked[:n_results*2]
+
+        # 3. Reciprocal Rank Fusion (RRF)
+        rrf_scores = {} # id -> rrf_score
+        
+        # Add vector ranks
+        for rank, res in enumerate(vector_results):
+            chunk_id = res["id"]
+            rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0) + (1.0 / (k + rank + 1))
+            
+        # Add BM25 ranks
+        for rank, chunk_id in enumerate(bm25_ranked):
+            rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0) + (1.0 / (k + rank + 1))
+            
+        # 4. Final Ranking
+        sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+        
+        final_results = []
+        for chunk_id in sorted_ids[:n_results]:
+            chunk = self.corpus_map[chunk_id]
+            final_results.append({
+                "id": chunk["id"],
+                "text": chunk["text"],
+                "metadata": chunk["metadata"],
+                "rrf_score": rrf_scores[chunk_id]
+            })
+            
+        return final_results
 
     def get_stats(self) -> Dict:
         """
