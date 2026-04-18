@@ -116,12 +116,14 @@ def generate_ablation_plot():
         pass_count = sum(1 for d in mode_data if d.get("status") in ["PASS", "WARNING"])
         hal_count = sum(1 for d in mode_data if any(h.get("is_hallucinated") for h in d.get("hallucinations", [])))
         cfr_count = sum(1 for d in mode_data if d.get("cfr_failure", False))
+        functional_pass_count = sum(1 for d in mode_data if d.get("functional_status") == "PASS")
         
         label_map = {"none": "No RAG", "flat": "Flat RAG", "tiered": "Tiered RAG (Ours)"}
         
         summary.append({
             "Strategy": label_map[mode],
             "Syntactic Validity": (pass_count / len(mode_data)) * 100,
+            "Functional Success": (functional_pass_count / len(mode_data)) * 100,
             "Hallucination-Free": ((len(mode_data) - hal_count) / len(mode_data)) * 100,
             "CFR Faithfulness": ((len(mode_data) - cfr_count) / len(mode_data)) * 100
         })

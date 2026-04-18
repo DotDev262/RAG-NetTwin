@@ -49,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
 from validation.batfish_validator import BatfishValidator
+from validation.gns3_validator import GNS3Validator
 from llm import LLMProvider
 from config import settings
 from evaluation.hallucination_detector import HallucinationDetector
@@ -109,13 +110,14 @@ class PaperQualityEvaluator:
         >>> evaluator.run_full_eval()
     """
 
-    def __init__(self, run_vanilla: bool = False, cache_only: bool = False):
+    def __init__(self, run_vanilla: bool = False, cache_only: bool = False, run_gns3: bool = False):
         """
         Initialize the PaperQualityEvaluator.
 
         Args:
             run_vanilla: Whether to also run vanilla LLM baseline for comparison.
             cache_only: If True, only use cached results (no new API calls).
+            run_gns3: If True, perform Tier 3 functional verification.
         """
         self.parser = IntentParser()
         self.generator = ConfigGenerator()
@@ -126,6 +128,15 @@ class PaperQualityEvaluator:
         self.vanilla_llm = LLMProvider.get_llm(temperature=0.0) if run_vanilla else None
         self.run_vanilla = run_vanilla
         self.cache_only = cache_only
+        self.run_gns3 = run_gns3
+
+        # Initialize GNS3 only if requested
+        self.gns3 = None
+        if self.run_gns3 and not self.cache_only:
+            self.gns3 = GNS3Validator()
+            if not self.gns3.connected:
+                logger.warning("GNS3 requested but server not connected. Tier 3 metrics will be skipped.")
+                self.run_gns3 = False
 
         # Load caches from disk
         self.vanilla_cache = self._load_cache(VANILLA_CACHE_FILE)
@@ -379,9 +390,28 @@ class PaperQualityEvaluator:
                     # 3. CFR CHECK (Config Faithfulness)
                     cfr_failure = self._check_cfr(intent, data["config"])
 
+                    # 4. FUNCTIONAL VERIFICATION (Tier 3 - GNS3) (Recommendation Elite)
+                    functional_status = "SKIPPED"
+                    if self.run_gns3 and self.gns3:
+                        try:
+                            # Use one-off validation for research (starts node, pushes config)
+                            g_res = self.gns3.validate({device_name: data["config"]}, intent)
+                            if g_res.get("status") == "PASS":
+                                # Run verification commands
+                                v_cmd = {device_name: data.get("verification_commands", [])}
+                                v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmd)
+                                # If commands ran without error, mark as pass
+                                functional_status = "PASS"
+                            else:
+                                functional_status = "FAIL"
+                        except Exception as ge:
+                            logger.error(f"GNS3 validation failed: {ge}")
+                            functional_status = "ERROR"
+
                     eval_res = {
                         "config": data["config"],
                         "status": val_report.get("status"),
+                        "functional_status": functional_status,
                         "latency": latency,
                         "hallucinations": [hal_report.model_dump()],
                         "cfr_failure": cfr_failure,
@@ -887,8 +917,63 @@ class PaperQualityEvaluator:
         """
         Generate and print summary table of evaluation results.
         """
-        # (Rest of existing summary table logic)
-        ...
+        summary = []
+        for mode in ["vanilla", "rag_nettwin"]:
+            mode_data = []
+            for r in results:
+                if (
+                    mode in r
+                    and isinstance(r[mode], dict)
+                    and r[mode].get("status") != "ERROR"
+                ):
+                    mode_data.append(r[mode])
+
+            if not mode_data:
+                continue
+
+            # Syntactic Validity: Count PASS or WARNING.
+            pass_count = 0
+            for d in mode_data:
+                status = d.get("status")
+                if not status and "validation" in d:
+                    status = d["validation"].get("status")
+
+                if status in ["PASS", "WARNING"]:
+                    pass_count += 1
+
+            cfr_count = sum(1 for d in mode_data if d.get("cfr_failure", False))
+            functional_pass = sum(1 for d in mode_data if d.get("functional_status") == "PASS")
+
+            if mode == "vanilla":
+                hal_count = sum(
+                    1
+                    for d in mode_data
+                    if d.get("hallucination", {}).get("is_hallucinated")
+                )
+            else:
+                hal_count = sum(
+                    1
+                    for d in mode_data
+                    if any(
+                        h.get("is_hallucinated") for h in d.get("hallucinations", [])
+                    )
+                )
+
+            summary.append(
+                {
+                    "Mode": mode,
+                    "Syntactic Validity": f"{(pass_count / len(mode_data)) * 100:.1f}%",
+                    "Functional Success": f"{(functional_pass / len(mode_data)) * 100:.1f}%",
+                    "Hallucination Rate": f"{(hal_count / len(mode_data)) * 100:.1f}%",
+                    "CFR Faithfulness": f"{((len(mode_data) - cfr_count) / len(mode_data)) * 100:.1f}%",
+                    "Avg Latency": f"{sum(d.get('latency', 0) for d in mode_data) / len(mode_data):.2f}s"
+                    if mode == "rag_nettwin"
+                    else "N/A",
+                }
+            )
+
+        print("\n UPDATED RESEARCH METRICS (RAG-NetTwin Elite)")
+        print(pd.DataFrame(summary).to_string(index=False))
 
     def _junos_config_to_dict(self, config: str) -> Dict:
         """
@@ -969,6 +1054,11 @@ Examples:
         action="store_true",
         help="Use only cached results, no new API calls",
     )
+    parser.add_argument(
+        "--run-gns3",
+        action="store_true",
+        help="Run GNS3 functional verification for each intent",
+    )
     args = parser.parse_args()
 
     # Clear caches if requested
@@ -985,12 +1075,12 @@ Examples:
         for mode in ["none", "flat", "tiered"]:
             print(f"\n--- Running Mode: {mode.upper()} ---")
             evaluator = PaperQualityEvaluator(
-                run_vanilla=False, cache_only=args.cache_only
+                run_vanilla=False, cache_only=args.cache_only, run_gns3=args.run_gns3
             )
             # Pass mode to evaluation engine
             evaluator.run_full_eval(retrieval_mode=mode)
     else:
         evaluator = PaperQualityEvaluator(
-            run_vanilla=args.run_vanilla, cache_only=args.cache_only
+            run_vanilla=args.run_vanilla, cache_only=args.cache_only, run_gns3=args.run_gns3
         )
         evaluator.run_full_eval()
