@@ -38,17 +38,19 @@ class GNS3Validator(NetworkValidator):
         self.host = settings.gns3_host if settings.gns3_host != "localhost" else "127.0.0.1"
         self.port = settings.gns3_port
         self.base_url = f"http://{self.host}:{self.port}/v2"
+        self.auth = ("admin", "gns3") # Default GNS3 credentials
         self.project_id = None
         self.connected = False
         self.port_manager = PortManager()
 
         try:
-            # Check connection
-            resp = requests.get(f"{self.base_url}/version", timeout=5)
+            # Check connection with auth
+            resp = requests.get(f"{self.base_url}/version", timeout=5, auth=self.auth)
             if resp.status_code == 200:
                 logger.info(f"Connected to GNS3 Server v{resp.json().get('version')} at {self.host}")
                 self.connected = True
             else:
+                logger.warning(f"GNS3 Connection failed with status {resp.status_code}")
                 self.connected = False
         except Exception as e:
             logger.warning(f"Could not connect to GNS3: {e}")
@@ -82,7 +84,7 @@ class GNS3Validator(NetworkValidator):
             
             # 3. Start Topology
             logger.info("Starting nodes...")
-            requests.post(f"{self.base_url}/projects/{self.project_id}/nodes/start", json={})
+            requests.post(f"{self.base_url}/projects/{self.project_id}/nodes/start", json={}, auth=self.auth)
             
             # Intelligent Polling: Wait for nodes to reach a ready state (max 120s)
             boot_success = self._wait_for_nodes_boot(nodes)
@@ -148,7 +150,7 @@ class GNS3Validator(NetworkValidator):
             
             try:
                 # Get console info
-                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}", auth=self.auth)
                 node_info = resp.json()
                 console_port = node_info.get('console')
                 console_host = node_info.get('console_host', 'localhost')
@@ -190,7 +192,7 @@ class GNS3Validator(NetworkValidator):
         
         for device_name, node_id in nodes.items():
             try:
-                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}", auth=self.auth)
                 node_info = resp.json()
                 console_port = node_info.get('console')
                 console_host = node_info.get('console_host', 'localhost')
@@ -239,7 +241,7 @@ class GNS3Validator(NetworkValidator):
                 node_id = nodes[node_name]
                 try:
                     # Get console info
-                    resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+                    resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}", auth=self.auth)
                     if resp.status_code != 200:
                         continue
                     
@@ -278,14 +280,14 @@ class GNS3Validator(NetworkValidator):
 
     def _create_project(self, name: str) -> str:
         payload = {"name": name}
-        resp = requests.post(f"{self.base_url}/projects", json=payload)
+        resp = requests.post(f"{self.base_url}/projects", json=payload, auth=self.auth)
         resp.raise_for_status()
         return resp.json()["project_id"]
 
     def _find_router_template(self) -> Optional[Dict]:
         """Finds a suitable Cisco router template."""
         try:
-            resp = requests.get(f"{self.base_url}/templates")
+            resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
             if resp.status_code != 200:
                 return None
             templates = resp.json()
@@ -319,7 +321,7 @@ class GNS3Validator(NetworkValidator):
                 payload["node_type"] = "vpcs"
                 logger.warning(f"No router images found, using VPCS for {device.name}")
 
-            resp = requests.post(f"{self.base_url}/projects/{self.project_id}/nodes", json=payload)
+            resp = requests.post(f"{self.base_url}/projects/{self.project_id}/nodes", json=payload, auth=self.auth)
             if resp.status_code == 201:
                 node_map[device.name] = resp.json()["node_id"]
             else:
@@ -342,12 +344,12 @@ class GNS3Validator(NetworkValidator):
                     {"node_id": node_b_id, "adapter_number": 0, "port_number": port_b}
                 ]
             }
-            requests.post(f"{self.base_url}/projects/{self.project_id}/links", json=payload)
+            requests.post(f"{self.base_url}/projects/{self.project_id}/links", json=payload, auth=self.auth)
 
     def _push_config_to_node(self, node_id: str, config: str) -> bool:
         """Pushes configuration via Telnet."""
         try:
-            resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}")
+            resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}", auth=self.auth)
             if resp.status_code != 200:
                 return False
             
