@@ -158,11 +158,15 @@ class GNS3Validator(NetworkValidator):
                     tn = telnetlib.Telnet(console_host, console_port, timeout=5)
                     
                     outputs = []
+                    # Wake up
+                    tn.write(b"\r\n")
+                    time.sleep(0.5)
+                    
                     for cmd in commands:
                         tn.write(cmd.encode("ascii") + b"\r\n")
-                        time.sleep(1) # Wait for command output
-                        # Read until prompt
-                        output = tn.read_very_eager().decode("ascii", errors="ignore")
+                        # Wait until prompt appears
+                        idx, match, text = tn.expect([b">", b"#"], timeout=10)
+                        output = text.decode("ascii", errors="ignore")
                         outputs.append({"command": cmd, "output": output})
                     
                     tn.close()
@@ -196,10 +200,21 @@ class GNS3Validator(NetworkValidator):
                     tn = telnetlib.Telnet(console_host, console_port, timeout=5)
                     
                     device_state = {}
+                    # Wake up the console first
+                    tn.write(b"\r\n\r\n")
+                    time.sleep(1)
+                    tn.read_very_eager() # Clear buffer
+                    
                     for cmd in commands:
                         tn.write(cmd.encode("ascii") + b"\r\n")
-                        time.sleep(1)
-                        output = tn.read_very_eager().decode("ascii", errors="ignore")
+                        # Wait for prompt to ensure command finished
+                        # This is much safer than read_very_eager()
+                        try:
+                            idx, match, text = tn.expect([b">", b"#"], timeout=5)
+                            output = text.decode("ascii", errors="ignore")
+                        except:
+                            output = "Timeout waiting for command output."
+                        
                         device_state[cmd] = output
                     
                     tn.close()
