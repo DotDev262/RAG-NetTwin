@@ -62,6 +62,7 @@ class LLMProvider:
     def get_dspy_lm(model: str = None) -> Any:
         """
         Returns a DSPy-compatible language model (Recommendation 3).
+        Uses universal dspy.LM interface for maximum compatibility.
         """
         import dspy
         from config import settings
@@ -71,9 +72,10 @@ class LLMProvider:
         api_key = settings.groq_api_key if provider == "groq" else settings.gemini_api_key
 
         if provider == "groq":
-            return dspy.Groq(model=model, api_key=api_key)
+            # Universal LM string format: 'provider/model'
+            return dspy.LM(f"groq/{model}", api_key=api_key)
         elif provider == "gemini":
-            return dspy.Google(model=model, api_key=api_key)
+            return dspy.LM(f"google/{model}", api_key=api_key)
         else:
             raise ValueError(f"DSPy currently doesn't support provider: {provider}")
 
