@@ -451,65 +451,6 @@ class PaperQualityEvaluator:
                 except Exception as e:
                     results["vanilla"] = {"status": "ERROR", "error": str(e)}
 
-        # --- MODE B: RAG-NetTwin (Structured + Lite Path) ---
-        # Check cache first
-        cached_rag = self._cache_get(self.rag_cache, intent_key)
-        if cached_rag:
-            results["rag_nettwin"] = cached_rag
-            logger.info(f"RAG cache hit: {intent_key[:40]}...")
-        elif self.cache_only:
-            results["rag_nettwin"] = {"status": "SKIPPED", "reason": "cache_only mode"}
-        else:
-            try:
-                start_time = time.time()
-                rag_output = self.generator.generate(intent)
-                elapsed = time.time() - start_time
-                
-                # Filter out internal metadata keys (Recommendation Elite)
-                device_results = {k: v for k, v in rag_output.items() if not k.startswith("_")}
-                
-                # Normalize latency per device for fair comparison
-                num_devices = len(device_results)
-                latency = elapsed / num_devices if num_devices > 0 else elapsed
-
-                full_config_map = {
-                    name: data["config"] for name, data in device_results.items()
-                }
-                validation = self.validator.validate(full_config_map, intent)
-
-                # Use detector for paper-grade hallucination stats
-                hal_reports = [
-                    self.hallucination_detector.detect(
-                        data["config"],
-                        data.get("retrieved_sources", []),
-                        data.get("valid_source_ids", []),
-                    ).model_dump()
-                    for data in device_results.values()
-                ]
-
-                rag_result = {
-                    "configs": full_config_map,
-                    "validation": validation,
-                    "latency": latency,
-                    "cfr_failure": self._check_cfr(
-                        intent, "\n".join(full_config_map.values())
-                    ),
-                    "hallucinations": hal_reports,
-                    "confidence_avg": sum(
-                        d.get("confidence", 0) for d in rag_output.values()
-                    )
-                    / len(rag_output)
-                    if rag_output
-                    else 0,
-                }
-                results["rag_nettwin"] = rag_result
-                self._cache_set(self.rag_cache, intent_key, rag_result)
-            except Exception as e:
-                logger.error(
-                    f"RAG evaluation failed for {intent.original_text[:30]}: {e}"
-                )
-                results["rag_nettwin"] = {"status": "ERROR", "error": str(e)}
-
         return results
 
     def _generate_vanilla(self, scenario: str) -> str:
