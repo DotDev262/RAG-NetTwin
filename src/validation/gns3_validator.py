@@ -38,7 +38,8 @@ class GNS3Validator(NetworkValidator):
         self.host = settings.gns3_host if settings.gns3_host != "localhost" else "127.0.0.1"
         self.port = settings.gns3_port
         self.base_url = f"http://{self.host}:{self.port}/v2"
-        self.auth = ("admin", "gns3") # Default GNS3 credentials
+        # Updated with credentials from ~/.config/GNS3/2.2/gns3_server.conf
+        self.auth = ("admin", "ZQMSdXR6LVD5rN7gx2ipegzMYPYOZJeo7IJviL87PjgvYK4p8bg1R1fT9YgOTzX9")
         self.project_id = None
         self.connected = False
         self.port_manager = PortManager()
@@ -289,18 +290,29 @@ class GNS3Validator(NetworkValidator):
         try:
             resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
             if resp.status_code != 200:
+                logger.error(f"Failed to fetch templates: {resp.status_code}")
                 return None
+            
             templates = resp.json()
-            keywords = ["iosv", "cisco", "csr1000v", "viou"]
+            # Priority 1: IOU/IOL images (your specific setup)
+            for tmpl in templates:
+                if tmpl.get('template_type') == 'iou' or 'iou' in tmpl['name'].lower():
+                    return tmpl
+            
+            # Priority 2: Common Cisco keywords (Ignore category)
+            keywords = ["router", "iosv", "cisco", "csr1000v", "viou"]
             for keyword in keywords:
                 for tmpl in templates:
-                    if keyword in tmpl['name'].lower() and tmpl['category'] == 'router':
+                    if keyword in tmpl['name'].lower():
                         return tmpl
+            
+            # Priority 3: Anything in the router OR switch category as fallback
             for tmpl in templates:
-                if tmpl['category'] == 'router':
+                if tmpl.get('category') in ['router', 'switch']:
                     return tmpl
             return None
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error finding router template: {e}")
             return None
 
     def _create_nodes(self, devices: List[Any]) -> Dict[str, str]:
