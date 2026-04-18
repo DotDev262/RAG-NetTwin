@@ -39,7 +39,9 @@ import hashlib
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
 from config import settings
+from utils import setup_logger
 
+logger = setup_logger("VectorStore")
 
 class VectorStore:
     """
