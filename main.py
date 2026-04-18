@@ -122,11 +122,16 @@ def main():
             print("\n[3/3] Results:")
             print("-" * 40)
             for device_name, data in configs.items():
+                # Skip internal metadata keys
+                if device_name.startswith("_"):
+                    continue
+                    
                 print(f"Device: {device_name}")
-                print(f"Retrieved {len(data['retrieved_sources'])} references.")
+                sources = data.get('retrieved_sources', [])
+                print(f"Retrieved {len(sources)} references.")
                 print("\nGenerated Configuration:")
                 print("```")
-                print(data["config"])
+                print(data.get("config", "ERROR"))
                 print("```")
                 print("-" * 40)
 
