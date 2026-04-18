@@ -35,7 +35,7 @@ class GNS3Validator(NetworkValidator):
 
     def __init__(self):
         super().__init__(tier=3)
-        self.host = settings.gns3_host
+        self.host = settings.gns3_host if settings.gns3_host != "localhost" else "127.0.0.1"
         self.port = settings.gns3_port
         self.base_url = f"http://{self.host}:{self.port}/v2"
         self.project_id = None
@@ -46,7 +46,7 @@ class GNS3Validator(NetworkValidator):
             # Check connection
             resp = requests.get(f"{self.base_url}/version", timeout=5)
             if resp.status_code == 200:
-                logger.info(f"Connected to GNS3 Server v{resp.json().get('version')}")
+                logger.info(f"Connected to GNS3 Server v{resp.json().get('version')} at {self.host}")
                 self.connected = True
             else:
                 self.connected = False

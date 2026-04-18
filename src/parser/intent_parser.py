@@ -211,11 +211,19 @@ RULES:
             
             # Helper to safely parse lists/dicts from strings
             import ast
-            def safe_eval(val, default):
-                if not val: return default
-                if isinstance(val, (list, dict)): return val
-                try: return ast.literal_eval(val)
-                except: return default
+            def safe_eval(val, default_type):
+                if not val: return [] if isinstance(default_type, list) else {}
+                
+                parsed = val
+                if isinstance(val, str):
+                    try: parsed = ast.literal_eval(val)
+                    except: parsed = val
+                
+                # If we expect a list but got a single item (dict or string)
+                if isinstance(default_type, list) and not isinstance(parsed, list):
+                    return [parsed] if parsed else []
+                
+                return parsed
 
             intent = StructuredIntent(
                 original_text=text,
