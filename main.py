@@ -232,11 +232,21 @@ def main():
                         
                         # 2. Push Configs
                         print("      ✓ Pushing Configurations...")
-                        config_map = {name: data["config"] for name, data in configs.items()}
+                        # Skip internal metadata keys when preparing config map
+                        config_map = {
+                            name: data["config"] 
+                            for name, data in configs.items() 
+                            if not name.startswith("_") and "config" in data
+                        }
                         gns3.push_configs(result.get("nodes", {}), config_map)
-                        
+
                         # 3. Run Verification Commands
-                        v_data = {name: data.get("verification_commands", []) for name, data in configs.items()}
+                        v_data = {
+                            name: data.get("verification_commands", []) 
+                            for name, data in configs.items()
+                            if not name.startswith("_")
+                        }
+
                         v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
                         
                         # 4. Capture Post-Change State
