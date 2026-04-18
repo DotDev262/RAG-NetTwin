@@ -217,6 +217,7 @@ def main():
                 try:
                     from validation.gns3_validator import GNS3Validator
                     gns3 = GNS3Validator()
+                    result = {} # Initialize
                     
                     if not gns3.connected:
                         print(f"      [!] GNS3 server not reachable at {settings.gns3_host}:{settings.gns3_port}")
@@ -226,60 +227,58 @@ def main():
                         # Initial validation (creates project, starts nodes)
                         result = gns3.validate({}, structured_intent) 
                     
-                    if result.get("status") == "ERROR":
-                        print(f"      [!] GNS3 Error: {result.get('error')}")
-                    else:
-                        # 1. Capture Pre-Change Baseline
-                        print("      ✓ Capturing Pre-Change Baseline...")
-                        pre_state = gns3.get_network_state(result.get("nodes", {}))
-                        
-                        # 2. Push Configs
-                        print("      ✓ Pushing Configurations...")
-                        # Skip internal metadata keys when preparing config map
-                        config_map = {
-                            name: data["config"] 
-                            for name, data in configs.items() 
-                            if not name.startswith("_") and "config" in data
-                        }
-                        gns3.push_configs(result.get("nodes", {}), config_map)
+                        if result.get("status") == "ERROR":
+                            print(f"      [!] GNS3 Error: {result.get('error')}")
+                        else:
+                            # 1. Capture Pre-Change Baseline
+                            print("      ✓ Capturing Pre-Change Baseline...")
+                            pre_state = gns3.get_network_state(result.get("nodes", {}))
+                            
+                            # 2. Push Configs
+                            print("      ✓ Pushing Configurations...")
+                            # Skip internal metadata keys when preparing config map
+                            config_map = {
+                                name: data["config"] 
+                                for name, data in configs.items() 
+                                if not name.startswith("_") and "config" in data
+                            }
+                            gns3.push_configs(result.get("nodes", {}), config_map)
 
-                        # 3. Run Verification Commands
-                        v_data = {
-                            name: data.get("verification_commands", []) 
-                            for name, data in configs.items()
-                            if not name.startswith("_")
-                        }
+                            # 3. Run Verification Commands
+                            v_data = {
+                                name: data.get("verification_commands", []) 
+                                for name, data in configs.items()
+                                if not name.startswith("_")
+                            }
 
-                        v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
-                        
-                        # 4. Capture Post-Change State
-                        print("      ✓ Capturing Post-Change State...")
-                        post_state = gns3.get_network_state(result.get("nodes", {}))
-                        
-                        # 5. Analyze Blast Radius
-                        print("\n[8/7] Analyzing Blast Radius (Impact Assessment)...")
-                        analysis = blast_analyzer.analyze(user_input, pre_state, post_state)
-                        print("\n--- Blast Radius Analysis ---")
-                        print(analysis)
-                        print("------------------------------")
-                        
-                        # ... existing functional results display ...
-                        
-                        print("\n--- Functional Verification Results ---")
-                        for dev, v_list in v_results.items():
-                            print(f"Device: {dev}")
-                            for vr in v_list:
-                                if "error" in vr:
-                                    print(f"  ❌ Error: {vr['error']}")
-                                else:
-                                    print(f"  > {vr['command']}")
-                                    # Show first few lines of output
-                                    out_lines = vr['output'].strip().splitlines()
-                                    for line in out_lines[:5]:
-                                        print(f"    {line}")
-                                    if len(out_lines) > 5:
-                                        print(f"    ... ({len(out_lines)-5} more lines)")
-                        print("---------------------------------------")
+                            v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
+                            
+                            # 4. Capture Post-Change State
+                            print("      ✓ Capturing Post-Change State...")
+                            post_state = gns3.get_network_state(result.get("nodes", {}))
+                            
+                            # 5. Analyze Blast Radius
+                            print("\n[8/7] Analyzing Blast Radius (Impact Assessment)...")
+                            analysis = blast_analyzer.analyze(user_input, pre_state, post_state)
+                            print("\n--- Blast Radius Analysis ---")
+                            print(analysis)
+                            print("------------------------------")
+                            
+                            print("\n--- Functional Verification Results ---")
+                            for dev, v_list in v_results.items():
+                                print(f"Device: {dev}")
+                                for vr in v_list:
+                                    if "error" in vr:
+                                        print(f"  ❌ Error: {vr['error']}")
+                                    else:
+                                        print(f"  > {vr['command']}")
+                                        # Show first few lines of output
+                                        out_lines = vr['output'].strip().splitlines()
+                                        for line in out_lines[:5]:
+                                            print(f"    {line}")
+                                        if len(out_lines) > 5:
+                                            print(f"    ... ({len(out_lines)-5} more lines)")
+                            print("---------------------------------------")
                 except Exception as e:
                     print(f"      [!] Functional Verification failed: {e}")
 
