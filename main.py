@@ -216,12 +216,15 @@ def main():
             if run_func == 'y':
                 try:
                     from validation.gns3_validator import GNS3Validator
-                    print("\n[7/7] Running Closed-Loop Functional Verification...")
                     gns3 = GNS3Validator()
                     
-                    # Initial validation (creates project, starts nodes)
-                    # We modify validate() behavior slightly to allow baseline capture
-                    result = gns3.validate({}, structured_intent) # Create topology only
+                    if not gns3.connected:
+                        print(f"      [!] GNS3 server not reachable at {settings.gns3_host}:{settings.gns3_port}")
+                        print("          Please ensure the GNS3 application is open.")
+                    else:
+                        print("\n[7/7] Running Closed-Loop Functional Verification...")
+                        # Initial validation (creates project, starts nodes)
+                        result = gns3.validate({}, structured_intent) 
                     
                     if result.get("status") == "ERROR":
                         print(f"      [!] GNS3 Error: {result.get('error')}")
