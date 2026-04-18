@@ -326,8 +326,12 @@ class GNS3Validator(NetworkValidator):
                 "compute_id": "local"
             }
             if template:
-                payload["node_type"] = template['template_type']
-                payload["template_id"] = template['template_id']
+                # Merge template properties into payload
+                # This ensures required fields like 'path' for IOU are present
+                for key in ['node_type', 'template_id', 'path', 'ram', 'nvram', 'ethernet_adapters']:
+                    if key in template:
+                        payload[key] = template[key]
+                
                 logger.info(f"Using template: {template['name']} for {device.name}")
             else:
                 payload["node_type"] = "vpcs"

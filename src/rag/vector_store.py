@@ -358,10 +358,10 @@ class VectorStore:
             })
         return formatted
 
-    def check_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, threshold: float = 0.05) -> Optional[Dict]:
+    def check_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, threshold: float = 0.01) -> Optional[Dict]:
         """
         Checks the semantic cache for a matching intent.
-        Threshold: 0.0 means identical, 0.05 is very similar.
+        Threshold: 0.01 is highly restrictive (near identical).
         """
         # We include parameters in the query to increase specificity
         query = f"{intent_text} {json.dumps(parameters)}"
