@@ -103,6 +103,7 @@ class GNS3Validator(NetworkValidator):
                 "status": status,
                 "tier": 3,
                 "project_id": self.project_id,
+                "nodes": nodes,
                 "config_results": results,
                 "summary": "Tier 3 GNS3 validation complete."
             }
@@ -111,9 +112,17 @@ class GNS3Validator(NetworkValidator):
             logger.error(f"Tier 3 validation failed: {e}")
             return {"status": "ERROR", "tier": 3, "error": str(e)}
 
-        except Exception as e:
-            logger.error(f"Config push failed: {e}")
-            return False
+    def push_configs(self, nodes: Dict[str, str], configs: Dict[str, str]) -> Dict[str, str]:
+        """
+        Pushes configurations to a set of nodes.
+        """
+        results = {}
+        for device_name, config in configs.items():
+            if device_name in nodes:
+                logger.info(f"Pushing config to {device_name}...")
+                success = self._push_config_to_node(nodes[device_name], config)
+                results[device_name] = "Success" if success else "Failed"
+        return results
 
     def verify_functional(
         self, 
