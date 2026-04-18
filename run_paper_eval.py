@@ -434,12 +434,16 @@ class PaperQualityEvaluator:
                 start_time = time.time()
                 rag_output = self.generator.generate(intent)
                 elapsed = time.time() - start_time
+                
+                # Filter out internal metadata keys (Recommendation Elite)
+                device_results = {k: v for k, v in rag_output.items() if not k.startswith("_")}
+                
                 # Normalize latency per device for fair comparison
-                num_devices = len(rag_output)
+                num_devices = len(device_results)
                 latency = elapsed / num_devices if num_devices > 0 else elapsed
 
                 full_config_map = {
-                    name: data["config"] for name, data in rag_output.items()
+                    name: data["config"] for name, data in device_results.items()
                 }
                 validation = self.validator.validate(full_config_map, intent)
 
@@ -450,7 +454,7 @@ class PaperQualityEvaluator:
                         data.get("retrieved_sources", []),
                         data.get("valid_source_ids", []),
                     ).model_dump()
-                    for data in rag_output.values()
+                    for data in device_results.values()
                 ]
 
                 rag_result = {
