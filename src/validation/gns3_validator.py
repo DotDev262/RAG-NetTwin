@@ -320,21 +320,23 @@ class GNS3Validator(NetworkValidator):
         node_map = {}
         template = self._find_router_template()
         
-        for device in devices:
-            payload = {
-                "name": device.name,
-                "compute_id": "local"
-            }
+        for i, device in enumerate(devices):
             if template:
-                # Merge template properties into payload
-                # This ensures required fields like 'path' for IOU are present
-                for key in ['node_type', 'template_id', 'path', 'ram', 'nvram', 'ethernet_adapters']:
-                    if key in template:
-                        payload[key] = template[key]
-                
+                # Minimum required for template-based creation
+                payload = {
+                    "name": device.name,
+                    "compute_id": "local",
+                    "template_id": template["template_id"],
+                    "x": i * 150,
+                    "y": 0
+                }
                 logger.info(f"Using template: {template['name']} for {device.name}")
             else:
-                payload["node_type"] = "vpcs"
+                payload = {
+                    "name": device.name,
+                    "compute_id": "local",
+                    "node_type": "vpcs"
+                }
                 logger.warning(f"No router images found, using VPCS for {device.name}")
 
             resp = requests.post(f"{self.base_url}/projects/{self.project_id}/nodes", json=payload, auth=self.auth)
