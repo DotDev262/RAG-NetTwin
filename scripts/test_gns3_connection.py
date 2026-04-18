@@ -1,6 +1,7 @@
 import requests
 import json
 import sys
+import time
 from pathlib import Path
 
 # Add src to path for settings
@@ -79,6 +80,32 @@ def test_gns3():
             else:
                 print(f"   ⚠️  WARNING: No suitable templates found. Check GNS3 Preferences.")
 
+        
+        # 4. Test REAL Node Creation (The final frontier)
+        print(f"\n4. Testing Node Creation from Template...")
+        if iou_templates:
+            # Create a temp project for testing
+            p_payload = {"name": f"API_Test_{int(time.time())}"}
+            p_resp = requests.post(f"{base_url}/projects", json=p_payload, auth=auth)
+            if p_resp.status_code == 201:
+                p_id = p_resp.json()["project_id"]
+                t_id = iou_templates[0]["template_id"]
+                
+                # Test the new template instantiation endpoint
+                node_endpoint = f"{base_url}/projects/{p_id}/templates/{t_id}"
+                n_payload = {"name": "Test_R1", "x": 0, "y": 0}
+                
+                n_resp = requests.post(node_endpoint, json=n_payload, auth=auth)
+                if n_resp.status_code == 201:
+                    print(f"   ✅ SUCCESS: Created node '{n_resp.json()['name']}' using template endpoint.")
+                    # Cleanup
+                    requests.delete(f"{base_url}/projects/{p_id}", auth=auth)
+                    print(f"      (Cleaned up test project)")
+                else:
+                    print(f"   ❌ FAILED: Node creation returned {n_resp.status_code}")
+                    print(f"      {n_resp.text}")
+            else:
+                print(f"   ❌ FAILED: Could not create test project.")
         
         print(f"\n--- Test Complete ---")
         print(f"Your environment is ready for the Digital Twin verification!")
