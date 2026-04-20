@@ -59,22 +59,21 @@ class GNS3Validator(NetworkValidator):
 
     def validate(self, configs: Dict[str, str], intent: Optional[StructuredIntent] = None) -> Dict[str, Any]:
         """
-        Orchestrates the GNS3 validation workflow.
+        Orchestrates the GNS3 validation workflow using a persistent project.
         """
         if not self.connected:
-            return {
-                "status": "SKIPPED", 
-                "tier": 3,
-                "message": "GNS3 server not reachable."
-            }
+            return {"status": "SKIPPED", "tier": 3, "message": "GNS3 server not reachable."}
 
         try:
-            # 1. Create/Find Project
-            project_name = f"rag_net_validation_{int(time.time())}"
-            self.project_id = self._create_project(project_name)
-            logger.info(f"Created GNS3 project: {project_name}")
+            # 1. Reuse or Create Persistent Project (Recommendation Elite)
+            project_name = "RAG_NetTwin_DigitalTwin"
+            self.project_id = self._get_or_create_project(project_name)
+            logger.info(f"Using persistent GNS3 project: {project_name} ({self.project_id})")
             
-            # 2. Build Topology
+            # 2. Cleanup: Delete all existing nodes/links for a clean research slate
+            self._cleanup_project()
+            
+            # 3. Build Topology
             devices = intent.devices if intent else []
             nodes = self._create_nodes(devices)
             logger.info(f"Created {len(nodes)} nodes")
@@ -278,6 +277,32 @@ class GNS3Validator(NetworkValidator):
                 time.sleep(2) # Wait between polls
                 
         return len(pending_nodes) == 0
+
+    def _get_or_create_project(self, name: str) -> str:
+        """Finds existing project by name or creates a new one."""
+        resp = requests.get(f"{self.base_url}/projects", auth=self.auth)
+        if resp.status_code == 200:
+            for p in resp.json():
+                if p.get("name") == name:
+                    # Open the project if it's closed
+                    if p.get("status") != "opened":
+                        requests.post(f"{self.base_url}/projects/{p['project_id']}/open", auth=self.auth)
+                    return p["project_id"]
+        
+        return self._create_project(name)
+
+    def _cleanup_project(self):
+        """Deletes all nodes and links in the current project for a clean slate."""
+        if not self.project_id:
+            return
+            
+        # GNS3 automatically deletes links when nodes are deleted
+        nodes_resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth)
+        if nodes_resp.status_code == 200:
+            for node in nodes_resp.json():
+                requests.delete(f"{self.base_url}/projects/{self.project_id}/nodes/{node['node_id']}", auth=self.auth)
+        
+        logger.info("Project workspace cleared.")
 
     def _create_project(self, name: str) -> str:
         payload = {"name": name}
