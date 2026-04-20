@@ -285,70 +285,61 @@ class GNS3Validator(NetworkValidator):
         resp.raise_for_status()
         return resp.json()["project_id"]
 
-    def _find_router_template(self) -> Optional[Dict]:
-        """Finds a suitable Cisco router template."""
+    def _find_template_for_vendor(self, vendor: str) -> Optional[Dict]:
+        """Finds a suitable template based on device vendor."""
         try:
             resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
             if resp.status_code != 200:
-                logger.error(f"Failed to fetch templates: {resp.status_code}")
                 return None
             
             templates = resp.json()
-            # Priority 1: IOU/IOL images (your specific setup)
+            vendor = (vendor or "cisco").lower()
+            
+            if vendor == "juniper":
+                keywords = ["junos", "vsrx", "vmx", "olive", "juniper"]
+            else:
+                keywords = ["router", "iosv", "cisco", "csr1000v", "viou", "iol"]
+                
+            # 1. Try IOU type first (preferred for your setup)
             for tmpl in templates:
-                if tmpl.get('template_type') == 'iou' or 'iou' in tmpl['name'].lower():
+                if tmpl.get('template_type') == 'iou' and any(k in tmpl['name'].lower() for k in keywords):
                     return tmpl
             
-            # Priority 2: Common Cisco keywords (Ignore category)
-            keywords = ["router", "iosv", "cisco", "csr1000v", "viou"]
+            # 2. Try Name matching
             for keyword in keywords:
                 for tmpl in templates:
                     if keyword in tmpl['name'].lower():
                         return tmpl
-            
-            # Priority 3: Anything in the router OR switch category as fallback
-            for tmpl in templates:
-                if tmpl.get('category') in ['router', 'switch']:
-                    return tmpl
             return None
         except Exception as e:
-            logger.error(f"Error finding router template: {e}")
+            logger.error(f"Error finding template for {vendor}: {e}")
             return None
 
     def _create_nodes(self, devices: List[Any]) -> Dict[str, str]:
         """Creates nodes and returns a map of name -> node_id"""
         node_map = {}
-        template = self._find_router_template()
         
         for i, device in enumerate(devices):
+            template = self._find_template_for_vendor(device.vendor)
+            
             if template:
-                # Use dedicated template instantiation endpoint
-                # POST /v2/projects/{project_id}/templates/{template_id}
                 payload = {
                     "name": device.name,
                     "compute_id": "local",
                     "x": i * 150,
                     "y": 0
                 }
-                logger.info(f"Instantiating template {template['name']} for {device.name}")
+                logger.info(f"Instantiating {device.vendor} template: {template['name']} for {device.name}")
                 endpoint = f"{self.base_url}/projects/{self.project_id}/templates/{template['template_id']}"
                 resp = requests.post(endpoint, json=payload, auth=self.auth)
+                
+                if resp.status_code == 201:
+                    node_map[device.name] = resp.json()["node_id"]
+                else:
+                    logger.error(f"Failed to create node {device.name}: {resp.text}")
             else:
-                payload = {
-                    "name": device.name,
-                    "compute_id": "local",
-                    "node_type": "vpcs",
-                    "x": i * 150,
-                    "y": 0
-                }
-                logger.warning(f"No router images found, using VPCS for {device.name}")
-                endpoint = f"{self.base_url}/projects/{self.project_id}/nodes"
-                resp = requests.post(endpoint, json=payload, auth=self.auth)
-            
-            if resp.status_code == 201:
-                node_map[device.name] = resp.json()["node_id"]
-            else:
-                logger.error(f"Failed to create node {device.name}: {resp.text}")
+                logger.warning(f"No {device.vendor} images found in GNS3. Skipping node {device.name}.")
+                
         return node_map
 
     def _create_links(self, node_map: Dict[str, str], intent: StructuredIntent) -> None:
