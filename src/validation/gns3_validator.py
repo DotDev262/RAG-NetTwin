@@ -1,9 +1,15 @@
+import warnings
+
+# Suppress telnetlib deprecation warning (slated for removal in Python 3.13)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
+
 import os
 import requests
 import json
 import time
 import telnetlib
 import socket
+
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 
@@ -300,8 +306,17 @@ class GNS3Validator(NetworkValidator):
         nodes_resp = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth)
         if nodes_resp.status_code == 200:
             for node in nodes_resp.json():
-                requests.delete(f"{self.base_url}/projects/{self.project_id}/nodes/{node['node_id']}", auth=self.auth)
+                try:
+                    requests.delete(f"{self.base_url}/projects/{self.project_id}/nodes/{node['node_id']}", auth=self.auth)
+                except Exception as e:
+                    logger.error(f"Failed to delete node {node['node_id']}: {e}")
         
+        # Verify cleanup complete (Flaw 4)
+        verify = requests.get(f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth)
+        if verify.status_code == 200 and verify.json():
+            logger.error(f"Cleanup incomplete for project {self.project_id} - stale nodes remain: {verify.json()}")
+            raise RuntimeError(f"GNS3 state not clean for validation in project {self.project_id}")
+            
         logger.info("Project workspace cleared.")
 
     def _create_project(self, name: str) -> str:

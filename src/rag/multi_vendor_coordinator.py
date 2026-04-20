@@ -1,5 +1,6 @@
 from typing import Dict, Any, List, Optional
 import json
+import re
 from pydantic import BaseModel
 from utils import setup_logger
 
@@ -76,9 +77,8 @@ class MultiVendorCoordinator:
             config_text = data.get("config", "").lower()
             for c in constraints:
                 val_str = str(c.value).lower()
-                # Simple check: is the value present in the config?
-                # (More advanced version would use the AST parser here)
-                if val_str not in config_text:
+                # Use word boundaries to avoid false positives (e.g., VLAN 1 vs Gig0/10)
+                if not re.search(rf"\b{re.escape(val_str)}\b", config_text):
                     report["is_compatible"] = False
                     report["discrepancies"].append({
                         "device": device_name,

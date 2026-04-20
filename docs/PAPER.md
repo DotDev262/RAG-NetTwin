@@ -393,15 +393,15 @@ All experiments were conducted on a workstation with 32GB RAM and an Intel i7-12
 
 #### 4.1.2 Test Intent Corpus
 
-We constructed a test corpus of **150 natural language intents** spanning five categories:
+We constructed a test corpus of **23 natural language intents** (with a roadmap to expand to 150) spanning five categories:
 
 | Category | Count | Example Intent |
 |----------|-------|----------------|
-| Interface Configuration | 30 | "Configure interface GigabitEthernet0/0 with IP 10.0.1.1/24 and enable OSPF" |
-| OSPF Routing | 30 | "Enable OSPF area 0 between all routers with MD5 authentication" |
-| ACL Configuration | 30 | "Create an ACL to block telnet traffic from 192.168.1.0/24" |
-| VLAN Setup | 30 | "Configure switchport access VLAN 100 on all access ports" |
-| BGP Routing | 30 | "Establish BGP peering with AS 65001 using MD5 authentication" |
+| Interface Configuration | 5 | "Configure interface GigabitEthernet0/0 with IP 10.0.1.1/24 and enable OSPF" |
+| OSPF Routing | 5 | "Enable OSPF area 0 between all routers with MD5 authentication" |
+| ACL Configuration | 5 | "Create an ACL to block telnet traffic from 192.168.1.0/24" |
+| VLAN Setup | 4 | "Configure switchport access VLAN 100 on all access ports" |
+| BGP Routing | 4 | "Establish BGP peering with AS 65001 using MD5 authentication" |
 
 Intents were designed to be syntactically unambiguous to establish a baseline capability. We acknowledge this as a limitation—real-world IBN must handle ambiguous, incomplete, or contradictory natural language inputs. Section 4.1.3 describes our adversarial intent subset, and Section 6 discusses this threat to external validity.
 

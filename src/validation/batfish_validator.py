@@ -29,6 +29,7 @@ import os
 import tempfile
 import shutil
 import json
+import time
 from pathlib import Path
 from pybatfish.client.session import Session
 from pybatfish.datamodel import Interface
@@ -134,9 +135,9 @@ class BatfishValidator(NetworkValidator):
             If Batfish is not available, returns {"status": "SKIPPED", ...}
             with a message instructing user to start Batfish via Docker.
         """
-        # Generate unique network and snapshot names
-        network_name = "rag_net"
-        snapshot_name = f"snapshot_{int(os.getpid())}"
+        # Generate unique network and snapshot names (Fix 2: Prevent state leakage)
+        network_name = f"rag_net_{int(time.time())}_{os.getpid()}"
+        snapshot_name = f"snapshot_{os.getpid()}"
 
         # Return skipped status if Batfish is not available
         if not self.session:
@@ -310,8 +311,13 @@ class BatfishValidator(NetworkValidator):
             # Catch any unexpected errors during validation
             return {"status": "ERROR", "error": str(e)}
         finally:
-            # Always clean up temporary directory
+            # Always clean up temporary directory and Batfish network (Fix 2)
             shutil.rmtree(temp_dir)
+            if self.session:
+                try:
+                    self.session.delete_network(network_name)
+                except:
+                    pass
 
 
 if __name__ == "__main__":

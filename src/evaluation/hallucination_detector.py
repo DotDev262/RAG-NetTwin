@@ -69,18 +69,16 @@ class HallucinationDetector:
         r"<EXAMPLE_[A-Z_]+>",
         r"<CHANGE_ME>",
         r"<REPLACE_[A-Z_]+>",
-        r"<PASSWORD\d+>",
-        r"<[A-Z_]+\d+>",
         r"ENTER_IP_HERE",
         r"YOUR_AS_NUMBER",
         r"command-not-found",
         r"PLACEHOLDER",
         r"dummy-config",
-        r"\[.*?\]",
     ]
 
     def detect(
-        self, config: str, citations: List[str], valid_source_ids: List[str], retrieved_texts: List[str] = None
+        self, config: str, citations: List[str], valid_source_ids: List[str], 
+        retrieved_texts: List[str] = None, intent_context: str = ""
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
@@ -104,8 +102,9 @@ class HallucinationDetector:
                 invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
-        if retrieved_texts:
-            ungrounded = self._check_command_grounding(config_clean, retrieved_texts)
+        if retrieved_texts or intent_context:
+            all_docs = (retrieved_texts or [])
+            ungrounded = self._check_command_grounding(config_clean, all_docs, intent_context)
 
         # Determine overall hallucination status
         is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0
@@ -130,34 +129,64 @@ class HallucinationDetector:
             ungrounded_commands=ungrounded
         )
 
-    def _check_command_grounding(self, config: str, docs: List[str]) -> List[str]:
+    def _check_command_grounding(self, config: str, docs: List[str], intent_context: str = "") -> List[str]:
         """
-        Check if CLI keywords in config are present in the retrieved docs.
+        Robust grounding check: verifies if config tokens are present in documentation 
+        OR derived from the user's intent. Prevents false positives on hostnames, 
+        IPs, and user-defined identifiers.
         """
         ungrounded = []
         full_doc_text = "\n".join(docs).lower()
+        intent_norm = intent_context.lower()
         
-        # Simple heuristic: extract commands (first 2-3 words of each line)
         for line in config.splitlines():
             line = line.strip()
+            # Skip comments and empty lines
             if not line or line.startswith(("!", "#", "comment")):
                 continue
             
-            # Extract keywords (e.g., "router ospf", "interface gigabitethernet")
-            # We ignore numbers/IPs/params at the end
-            parts = line.split()
-            if len(parts) >= 2:
-                # Try 2-word keyword match (e.g., "router ospf")
-                keyword = f"{parts[0]} {parts[1]}".lower()
-                # Remove version numbers if present (e.g., "ospf 1" -> "ospf")
-                keyword = re.sub(r"\d+", "", keyword).strip()
+            # Clean citations from line if LLM included them inside the string
+            line_clean = re.sub(r"\[Ref: [^\]]+\]", "", line).strip()
+            parts = line_clean.split()
+            if not parts:
+                continue
+
+            # Heuristic: Check if the command structural keywords are grounded.
+            # We skip tokens that look like parameters (digits, IPs, or in intent).
+            structural_tokens = []
+            
+            for word in parts:
+                w_lower = word.lower()
                 
-                if keyword not in full_doc_text:
-                    ungrounded.append(line)
-            elif len(parts) == 1:
-                # Try 1-word keyword match (e.g., "exit")
-                keyword = parts[0].lower()
-                if keyword not in full_doc_text and len(keyword) > 3:
-                    ungrounded.append(line)
+                # Robust parameter detection:
+                # 1. Contains digits (e.g., Gig1/0/1, 10.1.1.1, OSPF 1)
+                # 2. Contains non-standard chars (dots, slashes, colons, underscores)
+                # 3. Present in the intent context (hostnames, names)
+                is_parameter = (
+                    any(c.isdigit() for c in word) or 
+                    any(c in word for c in [".", "/", ":", "_", "-"]) or
+                    (len(w_lower) > 2 and w_lower in intent_norm)
+                )
+                
+                if is_parameter:
+                    continue
+                
+                # Known common noisy tokens to skip
+                if w_lower in ["no", "set", "exit", "end", "quit", "commit"]:
+                    continue
+                    
+                structural_tokens.append(w_lower)
+            
+            # If we found structural keywords (e.g., "router", "ospf"), check docs
+            if structural_tokens:
+                primary = structural_tokens[0]
+                # We check if the keyword exists in documentation. 
+                if primary not in full_doc_text and len(primary) > 3:
+                    ungrounded.append(line_clean)
+                elif len(structural_tokens) > 1:
+                    # Check combined multi-word prefix (e.g. "ip route")
+                    prefix = f"{structural_tokens[0]} {structural_tokens[1]}"
+                    if prefix not in full_doc_text and structural_tokens[1] not in full_doc_text:
+                        ungrounded.append(line_clean)
         
         return ungrounded

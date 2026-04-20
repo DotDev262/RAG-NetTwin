@@ -41,6 +41,15 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime, timedelta
+import random
+import numpy as np
+import math
+
+try:
+    from scipy.stats import norm
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
 from ciscoconfparse import CiscoConfParse
 
 # Add src to path for imports
@@ -227,16 +236,21 @@ class PaperQualityEvaluator:
                 pass
         return cache[key]
 
-    def _cache_set(self, cache: Dict, key: str, value: Any):
+    def _cache_set(self, cache: Dict, key: str, value: Any, mode: str = None):
         """
-        Store value in cache with timestamp.
+        Store value in cache with timestamp and mode tagging.
 
         Args:
             cache: Cache dictionary to update.
             key: Cache key.
             value: Value to store.
+            mode: Optional mode tagging (e.g. "vanilla", "tiered").
         """
-        cache[key] = {**value, "timestamp": datetime.now().isoformat()}
+        cache[key] = {
+            **value, 
+            "timestamp": datetime.now().isoformat(),
+            "mode_tag": mode
+        }
 
     def get_intent_key(self, intent) -> str:
         """
@@ -300,9 +314,10 @@ class PaperQualityEvaluator:
             self.validator.session.list_networks()
             logger.info("Batfish detected and responsive.")
         except Exception as e:
-            # (Keep error msg same)
-            ...
-        # ------------------------
+            logger.error(f"Batfish pre-flight failed: {e}")
+            logger.warning("Ensure Batfish container is running: docker run -p 8888:8888 -p 9997:9997 batfish/allinone")
+            if not self.cache_only:
+                return
 
         scenarios = self.get_test_intents()
         all_results = []
@@ -342,7 +357,7 @@ class PaperQualityEvaluator:
         with open(latest_file, "w") as f:
             json.dump(report, f, indent=2)
 
-        self._generate_summary_table(all_results)
+        self._generate_summary_table(all_results, retrieval_mode)
 
     def evaluate_intent(self, intent, retrieval_mode: str = "tiered"):
         """
@@ -358,8 +373,13 @@ class PaperQualityEvaluator:
         if True: # Always run RAG mode during eval
             # Check cache with mode in key
             cache_key = f"{retrieval_mode}:{intent_key}"
-            if self.cache_only and cache_key in self.rag_cache:
-                results["rag_nettwin"] = self.rag_cache[cache_key]
+            cached_rag = self._cache_get(self.rag_cache, cache_key)
+            
+            if cached_rag:
+                results["rag_nettwin"] = cached_rag
+                logger.info(f"RAG cache hit ({retrieval_mode}): {intent_key[:20]}...")
+            elif self.cache_only:
+                results["rag_nettwin"] = {"status": "ERROR", "error": "Not in cache (cache-only mode)"}
             else:
                 try:
                     start_time = time.time()
@@ -370,36 +390,43 @@ class PaperQualityEvaluator:
                     # Store Sanity Check results
                     results["rag_sanity_check"] = rag_output.get("_sanity_check")
 
-                    # Extract single device results for this intent (Simplified for paper metrics)
-                    # In this research version, we analyze the 'most complex' device if multiple exist
-                    device_name = [k for k in rag_output.keys() if not k.startswith("_")][0]
-                    data = rag_output[device_name]
-                    
+                    # Extract ALL device results for this intent (Fix: Support multi-vendor/multi-device)
+                    device_configs = {k: v["config"] for k, v in rag_output.items() if not k.startswith("_")}
+                    if not device_configs:
+                        raise ValueError("No device configurations generated.")
+
                     # 1. SYNTACTIC VALIDATION (Tier 1 - Batfish)
-                    val_report = self.validator.validate(
-                        {device_name: data["config"]}, intent
-                    )
+                    # Validate all configs together to check cross-device issues (e.g. interface names)
+                    val_report = self.validator.validate(device_configs, intent)
                     
-                    # 2. HALLUCINATION DETECTION
-                    hal_report = self.hallucination_detector.detect(
-                        data["config"],
-                        data.get("retrieved_sources", []),
-                        data.get("valid_source_ids", []),
-                    )
+                    # 2. HALLUCINATION DETECTION (Check all devices)
+                    all_hal_reports = []
+                    for dev_name, dev_data in rag_output.items():
+                        if dev_name.startswith("_"): continue
+                        hal_report = self.hallucination_detector.detect(
+                            dev_data["config"],
+                            dev_data.get("retrieved_sources", []),
+                            dev_data.get("valid_source_ids", []),
+                            retrieved_texts=[dev_data.get("grounding_context", "")],
+                            intent_context=intent.original_text
+                        )
+                        all_hal_reports.append(hal_report.model_dump())
                     
                     # 3. CFR CHECK (Config Faithfulness)
-                    cfr_failure = self._check_cfr(intent, data["config"])
+                    # Check faithfulness across the aggregate configuration
+                    aggregate_config = "\n".join(device_configs.values())
+                    cfr_failure = self._check_cfr(intent, aggregate_config)
 
-                    # 4. FUNCTIONAL VERIFICATION (Tier 3 - GNS3) (Recommendation Elite)
+                    # 4. FUNCTIONAL VERIFICATION (Tier 3 - GNS3)
                     functional_status = "SKIPPED"
                     if self.run_gns3 and self.gns3:
                         try:
-                            # Use one-off validation for research (starts node, pushes config)
-                            g_res = self.gns3.validate({device_name: data["config"]}, intent)
+                            # Use one-off validation for research (starts nodes, pushes configs)
+                            g_res = self.gns3.validate(device_configs, intent)
                             if g_res.get("status") == "PASS":
-                                # Run verification commands
-                                v_cmd = {device_name: data.get("verification_commands", [])}
-                                v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmd)
+                                # Run verification commands for all devices
+                                v_cmds = {k: v.get("verification_commands", []) for k, v in rag_output.items() if not k.startswith("_")}
+                                v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
                                 # If commands ran without error, mark as pass
                                 functional_status = "PASS"
                             else:
@@ -409,45 +436,62 @@ class PaperQualityEvaluator:
                             functional_status = "ERROR"
 
                     eval_res = {
-                        "config": data["config"],
+                        "configs": device_configs,
                         "status": val_report.get("status"),
                         "functional_status": functional_status,
                         "latency": latency,
-                        "hallucinations": [hal_report.model_dump()],
+                        "hallucinations": all_hal_reports,
                         "cfr_failure": cfr_failure,
-                        "retrieved_sources": data.get("retrieved_sources", [])
+                        "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if not k.startswith("_")]
                     }
                     results["rag_nettwin"] = eval_res
                     
-                    # Cache the result
-                    self.rag_cache[cache_key] = eval_res
+                    # Cache the result with mode tag
+                    self._cache_set(self.rag_cache, cache_key, eval_res, mode=retrieval_mode)
                 except Exception as e:
                     logger.error(f"RAG Evaluation failed: {e}")
                     results["rag_nettwin"] = {"status": "ERROR", "error": str(e)}
 
         # --- MODE A: VANILLA LLM (optional) ---
-        if self.run_vanilla and not self.cache_only:
+        if self.run_vanilla:
             # Check cache first
             cached_vanilla = self._cache_get(self.vanilla_cache, intent_key)
             if cached_vanilla:
                 results["vanilla"] = cached_vanilla
-                logger.info(f"Vanilla cache hit: {intent_key[:40]}...")
+                logger.info(f"Vanilla cache hit: {intent_key[:20]}...")
+            elif self.cache_only:
+                 results["vanilla"] = {"status": "ERROR", "error": "Not in cache (cache-only mode)"}
             else:
                 try:
                     vanilla_cfg = self._generate_vanilla(intent.original_text)
+                    
+                    # 1. SYNTACTIC VALIDATION
                     validation = self.validator.validate(
                         {"Vanilla-Router": vanilla_cfg}
                     )
+                    
+                    # 2. FUNCTIONAL VERIFICATION (Tier 3 - GNS3) (NEW: Run for Vanilla too)
+                    functional_status = "SKIPPED"
+                    if self.run_gns3 and self.gns3:
+                        try:
+                            # Note: For vanilla, we use a single router
+                            g_res = self.gns3.validate({"Vanilla-Router": vanilla_cfg}, intent)
+                            functional_status = "PASS" if g_res.get("status") == "PASS" else "FAIL"
+                        except Exception as ge:
+                            logger.error(f"GNS3 Vanilla validation failed: {ge}")
+                            functional_status = "ERROR"
+
                     vanilla_result = {
                         "config": vanilla_cfg,
                         "status": validation["status"],
+                        "functional_status": functional_status,
                         "cfr_failure": self._check_cfr(intent, vanilla_cfg),
                         "hallucination": self.hallucination_detector.detect(
-                            vanilla_cfg, [], []
+                            vanilla_cfg, [], [], intent_context=intent.original_text
                         ).model_dump(),
                     }
                     results["vanilla"] = vanilla_result
-                    self._cache_set(self.vanilla_cache, intent_key, vanilla_result)
+                    self._cache_set(self.vanilla_cache, intent_key, vanilla_result, mode="vanilla")
                 except Exception as e:
                     results["vanilla"] = {"status": "ERROR", "error": str(e)}
 
@@ -613,8 +657,8 @@ class PaperQualityEvaluator:
                     if not self._config_contains_ip(config, val_str):
                         return True
                 else:
-                    # Generic string match for other critical params
-                    if val_str.lower() not in config.lower():
+                    # Generic string match for other critical params (Fix: Use word boundaries)
+                    if not re.search(rf"\b{re.escape(val_str.lower())}\b", config.lower()):
                         return True
 
         return False
@@ -854,11 +898,48 @@ class PaperQualityEvaluator:
                 value = f"{ip} {cidr_map[prefix]}"
         return value.lower().strip()
 
-    def _generate_summary_table(self, results: List[Dict]):
+    def _compute_wilson_ci(self, count: int, total: int, confidence: float = 0.95) -> str:
         """
-        Generate and print summary table of evaluation results.
+        Computes the Wilson score interval for a proportion.
+        """
+        import math
+        if total == 0:
+            return "N/A"
+        z = 1.96  # 95% confidence
+        p = count / total
+        denominator = 1 + z**2 / total
+        centre_prob = p + z**2 / (2 * total)
+        std_dev = math.sqrt((p * (1 - p) + z**2 / (4 * total)) / total)
+        lower = (centre_prob - z * std_dev) / denominator
+        upper = (centre_prob + z * std_dev) / denominator
+        return f"{p*100:.1f}% (±{(upper-p)*100:.1f}%)"
+
+    def _compute_p_value(self, count1: int, n1: int, count2: int, n2: int) -> str:
+        """
+        Computes the two-proportion z-test p-value (approximate).
+        """
+        if not SCIPY_AVAILABLE:
+            return "N/A (scipy missing)"
+        
+        if n1 == 0 or n2 == 0:
+            return "N/A"
+        
+        p1 = count1 / n1
+        p2 = count2 / n2
+        p_combined = (count1 + count2) / (n1 + n2)
+        if p_combined == 0 or p_combined == 1:
+            return "1.0000"
+        
+        z = (p1 - p2) / math.sqrt(p_combined * (1 - p_combined) * (1/n1 + 1/n2))
+        p_val = 2 * (1 - norm.cdf(abs(z)))
+        return f"{p_val:.4f}"
+
+    def _generate_summary_table(self, results: List[Dict], retrieval_mode: str = "tiered"):
+        """
+        Generate and print summary table of evaluation results with statistical rigor.
         """
         summary = []
+        mode_counts = {}
         for mode in ["vanilla", "rag_nettwin"]:
             mode_data = []
             for r in results:
@@ -872,17 +953,18 @@ class PaperQualityEvaluator:
             if not mode_data:
                 continue
 
+            n = len(mode_data)
             # Syntactic Validity: Count PASS or WARNING.
             pass_count = 0
             for d in mode_data:
                 status = d.get("status")
                 if not status and "validation" in d:
                     status = d["validation"].get("status")
-
                 if status in ["PASS", "WARNING"]:
                     pass_count += 1
 
-            cfr_count = sum(1 for d in mode_data if d.get("cfr_failure", False))
+            # CFR Check (Config Faithfulness)
+            cfr_success = sum(1 for d in mode_data if not d.get("cfr_failure", False))
             functional_pass = sum(1 for d in mode_data if d.get("functional_status") == "PASS")
 
             if mode == "vanilla":
@@ -900,21 +982,40 @@ class PaperQualityEvaluator:
                     )
                 )
 
+            mode_counts[mode] = {"pass": pass_count, "n": n}
+            display_mode = mode if mode == "vanilla" else f"RAG ({retrieval_mode})"
+
             summary.append(
                 {
-                    "Mode": mode,
-                    "Syntactic Validity": f"{(pass_count / len(mode_data)) * 100:.1f}%",
-                    "Functional Success": f"{(functional_pass / len(mode_data)) * 100:.1f}%",
-                    "Hallucination Rate": f"{(hal_count / len(mode_data)) * 100:.1f}%",
-                    "CFR Faithfulness": f"{((len(mode_data) - cfr_count) / len(mode_data)) * 100:.1f}%",
-                    "Avg Latency": f"{sum(d.get('latency', 0) for d in mode_data) / len(mode_data):.2f}s"
+                    "Mode": display_mode,
+                    "N": n,
+                    "Syntactic Validity": self._compute_wilson_ci(pass_count, n),
+                    "CFR Success (PEA)": self._compute_wilson_ci(cfr_success, n),
+                    "Functional Success": self._compute_wilson_ci(functional_pass, n),
+                    "Hallucination Rate": f"{(hal_count / n) * 100:.1f}%",
+                    "Avg Latency": f"{sum(d.get('latency', 0) for d in mode_data) / n:.2f}s"
                     if mode == "rag_nettwin"
                     else "N/A",
                 }
             )
 
-        print("\n UPDATED RESEARCH METRICS (RAG-NetTwin Elite)")
-        print(pd.DataFrame(summary).to_string(index=False))
+        print("\n" + "=" * 90)
+        print(f"{'EVALUATION SUMMARY':^90}")
+        print("=" * 90)
+        import pandas as pd
+        df = pd.DataFrame(summary)
+        print(df.to_string(index=False))
+        print("-" * 90)
+        if "vanilla" in mode_counts and "rag_nettwin" in mode_counts:
+            p_val = self._compute_p_value(
+                mode_counts["rag_nettwin"]["pass"], mode_counts["rag_nettwin"]["n"],
+                mode_counts["vanilla"]["pass"], mode_counts["vanilla"]["n"]
+            )
+            print(f"Syntactic Validity Improvement Significance (p-value): {p_val}")
+        print("=" * 90)
+        print("Note: Confidence intervals (±%) computed using Wilson score (z=1.96).")
+        print("PEA (Parameter Extraction Accuracy) measures config alignment with intent.")
+        print("=" * 90 + "\n")
 
     def _junos_config_to_dict(self, config: str) -> Dict:
         """
@@ -939,26 +1040,60 @@ class PaperQualityEvaluator:
 
     def _check_junos_parameter(self, tree: Dict, key: str, value: str) -> bool:
         """
-        Recursively searches Junos dictionary tree for a value.
+        Context-aware search for a value under a specific key (or its path) in Junos tree.
         """
-        # 1. Direct search for value in the tree keys
-        def find_val(t, v):
-            if v in t:
-                return True
-            for k in t:
-                if isinstance(t[k], dict) and find_val(t[k], v):
-                    return True
-            return False
+        # Define common key aliases for Junos
+        key_aliases = {
+            "vlan": ["vlan-id", "vlan"],
+            "area": ["area", "area-id"],
+            "as": ["autonomous-system", "as-number", "routing-options"],
+            "mtu": ["mtu"],
+            "cost": ["metric", "cost"],
+            "priority": ["priority"],
+        }
         
-        # 2. Key-context search (e.g., if key is 'vlan', check if value exists under a 'vlan' key)
-        # (This handles the case where the value might be in a different path)
-        if find_val(tree, value):
-            return True
-            
-        return False
+        target_keys = [key.lower()]
+        for k, aliases in key_aliases.items():
+            if k in key.lower():
+                target_keys.extend(aliases)
+
+        def normalize_junos_val(v):
+            v = str(v).lower()
+            if v == "0.0.0.0": return "0"
+            return v
+
+        v_norm = normalize_junos_val(value)
+
+        def find_in_context(t, v, in_context=False):
+            # Check current level keys
+            for k in t:
+                k_str = str(k).lower()
+                # Determine if this key or its parents establish context
+                is_target = any(tk == k_str for tk in target_keys)
+                level_context = in_context or is_target
+                
+                # If value is found in a key or as a value (if leaf)
+                if v == normalize_junos_val(k):
+                    if level_context: return True # Uses the context established by this level or above
+                
+                if isinstance(t[k], dict):
+                    if find_in_context(t[k], v, level_context):
+                        return True
+                else:
+                    # Leaf node (value)
+                    if v == normalize_junos_val(t[k]) and level_context:
+                        return True
+            return False
+
+        return find_in_context(tree, v_norm)
 
 
 if __name__ == "__main__":
+    import random
+    import numpy as np
+    # Set fixed seeds for reproducibility (Recommendation 8)
+    random.seed(42)
+    np.random.seed(42)
     parser = argparse.ArgumentParser(
         description="RAG-NetTwin Paper Evaluation",
         formatter_class=argparse.RawDescriptionHelpFormatter,

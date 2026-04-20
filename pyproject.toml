@@ -41,6 +41,7 @@ dependencies = [
     "opendataloader-pdf>=2.2.1",
     "rank_bm25>=0.2.2",
     "dspy-ai>=2.5.0",
+    "scipy>=1.15.0",
 ]
 
 [tool.uv.sources]
@@ -50,3 +51,8 @@ torch = { index = "pytorch-cpu" }
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:telnetlib",
+]

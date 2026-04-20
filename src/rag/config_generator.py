@@ -30,6 +30,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import json
 import re
 import hashlib
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rag.vector_store import VectorStore
@@ -119,6 +120,7 @@ class ConfigGenerator:
         )
         self.vector_store = VectorStore()
         self.coordinator = MultiVendorCoordinator()
+        self._sanity_lock = threading.Lock()
 
     def generate(
         self, 
@@ -140,10 +142,11 @@ class ConfigGenerator:
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
         coordination_prompt = self.coordinator.build_coordination_prompt(constraints)
 
-        # Build query once for all devices
+        # Build query once for all devices (Flaw 1: Include parameter values)
+        param_strs = [f"{k} {v}" for k, v in structured_intent.parameters.items()]
         query = (
             f"{structured_intent.protocol} {structured_intent.action} "
-            + " ".join(structured_intent.parameters.keys())
+            + " ".join(param_strs)
         )
 
         # 1. Group devices by vendor + version for Consolidated Retrieval
@@ -209,12 +212,14 @@ class ConfigGenerator:
                     avg_distance = sum(res.get('distance', 0) for res in results) / len(results)
                     if avg_distance > 1.2:
                         warning = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
-                        configs["_sanity_check"]["warnings"].append(warning)
-                        configs["_sanity_check"]["is_grounded"] = False
+                        with self._sanity_lock:
+                            configs["_sanity_check"]["warnings"].append(warning)
+                            configs["_sanity_check"]["is_grounded"] = False
                 else:
                     warning = f"No documentation found in KB for {vendor}/{search_version} '{structured_intent.protocol}'."
-                    configs["_sanity_check"]["warnings"].append(warning)
-                    configs["_sanity_check"]["is_grounded"] = False
+                    with self._sanity_lock:
+                        configs["_sanity_check"]["warnings"].append(warning)
+                        configs["_sanity_check"]["is_grounded"] = False
 
                 if results:
                     # Recommendation Elite: Fetch Parent Grounding Context
@@ -235,8 +240,10 @@ class ConfigGenerator:
 
                 # Recommendation 4: Distill context for token efficiency
                 device_context = ""
+                valid_ids = []
                 if device.name in full_context_map:
                     device_context = self.distill_context(full_context_map[device.name])
+                    valid_ids = [c.get("id") for c in full_context_map[device.name]]
                 
                 futures.append(
                     executor.submit(
@@ -244,7 +251,8 @@ class ConfigGenerator:
                         device, 
                         structured_intent, 
                         device_context,
-                        coordination_prompt
+                        coordination_prompt,
+                        valid_ids
                     )
                 )
 
@@ -274,11 +282,12 @@ class ConfigGenerator:
         return configs
 
     def _generate_single_device(
-        self, 
-        device: Any, 
-        structured_intent: StructuredIntent, 
+        self,
+        device: Any,
+        structured_intent: StructuredIntent,
         device_context: str,
-        coordination_prompt: str = ""
+        coordination_prompt: str = "",
+        valid_source_ids: List[str] = None
     ) -> Dict[str, Any]:
         """
         Helper to generate config for a single device (for parallelization).
@@ -306,8 +315,9 @@ class ConfigGenerator:
                     "{device_context}\n\n"
                     "### INSTRUCTIONS ###\n"
                     "1. Use provided documentation for vendor-specific syntax.\n"
-                    "2. Output strictly in the requested structured format.\n"
-                    "3. CRITICAL: Generate ONLY commands matching the specified vendor.",
+                    "2. For citations, use the EXACT 'ID: <source_id>' values provided in the documentation block.\n"
+                    "3. Output strictly in the requested structured format.\n"
+                    "4. CRITICAL: Generate ONLY commands matching the specified vendor.",
                 ),
             ]
         )
@@ -341,6 +351,8 @@ class ConfigGenerator:
                 "config": config_text,
                 "verification_commands": response.verification_commands or [],
                 "retrieved_sources": response.citations or [],
+                "valid_source_ids": valid_source_ids or [],
+                "grounding_context": device_context,
                 "confidence": response.confidence_score,
                 "reasoning": response.reasoning_path,
             }

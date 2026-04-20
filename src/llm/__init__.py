@@ -85,6 +85,7 @@ class LLMProvider:
         model: Optional[str] = None,
         temperature: float = 0.0,
         api_key: Optional[str] = None,
+        seed: int = 42,
     ) -> "BaseChatModel":
         """
         Get an LLM instance for the specified provider.
@@ -99,6 +100,8 @@ class LLMProvider:
             temperature: LLM temperature (0.0 = deterministic, 1.0 = creative).
                 Default is 0.0 for consistent, reproducible outputs.
             api_key: Optional API key override. If None, uses settings.
+            seed: Optional seed for determinism (Recommendation 5).
+                Default is 42.
 
         Returns:
             BaseChatModel instance for the specified provider.
@@ -116,11 +119,11 @@ class LLMProvider:
         provider = provider or settings.llm_provider
 
         if provider == LLMProvider.PROVIDER_GROQ:
-            return LLMProvider._get_groq_llm(model, temperature, api_key)
+            return LLMProvider._get_groq_llm(model, temperature, api_key, seed)
         elif provider == LLMProvider.PROVIDER_GEMINI:
-            return LLMProvider._get_gemini_llm(model, temperature, api_key)
+            return LLMProvider._get_gemini_llm(model, temperature, api_key, seed)
         elif provider == LLMProvider.PROVIDER_LLAMACPP:
-            return LLMProvider._get_llamacpp_llm(model, temperature)
+            return LLMProvider._get_llamacpp_llm(model, temperature, seed)
         else:
             raise ValueError(
                 f"Unsupported LLM provider: '{provider}'. "
@@ -132,6 +135,7 @@ class LLMProvider:
         model: Optional[str] = None,
         temperature: float = 0.0,
         api_key: Optional[str] = None,
+        seed: int = 42,
     ) -> BaseChatModel:
         """
         Create a Groq LLM instance.
@@ -140,6 +144,7 @@ class LLMProvider:
             model: Model name (default: settings.groq_model).
             temperature: Sampling temperature (default: 0.0).
             api_key: API key override (default: settings.groq_api_key).
+            seed: Seed for determinism.
 
         Returns:
             ChatGroq instance.
@@ -151,13 +156,15 @@ class LLMProvider:
 
         api_key = api_key or settings.groq_api_key
         model = model or settings.groq_model
-        return ChatGroq(model=model, temperature=temperature, api_key=api_key)
+        # Recommendation 5: Pass seed via model_kwargs for providers that support it
+        return ChatGroq(model=model, temperature=temperature, api_key=api_key, model_kwargs={"seed": seed})
 
     @staticmethod
     def _get_gemini_llm(
         model: Optional[str] = None,
         temperature: float = 0.0,
         api_key: Optional[str] = None,
+        seed: int = 42,
     ) -> BaseChatModel:
         """
         Create a Google Gemini LLM instance.
@@ -166,6 +173,7 @@ class LLMProvider:
             model: Model name (default: settings.gemini_model).
             temperature: Sampling temperature (default: 0.0).
             api_key: API key override (default: settings.gemini_api_key).
+            seed: Seed for determinism.
 
         Returns:
             ChatGoogleGenerativeAI instance.
@@ -177,14 +185,16 @@ class LLMProvider:
 
         api_key = api_key or settings.gemini_api_key
         model = model or settings.gemini_model
+        # Recommendation 5: Some models support seed natively
         return ChatGoogleGenerativeAI(
-            model=model, temperature=temperature, api_key=api_key
+            model=model, temperature=temperature, api_key=api_key, model_kwargs={"seed": seed}
         )
 
     @staticmethod
     def _get_llamacpp_llm(
         model: Optional[str] = None,
         temperature: float = 0.0,
+        seed: int = 42,
     ) -> BaseChatModel:
         """
         Create a LlamaCpp local LLM instance.
@@ -192,6 +202,7 @@ class LLMProvider:
         Args:
             model: Path to model file (default: settings.llama_cpp_model_path).
             temperature: Sampling temperature (default: 0.0).
+            seed: Seed for determinism.
 
         Returns:
             ChatLlamaCpp instance.
@@ -208,6 +219,7 @@ class LLMProvider:
         return ChatLlamaCpp(
             model_path=model_path,
             temperature=temperature,
+            seed=seed,
             n_ctx=settings.llama_cpp_n_ctx,
             n_gpu_layers=settings.llama_cpp_n_gpu_layers,
         )
@@ -219,6 +231,7 @@ class LLMProvider:
         model: Optional[str] = None,
         temperature: float = 0.0,
         api_key: Optional[str] = None,
+        seed: int = 42,
     ) -> BaseChatModel:
         """
         Get an LLM with structured output support.
@@ -234,6 +247,7 @@ class LLMProvider:
             model: Optional model name override.
             temperature: Sampling temperature (default: 0.0).
             api_key: Optional API key override.
+            seed: Seed for determinism.
 
         Returns:
             LLM instance with structured output capability.
@@ -245,7 +259,7 @@ class LLMProvider:
             >>> type(result)
             <class 'StructuredIntent'>
         """
-        llm = LLMProvider.get_llm(provider, model, temperature, api_key)
+        llm = LLMProvider.get_llm(provider, model, temperature, api_key, seed)
         provider = provider or settings.llm_provider
 
         # Different providers have different methods for structured output
