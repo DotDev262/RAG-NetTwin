@@ -296,7 +296,7 @@ class GNS3Validator(NetworkValidator):
             vendor = (vendor or "cisco").lower()
             
             if vendor == "juniper":
-                keywords = ["junos", "vsrx", "vmx", "olive", "juniper"]
+                keywords = ["junos", "vsrx", "vmx", "olive", "juniper", "vyos"]
             else:
                 keywords = ["router", "iosv", "cisco", "csr1000v", "viou", "iol"]
                 
