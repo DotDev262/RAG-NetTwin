@@ -64,7 +64,10 @@ class DeviceConfigOutput(BaseModel):
     """
 
     commands: List[str] = Field(description="List of raw CLI configuration commands")
-    citations: List[str] = Field(description="List of documentation reference IDs used")
+    citations: List[str] = Field(
+        description="List of Source IDs from the DOCUMENTATION block used to ground this config. "
+                    "Use ONLY the strings following 'ID: '. Do NOT use document titles."
+    )
     confidence_score: float = Field(
         description="Confidence score (0.0 to 1.0) of the generated config", ge=0, le=1
     )

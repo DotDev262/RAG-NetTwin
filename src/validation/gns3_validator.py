@@ -216,14 +216,18 @@ class GNS3Validator(NetworkValidator):
                     for cmd in commands:
                         tn.write(cmd.encode("ascii") + b"\r\n")
                         # Wait for prompt to ensure command finished
-                        # This is much safer than read_very_eager()
                         try:
                             idx, match, text = tn.expect([b">", b"#"], timeout=5)
                             output = text.decode("ascii", errors="ignore")
+                            
+                            # Check for common CLI error indicators (Fix: Ensure functional check actually validates)
+                            error_keywords = ["Invalid input", "Error:", "Unknown command", "Ambiguous command", "syntax error"]
+                            if any(err.lower() in output.lower() for err in error_keywords):
+                                device_state[cmd] = f"ERROR: {output.strip()}"
+                            else:
+                                device_state[cmd] = output
                         except:
-                            output = "Timeout waiting for command output."
-                        
-                        device_state[cmd] = output
+                            device_state[cmd] = "TIMEOUT: No prompt received"
                     
                     tn.close()
                     state[device_name] = device_state

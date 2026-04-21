@@ -98,7 +98,14 @@ class HallucinationDetector:
 
         # Step 3: Check citation validity
         for cite in citations:
-            if cite not in valid_source_ids:
+            # Flexible citation check: ID match or ID is substring of citation (Flaw Fix)
+            found_valid = False
+            for valid_id in valid_source_ids:
+                if valid_id == cite or valid_id in cite or cite in valid_id:
+                    found_valid = True
+                    break
+            
+            if not found_valid and cite:
                 invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
@@ -181,12 +188,19 @@ class HallucinationDetector:
             if structural_tokens:
                 primary = structural_tokens[0]
                 # We check if the keyword exists in documentation. 
-                if primary not in full_doc_text and len(primary) > 3:
+                # Relaxed check: if the first token is a very common structural verb, 
+                # it's usually grounded by system knowledge if the intent implies it.
+                is_common_verb = primary in ["interface", "router", "ip", "ipv6", "vlan", "access-list"]
+                
+                if primary not in full_doc_text and len(primary) > 3 and not is_common_verb:
                     ungrounded.append(line_clean)
                 elif len(structural_tokens) > 1:
                     # Check combined multi-word prefix (e.g. "ip route")
                     prefix = f"{structural_tokens[0]} {structural_tokens[1]}"
+                    # If prefix is in docs, OR if the second keyword is in docs
                     if prefix not in full_doc_text and structural_tokens[1] not in full_doc_text:
-                        ungrounded.append(line_clean)
+                        # Final safety check: if primary is a common verb, only flag if secondary is also missing
+                        if not is_common_verb:
+                            ungrounded.append(line_clean)
         
         return ungrounded

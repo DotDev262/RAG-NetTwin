@@ -1,5 +1,8 @@
 import os
-from typing import List, Optional, Dict, Any
+import json
+import time
+import hashlib
+from typing import List, Optional, Dict, Any, Type
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from config import settings
@@ -11,6 +14,32 @@ from rag.vector_store import VectorStore
 from utils import setup_logger
 
 logger = setup_logger("IntentParser")
+
+# Cache for parsed intents to avoid redundant API calls
+INTENT_CACHE_FILE = "data/processed/intent_cache.json"
+
+def with_retry(max_retries=5, initial_sleep=2):
+    """
+    Decorator for exponential backoff on RateLimitErrors.
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    e_str = str(e).lower()
+                    if "rate_limit" in e_str or "429" in e_str:
+                        retries += 1
+                        sleep_time = initial_sleep * (2 ** (retries - 1))
+                        logger.warning(f"Rate limit hit. Retrying in {sleep_time}s... ({retries}/{max_retries})")
+                        time.sleep(sleep_time)
+                    else:
+                        raise e
+            return func(*args, **kwargs) # Last try
+        return wrapper
+    return decorator
 
 
 class DeviceIntent(BaseModel):
@@ -126,6 +155,28 @@ IMPORTANT VENDOR DETECTION:
         dspy.settings.configure(lm=lm)
         self.dspy_parser = DSPyIntentParser()
 
+        # Load cache
+        self.cache = self._load_cache()
+
+    def _load_cache(self) -> Dict[str, Any]:
+        """Loads processed intents from disk."""
+        if os.path.exists(INTENT_CACHE_FILE):
+            try:
+                with open(INTENT_CACHE_FILE, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load intent cache: {e}")
+        return {}
+
+    def _save_cache(self):
+        """Saves processed intents to disk."""
+        os.makedirs(os.path.dirname(INTENT_CACHE_FILE), exist_ok=True)
+        try:
+            with open(INTENT_CACHE_FILE, "w") as f:
+                json.dump(self.cache, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save intent cache: {e}")
+
     def parse_batch(
         self, texts: List[str], chunk_size: int = 3
     ) -> List[StructuredIntent]:
@@ -147,13 +198,31 @@ IMPORTANT VENDOR DETECTION:
 
         return all_intents
 
+    @with_retry(max_retries=3)
     def _parse_chunk(self, texts: List[str]) -> List[StructuredIntent]:
-        """Parse a single chunk of intents."""
+        """Parse a single chunk of intents with retry logic and caching."""
+        # 1. Separate texts into cached and non-cached
+        results = {} # index -> intent
+        to_parse_texts = []
+        to_parse_indices = []
+        
+        for idx, text in enumerate(texts):
+            text_hash = hashlib.sha256(text.encode()).hexdigest()
+            if text_hash in self.cache:
+                results[idx] = StructuredIntent(**self.cache[text_hash])
+            else:
+                to_parse_texts.append(text)
+                to_parse_indices.append(idx)
+        
+        if not to_parse_texts:
+            return [results[i] for i in range(len(texts))]
+
+        # 2. Parse non-cached intents in a batch
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
-        count = len(texts)
+        count = len(to_parse_texts)
         
         # Recommendation 2: Dynamic Few-Shot Retrieval (use first intent in chunk as anchor)
-        few_shot_examples = self.vector_store.retrieve_few_shot(texts[0], n_results=3)
+        few_shot_examples = self.vector_store.retrieve_few_shot(to_parse_texts[0], n_results=3)
         examples_str = ""
         for i, ex in enumerate(few_shot_examples):
             examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
@@ -179,68 +248,90 @@ RULES:
             template_format="jinja2"
         )
 
-        input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(texts)])
+        input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(to_parse_texts)])
         chain = prompt | self.batch_llm
         batch_result = chain.invoke({"input_list": input_list, "num": count})
 
-        # CRITICAL: Verify we got the same number of intents back
-        if len(batch_result.intents) != len(texts):
-            raise ValueError(
-                f"LLM returned {len(batch_result.intents)} intents but expected {len(texts)}"
-            )
+        if len(batch_result.intents) != count:
+            raise ValueError(f"LLM returned {len(batch_result.intents)} intents but expected {count}")
 
-        # CRITICAL: Force-overwrite original_text with EXACT input strings to avoid cache key mismatches
+        # 3. Merge results and save to cache
         for i, intent in enumerate(batch_result.intents):
-            intent.original_text = texts[i]
+            intent.original_text = to_parse_texts[i]
             self._resolve_device_metadata(intent)
-
-        return batch_result.intents
+            
+            # Save to cache
+            text_hash = hashlib.sha256(intent.original_text.encode()).hexdigest()
+            self.cache[text_hash] = intent.model_dump()
+            
+            results[to_parse_indices[i]] = intent
+            
+        self._save_cache()
+        return [results[i] for i in range(len(texts))]
 
     def parse(self, text: str) -> StructuredIntent:
         """Translates NL text to StructuredIntent object using DSPy."""
-        
-        # Recommendation 2: Dynamic Few-Shot Retrieval
+        # 1. Check Cache first
+        text_hash = hashlib.sha256(text.encode()).hexdigest()
+        if text_hash in self.cache:
+            logger.info(f"Intent cache hit: {text[:30]}...")
+            return StructuredIntent(**self.cache[text_hash])
+            
+        # 2. Dynamic Few-Shot Retrieval
         few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
         examples_str = ""
         for i, ex in enumerate(few_shot_examples):
             examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
 
-        # Recommendation 3: Use Compiled DSPy Logic
+        # 3. Use Compiled DSPy Logic
         try:
-            response = self.dspy_parser(intent=text, context=examples_str)
-            
-            # Helper to safely parse lists/dicts from strings
-            import ast
-            def safe_eval(val, default_type):
-                if not val: return [] if isinstance(default_type, list) else {}
-                
-                parsed = val
-                if isinstance(val, str):
-                    try: parsed = ast.literal_eval(val)
-                    except: parsed = val
-                
-                # If we expect a list but got a single item (dict or string)
-                if isinstance(default_type, list) and not isinstance(parsed, list):
-                    return [parsed] if parsed else []
-                
-                return parsed
-
-            intent = StructuredIntent(
-                original_text=text,
-                protocol=response.protocol,
-                action=response.action,
-                devices=safe_eval(response.devices, []),
-                parameters=safe_eval(response.parameters, {}),
-                requirements=safe_eval(response.requirements, [])
-            )
-            self._resolve_device_metadata(intent)
-            return intent
+            # Wrap the actual DSPy call with retry logic
+            result = self._dspy_parse(text, examples_str)
         except Exception as e:
             logger.error(f"DSPy parsing failed: {e}. Falling back to standard LLM.")
-            return self._legacy_parse(text, examples_str)
+            result = self._legacy_parse(text, examples_str)
 
+        # 4. Save to Cache
+        self.cache[text_hash] = result.model_dump()
+        self._save_cache()
+        
+        return result
+
+    @with_retry(max_retries=5)
+    def _dspy_parse(self, text: str, examples_str: str) -> StructuredIntent:
+        """Internal DSPy call with retry logic."""
+        response = self.dspy_parser(intent=text, context=examples_str)
+        
+        # Helper to safely parse lists/dicts from strings
+        import ast
+        def safe_eval(val, default_type):
+            if not val: return [] if isinstance(default_type, list) else {}
+            
+            parsed = val
+            if isinstance(val, str):
+                try: parsed = ast.literal_eval(val)
+                except: parsed = val
+            
+            # If we expect a list but got a single item (dict or string)
+            if isinstance(default_type, list) and not isinstance(parsed, list):
+                return [parsed] if parsed else []
+            
+            return parsed
+
+        intent = StructuredIntent(
+            original_text=text,
+            protocol=response.protocol,
+            action=response.action,
+            devices=safe_eval(response.devices, []),
+            parameters=safe_eval(response.parameters, {}),
+            requirements=safe_eval(response.requirements, [])
+        )
+        self._resolve_device_metadata(intent)
+        return intent
+
+    @with_retry(max_retries=5)
     def _legacy_parse(self, text: str, examples_str: str) -> StructuredIntent:
-        """Original LangChain-based parsing logic (Fallback)."""
+        """Original LangChain-based parsing logic (Fallback) with retry logic."""
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         system_prompt = f"""You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.
 

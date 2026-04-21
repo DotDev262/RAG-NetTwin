@@ -132,7 +132,6 @@ class PaperQualityEvaluator:
         self.generator = ConfigGenerator()
         self.validator = BatfishValidator()
         self.hallucination_detector = HallucinationDetector()
-        self.ensemble = EnsembleEngine()
         self.token_counter = TokenCounter()
         self.vanilla_llm = LLMProvider.get_llm(temperature=0.0) if run_vanilla else None
         self.run_vanilla = run_vanilla
@@ -377,11 +376,13 @@ class PaperQualityEvaluator:
             
             if cached_rag:
                 results["rag_nettwin"] = cached_rag
+                print(f"DEBUG: RAG CACHE HIT for {intent_key[:8]}")
                 logger.info(f"RAG cache hit ({retrieval_mode}): {intent_key[:20]}...")
             elif self.cache_only:
                 results["rag_nettwin"] = {"status": "ERROR", "error": "Not in cache (cache-only mode)"}
             else:
                 try:
+                    print(f"DEBUG: CALLING GENERATOR for {intent.original_text[:40]}...")
                     start_time = time.time()
                     # Call generator with specific retrieval mode
                     rag_output = self.generator.generate(intent, retrieval_mode=retrieval_mode)
@@ -427,8 +428,23 @@ class PaperQualityEvaluator:
                                 # Run verification commands for all devices
                                 v_cmds = {k: v.get("verification_commands", []) for k, v in rag_output.items() if not k.startswith("_")}
                                 v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
+                                
+                                # Check if any command returned an ERROR (Fix: Robust functional check)
+                                has_functional_error = False
+                                for dev_name, cmd_outputs in v_res.items():
+                                    # Handle case where cmd_outputs might be a list or dict
+                                    outputs_to_check = []
+                                    if isinstance(cmd_outputs, dict):
+                                        outputs_to_check = list(cmd_outputs.values())
+                                    elif isinstance(cmd_outputs, list):
+                                        outputs_to_check = cmd_outputs
+                                    
+                                    if any(str(out).startswith("ERROR:") or str(out).startswith("TIMEOUT:") for out in outputs_to_check):
+                                        has_functional_error = True
+                                        break
+                                
                                 # If commands ran without error, mark as pass
-                                functional_status = "PASS"
+                                functional_status = "PASS" if not has_functional_error else "FAIL"
                             else:
                                 functional_status = "FAIL"
                         except Exception as ge:
@@ -475,8 +491,15 @@ class PaperQualityEvaluator:
                     if self.run_gns3 and self.gns3:
                         try:
                             # Note: For vanilla, we use a single router
+                            # Generate some generic verification commands since vanilla doesn't produce them
+                            v_cmds = {"Vanilla-Router": ["show ip interface brief", "show running-config"]}
                             g_res = self.gns3.validate({"Vanilla-Router": vanilla_cfg}, intent)
-                            functional_status = "PASS" if g_res.get("status") == "PASS" else "FAIL"
+                            if g_res.get("status") == "PASS":
+                                v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
+                                has_err = any(str(out).startswith("ERROR:") for dev in v_res.values() for out in dev.values())
+                                functional_status = "PASS" if not has_err else "FAIL"
+                            else:
+                                functional_status = "FAIL"
                         except Exception as ge:
                             logger.error(f"GNS3 Vanilla validation failed: {ge}")
                             functional_status = "ERROR"
@@ -521,30 +544,21 @@ class PaperQualityEvaluator:
     def _check_cfr(self, intent, config: str) -> bool:
         """
         CFR Check: Detects if critical intent parameters are missing in configs.
-
-        CFR (Config Faithfulness Rate) measures whether the generated config
-        includes all the critical parameters specified in the intent.
-        This version uses CiscoConfParse (AST) for Cisco and structured matching
-        for Juniper to reduce false negatives from regex.
-
-        Args:
-            intent: StructuredIntent with parameters to check.
-            config: Generated configuration string.
-
-        Returns:
-            True if any critical parameter is missing (CFR failure),
-            False if all parameters are present.
         """
-        if not intent.parameters:
+        if not intent.parameters or not config:
             return False
 
         import re
         import ast
 
         # Detect vendor to apply correct AST/parser
+        config_clean = config.strip()
+        if not config_clean:
+            return False
+            
         is_juniper = (
             any(
-                config.strip().startswith(prefix)
+                config_clean.startswith(prefix)
                 for prefix in [
                     "set ",
                     "firewall",
@@ -553,7 +567,7 @@ class PaperQualityEvaluator:
                     "routing-options",
                 ]
             )
-            or "set " in config[:1000]
+            or "set " in config_clean[:1000]
         )
 
         # Initialize AST for Cisco
@@ -1002,7 +1016,6 @@ class PaperQualityEvaluator:
         print("\n" + "=" * 90)
         print(f"{'EVALUATION SUMMARY':^90}")
         print("=" * 90)
-        import pandas as pd
         df = pd.DataFrame(summary)
         print(df.to_string(index=False))
         print("-" * 90)
@@ -1089,8 +1102,6 @@ class PaperQualityEvaluator:
 
 
 if __name__ == "__main__":
-    import random
-    import numpy as np
     # Set fixed seeds for reproducibility (Recommendation 8)
     random.seed(42)
     np.random.seed(42)
@@ -1139,11 +1150,36 @@ Examples:
 
     # Clear caches if requested
     if args.clear_cache:
-        for cache_file in [VANILLA_CACHE_FILE, RAG_CACHE_FILE]:
-            if os.path.exists(cache_file):
-                os.remove(cache_file)
-                print(f"Cleared cache: {cache_file}")
-        print("Starting fresh evaluation...")
+        import glob
+        # Define all possible cache/report artifacts
+        artifacts = [
+            VANILLA_CACHE_FILE, 
+            RAG_CACHE_FILE,
+            "data/processed/intent_cache.json",
+            "results/paper_evaluation_none_latest.json",
+            "results/paper_evaluation_flat_latest.json",
+            "results/paper_evaluation_tiered_latest.json"
+        ]
+        # Add historical backups
+        artifacts.extend(glob.glob("results/paper_evaluation_*.json"))
+        
+        for file_path in set(artifacts):
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    print(f"DELETED: {file_path}")
+                except Exception as e:
+                    print(f"FAILED TO DELETE {file_path}: {e}")
+        
+        # Recommendation 5: Also clear the Semantic Cache inside VectorStore (ChromaDB)
+        try:
+            from rag.vector_store import VectorStore
+            vs = VectorStore()
+            vs.clear_cache()
+        except Exception as e:
+            print(f"FAILED TO PURGE SEMANTIC CACHE: {e}")
+            
+        print("--- CACHE PURGE COMPLETE. Starting fresh evaluation ---")
 
     # Run evaluation
     if args.ablation:

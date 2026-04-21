@@ -400,6 +400,18 @@ class VectorStore:
             }]
         )
 
+    def clear_cache(self):
+        """
+        Purges all entries from the semantic cache collection.
+        """
+        try:
+            ids = self.cache_collection.get()["ids"]
+            if ids:
+                self.cache_collection.delete(ids=ids)
+                logger.info(f"Purged {len(ids)} entries from Semantic Cache.")
+        except Exception as e:
+            logger.warning(f"Failed to clear Semantic Cache: {e}")
+
     def hybrid_retrieve(
         self,
         query: str,
