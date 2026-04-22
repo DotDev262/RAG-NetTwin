@@ -179,7 +179,7 @@ class HallucinationDetector:
                     continue
                 
                 # Known common noisy tokens to skip
-                if w_lower in ["no", "set", "exit", "end", "quit", "commit"]:
+                if w_lower in ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner"]:
                     continue
                     
                 structural_tokens.append(w_lower)

@@ -526,8 +526,14 @@ class ConfigGenerator:
 
         prefix = type_prefix_map.get(os_type.lower(), os_type.lower())
 
-        # If os_version already has prefix, return as-is
-        # Example: "ios-xe-17.6" stays as "ios-xe-17.6"
+        # If os_version is missing, default to the most stable version in the KB
+        if not os_version:
+            if prefix == "ios-xe":
+                return "ios-xe-17.6"
+            elif prefix == "junos":
+                return "junos-21.4"
+            return f"{prefix}-latest"
+
         if os_version.startswith(prefix):
             return os_version
 

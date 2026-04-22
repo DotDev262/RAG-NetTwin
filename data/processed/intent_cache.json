@@ -1,0 +1,60 @@
+{
+  "24d686f4e757789c8b6775bc38a07c955bcfc9cebe1d1f3529ddda21e12db83f": {
+    "intent_id": null,
+    "protocol": "OSPF",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "area": "0",
+      "interface": "Gig1/0/1",
+      "ip": "10.10.10.1/24"
+    },
+    "requirements": [],
+    "original_text": "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24"
+  },
+  "11ecb8ff0ee9e0a9772a963fd890b985fc4f36ab2019f88960c4329a5f86996f": {
+    "intent_id": null,
+    "protocol": "BGP",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "neighbor": "192.168.50.1",
+      "remote-as": "65000"
+    },
+    "requirements": [],
+    "original_text": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco"
+  },
+  "ca8d35e428fbcfd883d450de1d96caa559339087163d9d78b60525afd6a85430": {
+    "intent_id": null,
+    "protocol": "Static",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "destination": "172.16.0.0/16",
+      "next-hop": "10.0.0.1"
+    },
+    "requirements": [],
+    "original_text": "Configure static route to 172.16.0.0/16 via 10.0.0.1"
+  }
+}
