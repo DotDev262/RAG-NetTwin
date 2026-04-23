@@ -147,8 +147,18 @@ class HallucinationDetector:
         """
         ungrounded = []
         full_doc_text = "\n".join(docs).lower()
-        intent_norm = intent_context.lower()
+        intent_norm = (intent_context or "").lower()
         
+        # Noisy tokens that are common parts of commands but not informative for grounding
+        NOISY = ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner",
+                 "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces"]
+        
+        # Verbs that are very common and often grounded by system knowledge
+        COMMON_VERBS = ["interface", "router", "ip", "ipv6", "vlan", "access-list", "set", "show", "crypto", "policy", "tunnel", "route", "address"]
+        
+        # Verbs that take arbitrary user input (leaf nodes)
+        LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark"]
+
         for line in config.splitlines():
             line = line.strip()
             # Skip comments and empty lines
@@ -161,6 +171,10 @@ class HallucinationDetector:
             if not parts:
                 continue
 
+            # Skip lines starting with "leaf" verbs that take arbitrary strings
+            if parts[0].lower() in LEAF_VERBS:
+                continue
+
             # Heuristic: Check if the command structural keywords are grounded.
             # We skip tokens that look like parameters (digits, IPs, or in intent).
             structural_tokens = []
@@ -169,42 +183,53 @@ class HallucinationDetector:
                 w_lower = word.lower()
                 
                 # Robust parameter detection:
-                # 1. Contains digits (e.g., Gig1/0/1, 10.1.1.1, OSPF 1)
-                # 2. Contains non-standard chars (dots, slashes, colons, underscores)
-                # 3. Present in the intent context (hostnames, names)
-                is_parameter = (
-                    any(c.isdigit() for c in word) or 
-                    any(c in word for c in [".", "/", ":", "_", "-"]) or
-                    (len(w_lower) > 2 and w_lower in intent_norm)
-                )
+                # Keywords should never be treated as parameters
+                is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address"]
                 
-                if is_parameter:
+                # 1. IPs, numbers, and interfaces (digits + punctuation)
+                # Improved regex for IPv6 (handles double colons)
+                is_numeric_ip = re.match(r'^[0-9.:/a-fA-F]+$', word) is not None and (any(c.isdigit() for c in word) or "::" in word)
+                is_interface = re.match(r'^[a-zA-Z]+[0-9/.]+$', word) is not None
+                
+                # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN
+                # Flag as user ID if it has digits+separator OR is upper case (and not a known keyword)
+                is_user_id = ((any(c.isdigit() for c in word) and any(c in word for c in "-_.")) or (word.isupper() and len(word) > 3)) and not is_keyword
+                
+                # 3. Present in the intent context (hostnames, names)
+                is_in_intent = (len(w_lower) > 2 and w_lower in intent_norm and not is_keyword)
+                
+                if is_numeric_ip or is_interface or is_user_id or is_in_intent:
                     continue
                 
-                # Known common noisy tokens to skip
-                if w_lower in ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner",
-                               "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces", "description"]:
+                # Skip common noisy tokens
+                if w_lower in NOISY:
                     continue
                     
                 structural_tokens.append(w_lower)
             
-            # If we found structural keywords (e.g., "router", "ospf"), check docs
-            if structural_tokens:
+            if not structural_tokens:
+                continue
+
+            # Check if any structural token is completely missing from documentation
+            all_tokens_grounded = True
+            for token in structural_tokens:
+                if token not in full_doc_text and len(token) > 3 and token not in COMMON_VERBS:
+                    all_tokens_grounded = False
+                    break
+            
+            if not all_tokens_grounded:
+                ungrounded.append(line_clean)
+                continue
+
+            # Sequence check for common verbs to detect fake protocols/subcommands
+            if len(structural_tokens) >= 2:
                 primary = structural_tokens[0]
-                # We check if the keyword exists in documentation. 
-                # Relaxed check: if the first token is a very common structural verb, 
-                # it's usually grounded by system knowledge if the intent implies it.
-                is_common_verb = primary in ["interface", "router", "ip", "ipv6", "vlan", "access-list"]
-                
-                if primary not in full_doc_text and len(primary) > 3 and not is_common_verb:
-                    ungrounded.append(line_clean)
-                elif len(structural_tokens) > 1:
-                    # Check combined multi-word prefix (e.g. "ip route")
-                    prefix = f"{structural_tokens[0]} {structural_tokens[1]}"
-                    # If prefix is in docs, OR if the second keyword is in docs
-                    if prefix not in full_doc_text and structural_tokens[1] not in full_doc_text:
-                        # Final safety check: if primary is a common verb, only flag if secondary is also missing
-                        if not is_common_verb:
-                            ungrounded.append(line_clean)
+                secondary = structural_tokens[1]
+                if primary in COMMON_VERBS:
+                    # e.g., "router hyper-ospf"
+                    prefix = f"{primary} {secondary}"
+                    # Flag if both the combined prefix and the secondary token are missing
+                    if prefix not in full_doc_text and secondary not in full_doc_text:
+                        ungrounded.append(line_clean)
         
         return ungrounded
