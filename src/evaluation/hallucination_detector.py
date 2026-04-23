@@ -98,10 +98,13 @@ class HallucinationDetector:
 
         # Step 3: Check citation validity
         for cite in citations:
+            # Clean 'ID: ' prefix if LLM included it (Fix)
+            clean_cite = cite.replace("ID:", "").replace("id:", "").strip()
+            
             # Flexible citation check: ID match or ID is substring of citation (Flaw Fix)
             found_valid = False
             for valid_id in valid_source_ids:
-                if valid_id == cite or valid_id in cite or cite in valid_id:
+                if valid_id == clean_cite or valid_id in clean_cite or clean_cite in valid_id:
                     found_valid = True
                     break
             
@@ -179,7 +182,8 @@ class HallucinationDetector:
                     continue
                 
                 # Known common noisy tokens to skip
-                if w_lower in ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner"]:
+                if w_lower in ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner",
+                               "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces", "description"]:
                     continue
                     
                 structural_tokens.append(w_lower)
