@@ -513,7 +513,8 @@ class ConfigGenerator:
 
         # Default to well-tested versions if not specified
         if not os_version:
-            os_version = "21.4" if device.vendor.lower() == "juniper" else "17.6"
+            vendor_lower = (device.vendor or "cisco").lower()
+            os_version = "21.4" if vendor_lower == "juniper" else "17.6"
 
         # Map os_type to KB prefix (handles various naming conventions)
         type_prefix_map = {

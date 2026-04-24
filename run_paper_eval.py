@@ -392,7 +392,7 @@ class PaperQualityEvaluator:
                     results["rag_sanity_check"] = rag_output.get("_sanity_check")
 
                     # Extract ALL device results for this intent (Fix: Support multi-vendor/multi-device)
-                    device_configs = {k: v["config"] for k, v in rag_output.items() if not k.startswith("_")}
+                    device_configs = {k: v["config"] for k, v in rag_output.items() if k is None or not k.startswith("_")}
                     if not device_configs:
                         raise ValueError("No device configurations generated.")
 
@@ -403,7 +403,7 @@ class PaperQualityEvaluator:
                     # 2. HALLUCINATION DETECTION (Check all devices)
                     all_hal_reports = []
                     for dev_name, dev_data in rag_output.items():
-                        if dev_name.startswith("_"): continue
+                        if dev_name and dev_name.startswith("_"): continue
                         hal_report = self.hallucination_detector.detect(
                             dev_data["config"],
                             dev_data.get("retrieved_sources", []),
@@ -426,7 +426,7 @@ class PaperQualityEvaluator:
                             g_res = self.gns3.validate(device_configs, intent)
                             if g_res.get("status") == "PASS":
                                 # Run verification commands for all devices
-                                v_cmds = {k: v.get("verification_commands", []) for k, v in rag_output.items() if not k.startswith("_")}
+                                v_cmds = {k: v.get("verification_commands", []) for k, v in rag_output.items() if k is None or not k.startswith("_")}
                                 v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
                                 
                                 # Check if any command returned an ERROR (Fix: Robust functional check)
@@ -439,7 +439,7 @@ class PaperQualityEvaluator:
                                     elif isinstance(cmd_outputs, list):
                                         outputs_to_check = cmd_outputs
                                     
-                                    if any(str(out).startswith("ERROR:") or str(out).startswith("TIMEOUT:") for out in outputs_to_check):
+                                    if any(out and (str(out).startswith("ERROR:") or str(out).startswith("TIMEOUT:")) for out in outputs_to_check):
                                         has_functional_error = True
                                         break
                                 
@@ -458,7 +458,7 @@ class PaperQualityEvaluator:
                         "latency": latency,
                         "hallucinations": all_hal_reports,
                         "cfr_failure": cfr_failure,
-                        "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if not k.startswith("_")]
+                        "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if k is None or not k.startswith("_")]
                     }
                     results["rag_nettwin"] = eval_res
                     
@@ -496,7 +496,7 @@ class PaperQualityEvaluator:
                             g_res = self.gns3.validate({"Vanilla-Router": vanilla_cfg}, intent)
                             if g_res.get("status") == "PASS":
                                 v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
-                                has_err = any(str(out).startswith("ERROR:") for dev in v_res.values() for out in dev.values())
+                                has_err = any(out and str(out).startswith("ERROR:") for dev in v_res.values() for out in dev.values())
                                 functional_status = "PASS" if not has_err else "FAIL"
                             else:
                                 functional_status = "FAIL"
@@ -1039,7 +1039,7 @@ class PaperQualityEvaluator:
         tree = {}
         for line in config.splitlines():
             line = line.strip()
-            if not line.startswith("set "):
+            if not line or not line.startswith("set "):
                 continue
             
             # Split by whitespace, ignoring 'set ' prefix

@@ -601,7 +601,7 @@ def generate_audit_report(
     ]
 
     for device_name, data in configs.items():
-        if device_name.startswith("_"):
+        if device_name is not None and device_name.startswith("_"):
             continue
         report.append(f"### Device: {device_name}")
         report.append(f"#### Reasoning Path\n{data.get('reasoning', 'N/A')}")

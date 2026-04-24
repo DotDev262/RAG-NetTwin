@@ -27,6 +27,9 @@ Typical Usage:
 import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+from utils import setup_logger
+
+logger = setup_logger("HallucinationDetector")
 
 
 class HallucinationReport(BaseModel):
@@ -151,28 +154,43 @@ class HallucinationDetector:
         
         # Noisy tokens that are common parts of commands but not informative for grounding
         NOISY = ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner",
-                 "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces"]
+                 "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces", "system"]
         
         # Verbs that are very common and often grounded by system knowledge
-        COMMON_VERBS = ["interface", "router", "ip", "ipv6", "vlan", "access-list", "set", "show", "crypto", "policy", "tunnel", "route", "address"]
+        COMMON_VERBS = ["interface", "router", "ip", "ipv6", "vlan", "access-list", "set", "show", "crypto", "policy", "tunnel", "route", "address", 
+                        "ospf", "bgp", "switchport", "neighbor", "snmp-server", "username", "hostname", "description", "logging", "system",
+                        "remote-as", "area", "permit", "deny", "tcp", "any", "timers", "hello-interval", "network", "mask",
+                        "firewall", "filter", "term", "protocol", "family", "inet", "standard", "extended", "privilege", "snmp", "community",
+                        "mode", "trunk", "allowed", "from", "to", "then", "discard", "accept", "source-address", "destination-address", 
+                        "in", "out", "access-group", "access-class", "peer-as", "group", "external", "local-address"]
         
         # Verbs that take arbitrary user input (leaf nodes)
-        LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark"]
+        LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark", "community"]
 
         for line in config.splitlines():
             line = line.strip()
-            # Skip comments and empty lines
-            if not line or line.startswith(("!", "#", "comment")):
+            # Skip comments, labels, and empty lines
+            if not line or line.startswith(("!", "#", "comment", "```", "**")):
                 continue
             
+            # Skip vendor labels like "Cisco:" or "Juniper:"
+            if line.endswith(":") and len(line.split()) == 1:
+                continue
+
             # Clean citations from line if LLM included them inside the string
             line_clean = re.sub(r"\[Ref: [^\]]+\]", "", line).strip()
+            
+            # Skip if the line is just markdown or common labels after cleaning
+            if not line_clean or line_clean.lower() in ["cisco:", "juniper:", "cli:"]:
+                continue
+
             parts = line_clean.split()
             if not parts:
                 continue
 
             # Skip lines starting with "leaf" verbs that take arbitrary strings
-            if parts[0].lower() in LEAF_VERBS:
+            # Or if the second token is a leaf verb (e.g., "snmp-server community")
+            if parts[0].lower().rstrip(":") in LEAF_VERBS or (len(parts) > 1 and parts[1].lower().rstrip(":") in LEAF_VERBS):
                 continue
 
             # Heuristic: Check if the command structural keywords are grounded.
@@ -180,11 +198,11 @@ class HallucinationDetector:
             structural_tokens = []
             
             for word in parts:
-                w_lower = word.lower()
+                w_lower = word.lower().rstrip(":")
                 
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters
-                is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address"]
+                is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address", "switchport", "neighbor"]
                 
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
                 # Improved regex for IPv6 (handles double colons)
@@ -215,21 +233,24 @@ class HallucinationDetector:
             for token in structural_tokens:
                 if token not in full_doc_text and len(token) > 3 and token not in COMMON_VERBS:
                     all_tokens_grounded = False
+                    # logger.debug(f"Ungrounded token: {token}")
                     break
             
             if not all_tokens_grounded:
                 ungrounded.append(line_clean)
+                logger.debug(f"Ungrounded command (token missing): {line_clean}")
                 continue
 
             # Sequence check for common verbs to detect fake protocols/subcommands
             if len(structural_tokens) >= 2:
                 primary = structural_tokens[0]
                 secondary = structural_tokens[1]
-                if primary in COMMON_VERBS:
+                if primary in COMMON_VERBS and secondary not in COMMON_VERBS:
                     # e.g., "router hyper-ospf"
                     prefix = f"{primary} {secondary}"
                     # Flag if both the combined prefix and the secondary token are missing
                     if prefix not in full_doc_text and secondary not in full_doc_text:
+                        logger.debug(f"Ungrounded command (sequence missing): {line_clean} | Prefix: {prefix}")
                         ungrounded.append(line_clean)
         
         return ungrounded

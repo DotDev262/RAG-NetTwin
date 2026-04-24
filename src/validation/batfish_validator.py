@@ -173,6 +173,10 @@ class BatfishValidator(NetworkValidator):
 
             # Write each config with appropriate file extension
             for hostname, config_text in cleaned_configs.items():
+                # Handle unnamed devices (hostname is None)
+                if hostname is None:
+                    hostname = "unnamed_device"
+                    
                 # Sanitize hostname to prevent directory traversal or path errors
                 safe_hostname = hostname.replace("/", "_").replace("\\", "_")
 

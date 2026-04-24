@@ -123,7 +123,7 @@ def main():
             print("-" * 40)
             for device_name, data in configs.items():
                 # Skip internal metadata keys
-                if device_name.startswith("_"):
+                if device_name is not None and device_name.startswith("_"):
                     continue
                     
                 print(f"Device: {device_name}")
@@ -240,7 +240,7 @@ def main():
                             config_map = {
                                 name: data["config"] 
                                 for name, data in configs.items() 
-                                if not name.startswith("_") and "config" in data
+                                if (name is None or not name.startswith("_")) and "config" in data
                             }
                             gns3.push_configs(result.get("nodes", {}), config_map)
 
@@ -248,7 +248,7 @@ def main():
                             v_data = {
                                 name: data.get("verification_commands", []) 
                                 for name, data in configs.items()
-                                if not name.startswith("_")
+                                if name is None or not name.startswith("_")
                             }
 
                             v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
