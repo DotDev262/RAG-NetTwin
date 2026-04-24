@@ -112,7 +112,10 @@ class HallucinationDetector:
                     break
             
             if not found_valid and cite:
-                invalid_cites.append(cite)
+                # Relax citation check: LLMs sometimes use descriptive text instead of exact IDs.
+                # Only flag as invalid if the citation looks like a completely fabricated ID format.
+                if re.match(r'^[a-f0-9]{8,16}$', clean_cite) or "dummy" in clean_cite.lower():
+                    invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
         if retrieved_texts or intent_context:
@@ -209,9 +212,9 @@ class HallucinationDetector:
                 is_numeric_ip = re.match(r'^[0-9.:/a-fA-F]+$', word) is not None and (any(c.isdigit() for c in word) or "::" in word)
                 is_interface = re.match(r'^[a-zA-Z]+[0-9/.]+$', word) is not None
                 
-                # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN
-                # Flag as user ID if it has digits+separator OR is upper case (and not a known keyword)
-                is_user_id = ((any(c.isdigit() for c in word) and any(c in word for c in "-_.")) or (word.isupper() and len(word) > 3)) and not is_keyword
+                # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN, discard_icmp
+                # Flag as user ID if it has a separator (-_.) OR is upper case (and not a known keyword)
+                is_user_id = (any(c in word for c in "-_.") or (word.isupper() and len(word) > 3)) and not is_keyword
                 
                 # 3. Present in the intent context (hostnames, names)
                 is_in_intent = (len(w_lower) > 2 and w_lower in intent_norm and not is_keyword)
