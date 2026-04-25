@@ -299,6 +299,18 @@ class PaperQualityEvaluator:
             "Enable SNMP community 'public' with RO access",
             "Set up local user 'admin' with secret 'Cisco123' and level 15",
             "Configure logging buffer size to 100000",
+            "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2",
+            "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE",
+            "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1",
+            "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'",
+            "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco",
+            "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper",
+            "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",
+            "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper",
+            "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco",
+            "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco",
+            "Restrict console access with an execution timeout of 5 minutes on Juniper",
+            "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
         ]
 
     def run_full_eval(self, retrieval_mode: str = "tiered"):
