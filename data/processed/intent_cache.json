@@ -51,8 +51,8 @@
       }
     ],
     "parameters": {
-      "destination": "172.16.0.0/16",
-      "next-hop": "10.0.0.1"
+      "destination_network": "172.16.0.0/16",
+      "next_hop": "10.0.0.1"
     },
     "requirements": [],
     "original_text": "Configure static route to 172.16.0.0/16 via 10.0.0.1"
@@ -63,7 +63,7 @@
     "action": "enable",
     "devices": [
       {
-        "name": null,
+        "name": "Device",
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
@@ -81,7 +81,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": null,
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -99,7 +99,7 @@
     "action": "create",
     "devices": [
       {
-        "name": null,
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -117,7 +117,7 @@
   },
   "4a21ca46bbd23fbaa4985ffdaa3f1e39cd48908ab961421aaaefb0c7173260af": {
     "intent_id": null,
-    "protocol": "Firewall Filter",
+    "protocol": "firewall filter",
     "action": "configure",
     "devices": [
       {
@@ -128,7 +128,7 @@
       }
     ],
     "parameters": {
-      "filter_type": "discard",
+      "action": "discard",
       "protocol": "ICMP",
       "source_network": "10.0.0.0/8"
     },
@@ -157,7 +157,7 @@
   },
   "2369035cc814160e6cbd3482972c67b5dcd6662b08487fa085f836a5c9a7b619": {
     "intent_id": null,
-    "protocol": "SSH Access",
+    "protocol": "SSH",
     "action": "configure",
     "devices": [
       {
@@ -218,7 +218,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "switch",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
