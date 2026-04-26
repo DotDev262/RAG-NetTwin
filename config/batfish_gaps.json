@@ -5,6 +5,8 @@
     "ip ssh authentication-type password",
     "ip ssh key-exchange group",
     "logging buffer",
-    "priority level"
+    "priority level",
+    "flow record",
+    "flow exporter"
   ]
 }

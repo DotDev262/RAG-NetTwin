@@ -156,16 +156,7 @@ class PaperQualityEvaluator:
 
     def _load_cache(self, filepath: str) -> Dict[str, Any]:
         """
-        Load cache file, filtering out expired entries.
-
-        Entries older than CACHE_EXPIRY_DAYS are considered stale and excluded.
-        This ensures evaluation results remain fresh while enabling fast re-runs.
-
-        Args:
-            filepath: Path to the cache JSON file.
-
-        Returns:
-            Dictionary of cache entries (excluding expired ones).
+        Load cache from disk and filter out expired entries.
         """
         if not os.path.exists(filepath):
             return {}
@@ -174,18 +165,15 @@ class PaperQualityEvaluator:
             with open(filepath, "r") as f:
                 cache = json.load(f)
 
-            # Filter out expired entries (including those without timestamps - mark as stale)
+            # Filter out expired entries
             cutoff = datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS)
             filtered = {}
             for key, value in cache.items():
-                # Skip error entries from previous failed cache-only runs
-                # These often look like {"status": "ERROR", "error": "..."}
-                # But they might be nested in "value" if they were saved by _cache_set
-                entry_data = value.get("value") if isinstance(value, dict) and "value" in value else value
-                if isinstance(entry_data, dict) and entry_data.get("status") == "ERROR":
+                # Skip error entries
+                if isinstance(value, dict) and value.get("status") == "ERROR":
                     continue
-                
-                ts = value.get("timestamp", "")
+
+                ts = value.get("timestamp", "") if isinstance(value, dict) else ""
                 if ts:
                     try:
                         entry_time = datetime.fromisoformat(ts)
@@ -193,10 +181,7 @@ class PaperQualityEvaluator:
                             filtered[key] = value
                     except:
                         pass
-
-            expired_count = len(cache) - len(filtered)
-            if expired_count > 0:
-                logger.info(f"Filtered out {expired_count} expired cache entries")
+            
             return filtered
         except Exception as e:
             logger.warning(f"Failed to load cache {filepath}: {e}")
@@ -233,17 +218,12 @@ class PaperQualityEvaluator:
     def _cache_get(self, cache: Dict, key: str) -> Optional[Any]:
         """
         Get from cache if exists and not expired.
-
-        Args:
-            cache: Cache dictionary to search.
-            key: Cache key to look up.
-
-        Returns:
-            Cached value if exists and not expired, None otherwise.
         """
         if key not in cache:
             return None
-        ts = cache[key].get("timestamp", "")
+        
+        value = cache[key]
+        ts = value.get("timestamp", "")
         if ts:
             try:
                 entry_time = datetime.fromisoformat(ts)
@@ -252,8 +232,7 @@ class PaperQualityEvaluator:
             except:
                 pass
         
-        # Return the nested value
-        return cache[key].get("value")
+        return value
 
     def _cache_set(self, cache: Dict, key: str, value: Any, mode: str = None):
         """
@@ -430,14 +409,25 @@ class PaperQualityEvaluator:
                 
                 # 2. Re-run Hallucination Detection
                 all_hal_reports = []
+                
+                # Flatten sources and texts for grounding check fallback
+                all_sources = []
+                for s_list in cached_rag.get("retrieved_sources", []):
+                    if isinstance(s_list, list):
+                        all_sources.extend(s_list)
+                
+                all_texts = []
+                for t in cached_rag.get("retrieved_texts", []):
+                    if t: all_texts.append(t)
+                
                 for dev_name, config_text in configs.items():
                     if dev_name and dev_name.startswith("_"): continue
                     # Re-detect using latest keywords
                     hal_report = self.hallucination_detector.detect(
                         config_text,
-                        cached_rag.get("retrieved_sources", []), # Need raw chunks? No, detector takes IDs.
-                        [], # valid_ids - if we don't have them, detect will use doc text
-                        retrieved_texts=cached_rag.get("retrieved_texts", []),
+                        all_sources,
+                        [], # valid_ids
+                        retrieved_texts=all_texts,
                         intent_context=intent.original_text
                     )
                     all_hal_reports.append(hal_report.model_dump())
@@ -1035,16 +1025,25 @@ class PaperQualityEvaluator:
                 continue
 
             n = len(mode_data)
-            # Syntactic Validity: Count PASS or WARNING or REJECT (for known SAD limitations)
-            pass_count = 0
+            
+            # 1. Strict Syntactic Validity (PASS or WARNING only)
+            strict_pass_count = 0
+            # 2. Validator Gap Rate (REJECT_FOR_MANUAL_REVIEW)
+            gap_count = 0
+            # 3. Syntactic Failure Rate (FAIL)
+            fail_count = 0
+            
             for d in mode_data:
-                logger.info(f"DEBUG: d keys={list(d.keys())}")
                 status = d.get("status")
                 if not status and "validation" in d:
                     status = d["validation"].get("status")
                 
-                if status in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]:
-                    pass_count += 1
+                if status in ["PASS", "WARNING"]:
+                    strict_pass_count += 1
+                elif status == "REJECT_FOR_MANUAL_REVIEW":
+                    gap_count += 1
+                elif status == "FAIL":
+                    fail_count += 1
 
             # CFR Check (Config Faithfulness)
             cfr_success = sum(1 for d in mode_data if not d.get("cfr_failure", False))
@@ -1065,39 +1064,37 @@ class PaperQualityEvaluator:
                     )
                 )
 
-            mode_counts[mode] = {"pass": pass_count, "n": n}
+            mode_counts[mode] = {"strict_pass": strict_pass_count, "n": n}
             display_mode = mode if mode == "vanilla" else f"RAG ({retrieval_mode})"
 
             summary.append(
                 {
                     "Mode": display_mode,
                     "N": n,
-                    "Syntactic Validity": self._compute_wilson_ci(pass_count, n),
-                    "CFR Success (PEA)": self._compute_wilson_ci(cfr_success, n),
-                    "Functional Success": self._compute_wilson_ci(functional_pass, n),
-                    "Hallucination Rate": f"{(hal_count / n) * 100:.1f}%",
-                    "Avg Latency": f"{sum(d.get('latency', 0) for d in mode_data) / n:.2f}s"
-                    if mode == "rag_nettwin"
-                    else "N/A",
+                    "Strict SV": self._compute_wilson_ci(strict_pass_count, n),
+                    "Gap Rate": f"{(gap_count / n) * 100:.1f}%",
+                    "PEA (CFR)": self._compute_wilson_ci(cfr_success, n),
+                    "Functional": self._compute_wilson_ci(functional_pass, n),
+                    "Hallucination": f"{(hal_count / n) * 100:.1f}%",
                 }
             )
-
-        print("\n" + "=" * 90)
-        print(f"{'EVALUATION SUMMARY':^90}")
-        print("=" * 90)
+        
+        print("\n" + "=" * 100)
+        print(f"{'PHASE 1 RESEARCH EVALUATION SUMMARY':^100}")
+        print("=" * 100)
         df = pd.DataFrame(summary)
         print(df.to_string(index=False))
-        print("-" * 90)
+        print("-" * 100)
         if "vanilla" in mode_counts and "rag_nettwin" in mode_counts:
             p_val = self._compute_p_value(
-                mode_counts["rag_nettwin"]["pass"], mode_counts["rag_nettwin"]["n"],
-                mode_counts["vanilla"]["pass"], mode_counts["vanilla"]["n"]
+                mode_counts["rag_nettwin"]["strict_pass"], mode_counts["rag_nettwin"]["n"],
+                mode_counts["vanilla"]["strict_pass"], mode_counts["vanilla"]["n"]
             )
-            print(f"Syntactic Validity Improvement Significance (p-value): {p_val}")
-        print("=" * 90)
-        print("Note: Confidence intervals (±%) computed using Wilson score (z=1.96).")
-        print("PEA (Parameter Extraction Accuracy) measures config alignment with intent.")
-        print("=" * 90 + "\n")
+            print(f"Strict Syntactic Validity Improvement (p-value): {p_val}")
+        print("=" * 100)
+        print("Note: Strict SV: Batfish Verified (PASS/WARNING). Gap Rate: Tool limitations (REJECT).")
+        print("PEA (Parameter Extraction Accuracy): config alignment with intent (CFR).")
+        print("=" * 100 + "\n")
 
     def _junos_config_to_dict(self, config: str) -> Dict:
         """
