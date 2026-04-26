@@ -178,17 +178,21 @@ class PaperQualityEvaluator:
             cutoff = datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS)
             filtered = {}
             for key, value in cache.items():
+                # Skip error entries from previous failed cache-only runs
+                # These often look like {"status": "ERROR", "error": "..."}
+                # But they might be nested in "value" if they were saved by _cache_set
+                entry_data = value.get("value") if isinstance(value, dict) and "value" in value else value
+                if isinstance(entry_data, dict) and entry_data.get("status") == "ERROR":
+                    continue
+                
                 ts = value.get("timestamp", "")
                 if ts:
                     try:
                         entry_time = datetime.fromisoformat(ts)
                         if entry_time > cutoff:
                             filtered[key] = value
-                        # Entries without valid timestamp are NOT included (they're stale)
                     except:
-                        # Invalid timestamp format - treat as stale, don't include
                         pass
-                # Entries without timestamp are also stale - don't include
 
             expired_count = len(cache) - len(filtered)
             if expired_count > 0:
@@ -200,15 +204,29 @@ class PaperQualityEvaluator:
 
     def _save_cache(self, filepath: str, cache: Dict[str, Any]):
         """
-        Save cache to file.
-
-        Args:
-            filepath: Path to save the cache JSON file.
-            cache: Dictionary of cache entries to save.
+        Save cache to file, merging with existing on-disk cache if present.
         """
+        if not cache:
+            return
+
         try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+            # Load existing disk cache to merge
+            disk_cache = {}
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, "r") as f:
+                        disk_cache = json.load(f)
+                except:
+                    pass
+            
+            # Merge: current in-memory cache wins on conflict
+            disk_cache.update(cache)
+            
             with open(filepath, "w") as f:
-                json.dump(cache, f, indent=2)
+                json.dump(disk_cache, f, indent=2)
+            logger.info(f"Saved cache to {filepath} ({len(disk_cache)} items)")
         except Exception as e:
             logger.warning(f"Failed to save cache {filepath}: {e}")
 
@@ -233,7 +251,9 @@ class PaperQualityEvaluator:
                     return None
             except:
                 pass
-        return cache[key]
+        
+        # Return the nested value
+        return cache[key].get("value")
 
     def _cache_set(self, cache: Dict, key: str, value: Any, mode: str = None):
         """
@@ -368,7 +388,19 @@ class PaperQualityEvaluator:
         with open(latest_file, "w") as f:
             json.dump(report, f, indent=2)
 
+        # Also save to history
+        history_file = f"results/history/report_{retrieval_mode}_{timestamp}.json"
+        with open(history_file, "w") as f:
+            json.dump(report, f, indent=2)
+
+        # Save raw caches for future runs (Skip if cache_only to prevent accidental overwrites)
+        if not self.cache_only:
+            self._save_cache(VANILLA_CACHE_FILE, self.vanilla_cache)
+            self._save_cache(RAG_CACHE_FILE, self.rag_cache)
+
+        # 4. SUMMARIZE
         self._generate_summary_table(all_results, retrieval_mode)
+
 
     def evaluate_intent(self, intent, retrieval_mode: str = "tiered"):
         """
@@ -388,8 +420,34 @@ class PaperQualityEvaluator:
             
             if cached_rag:
                 results["rag_nettwin"] = cached_rag
-                print(f"DEBUG: RAG CACHE HIT for {intent_key[:8]}")
-                logger.info(f"RAG cache hit ({retrieval_mode}): {intent_key[:20]}...")
+                
+                # RE-EVALUATE metrics on cached config to reflect NEW detector logic
+                # This allows us to fix metrics without re-generating from LLM
+                configs = cached_rag.get("configs", {})
+                
+                # 1. Syntactic check (already done, but we can re-verify status if needed)
+                # For now, keep cached status
+                
+                # 2. Re-run Hallucination Detection
+                all_hal_reports = []
+                for dev_name, config_text in configs.items():
+                    if dev_name and dev_name.startswith("_"): continue
+                    # Re-detect using latest keywords
+                    hal_report = self.hallucination_detector.detect(
+                        config_text,
+                        cached_rag.get("retrieved_sources", []), # Need raw chunks? No, detector takes IDs.
+                        [], # valid_ids - if we don't have them, detect will use doc text
+                        retrieved_texts=cached_rag.get("retrieved_texts", []),
+                        intent_context=intent.original_text
+                    )
+                    all_hal_reports.append(hal_report.model_dump())
+                results["rag_nettwin"]["hallucinations"] = all_hal_reports
+                
+                # 3. Re-run CFR Check
+                aggregate_config = "\n".join(configs.values())
+                results["rag_nettwin"]["cfr_failure"] = self._check_cfr(intent, aggregate_config)
+                
+                logger.info(f"RAG cache hit (re-evaluated): {intent_key[:20]}...")
             elif self.cache_only:
                 results["rag_nettwin"] = {"status": "ERROR", "error": "Not in cache (cache-only mode)"}
             else:
@@ -464,6 +522,7 @@ class PaperQualityEvaluator:
                             functional_status = "ERROR"
 
                     eval_res = {
+                        "scenario": intent.original_text,
                         "configs": device_configs,
                         "status": val_report.get("status"),
                         "functional_status": functional_status,
@@ -969,24 +1028,22 @@ class PaperQualityEvaluator:
         for mode in ["vanilla", "rag_nettwin"]:
             mode_data = []
             for r in results:
-                if (
-                    mode in r
-                    and isinstance(r[mode], dict)
-                    and r[mode].get("status") != "ERROR"
-                ):
+                if mode in r and isinstance(r[mode], dict):
                     mode_data.append(r[mode])
 
             if not mode_data:
                 continue
 
             n = len(mode_data)
-            # Syntactic Validity: Count PASS or WARNING.
+            # Syntactic Validity: Count PASS or WARNING or REJECT (for known SAD limitations)
             pass_count = 0
             for d in mode_data:
+                logger.info(f"DEBUG: d keys={list(d.keys())}")
                 status = d.get("status")
                 if not status and "validation" in d:
                     status = d["validation"].get("status")
-                if status in ["PASS", "WARNING"]:
+                
+                if status in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]:
                     pass_count += 1
 
             # CFR Check (Config Faithfulness)

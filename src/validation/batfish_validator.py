@@ -293,6 +293,9 @@ class BatfishValidator(NetworkValidator):
             # Determine status based on issue types
             status = "PASS" if not issues else "FAIL"
 
+            if issues:
+                logger.info(f"Batfish Issues Found: {json.dumps(issues, indent=2)}")
+
             # Implementation of Fail-Safe Policy from design:
             # "the system defaults to a 'REJECT_FOR_MANUAL_REVIEW' status for any
             # command not supported by the Batfish parser."

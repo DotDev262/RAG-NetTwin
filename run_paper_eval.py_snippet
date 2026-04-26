@@ -1,0 +1,18 @@
+        # 3. SAVE & SUMMARIZE
+        os.makedirs("results/history", exist_ok=True)
+        report = {
+            "metadata": metadata,
+            "results": all_results,
+        }
+
+        # Save with mode-specific filename for ablation
+        latest_file = f"results/paper_evaluation_{retrieval_mode}_latest.json"
+        with open(latest_file, "w") as f:
+            json.dump(report, f, indent=2)
+
+        # Save raw caches for future runs
+        self._save_cache(VANILLA_CACHE_FILE, self.vanilla_cache)
+        self._save_cache(RAG_CACHE_FILE, self.rag_cache)
+
+        # 4. SUMMARIZE
+        self.summarize_results(all_results, retrieval_mode)

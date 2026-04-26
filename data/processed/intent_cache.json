@@ -51,8 +51,8 @@
       }
     ],
     "parameters": {
-      "destination_network": "172.16.0.0/16",
-      "next_hop": "10.0.0.1"
+      "destination": "172.16.0.0/16",
+      "next-hop": "10.0.0.1"
     },
     "requirements": [],
     "original_text": "Configure static route to 172.16.0.0/16 via 10.0.0.1"
@@ -262,9 +262,7 @@
     "parameters": {
       "mtu": "9000"
     },
-    "requirements": [
-      "jumbo_frames"
-    ],
+    "requirements": [],
     "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
   },
   "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
@@ -281,11 +279,9 @@
     ],
     "parameters": {
       "interface": "Gig1/0/24",
-      "vlan_list": "10,20,30"
+      "vlan": "10,20,30"
     },
-    "requirements": [
-      "trunk_port"
-    ],
+    "requirements": [],
     "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
   },
   "d73f3bb549e38a15e6e2410eca1295b86a2662b5443da44048aa5c7e76daf618": {
@@ -367,7 +363,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device",
+        "name": "CORE-RTR-01",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -468,7 +464,7 @@
     ],
     "parameters": {
       "interface": "GigabitEthernet0/2",
-      "ip": "2001:db8:acad::1/64"
+      "ipv6_address": "2001:db8:acad::1/64"
     },
     "requirements": [],
     "original_text": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2"
@@ -476,7 +472,7 @@
   "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
     "intent_id": null,
     "protocol": "OSPFv3",
-    "action": "create",
+    "action": "configure",
     "devices": [
       {
         "name": "Device",
@@ -506,7 +502,7 @@
     ],
     "parameters": {
       "interface": "Gig0/1",
-      "nat_type": "overload",
+      "nat_type": "PAT",
       "subnet": "192.168.10.0/24"
     },
     "requirements": [],
@@ -531,7 +527,6 @@
       }
     ],
     "parameters": {
-      "authentication": "psk",
       "psk": "SecretKey",
       "vpn_type": "site-to-site"
     },
@@ -552,7 +547,7 @@
     ],
     "parameters": {
       "policy": "CS6",
-      "traffic_type": "OSPF"
+      "traffic": "OSPF"
     },
     "requirements": [],
     "original_text": "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco"
@@ -570,7 +565,7 @@
       }
     ],
     "parameters": {
-      "group_id": "10",
+      "group": "10",
       "interface": "ge-0/0/0",
       "virtual_ip": "10.1.1.254"
     },
@@ -590,7 +585,7 @@
       }
     ],
     "parameters": {
-      "vlan_ids": "10,20"
+      "vlan": "10,20"
     },
     "requirements": [],
     "original_text": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch"
@@ -673,7 +668,7 @@
   "fff5f84fd2c011cbe2c917b3812d1e1d93aa4ff2b1409f8713f90d0f25fee3f0": {
     "intent_id": null,
     "protocol": "BGP",
-    "action": "configure",
+    "action": "create",
     "devices": [
       {
         "name": "Device",

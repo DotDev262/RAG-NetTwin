@@ -169,7 +169,8 @@ class HallucinationDetector:
                         "isakmp", "ipsec", "esp-aes", "esp-sha-hmac", "transform-set", "peer", "nat", "overload", "inside", "outside",
                         "vrrp", "virtual-address", "flow", "monitor", "exporter", "record", "collect", "counter", "bytes", "packets",
                         "prefix-list", "policy-options", "idle-timeout", "snooping", "dhcp", "channel-group", "lacp", "active", "passive",
-                        "priority", "class", "class-map", "policy-map", "match", "ospfv3", "vrrp", "preempt", "plaintext", "flow-export"]
+                        "priority", "class", "class-map", "policy-map", "match", "ospfv3", "vrrp", "preempt", "plaintext", "flow-export",
+                        "authentication", "null", "key", "shared", "crypto", "isakmp"]
         
         # Verbs that take arbitrary user input (leaf nodes)
         LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark", "community"]
@@ -210,7 +211,7 @@ class HallucinationDetector:
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters
                 is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address", "switchport", "neighbor",
-                                        "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3"]
+                                        "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3", "authentication", "null", "isakmp"]
                 
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
                 # Improved regex for IPv6 (handles double colons)

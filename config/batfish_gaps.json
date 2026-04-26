@@ -4,6 +4,7 @@
     "vlan database",
     "ip ssh authentication-type password",
     "ip ssh key-exchange group",
-    "logging buffer"
+    "logging buffer",
+    "priority level"
   ]
 }
