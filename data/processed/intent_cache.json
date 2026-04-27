@@ -63,7 +63,7 @@
     "action": "enable",
     "devices": [
       {
-        "name": "Device",
+        "name": null,
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
@@ -81,7 +81,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device",
+        "name": null,
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -99,7 +99,7 @@
     "action": "create",
     "devices": [
       {
-        "name": "Device",
+        "name": null,
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -117,7 +117,7 @@
   },
   "4a21ca46bbd23fbaa4985ffdaa3f1e39cd48908ab961421aaaefb0c7173260af": {
     "intent_id": null,
-    "protocol": "firewall filter",
+    "protocol": "Firewall Filter",
     "action": "configure",
     "devices": [
       {
@@ -157,7 +157,7 @@
   },
   "2369035cc814160e6cbd3482972c67b5dcd6662b08487fa085f836a5c9a7b619": {
     "intent_id": null,
-    "protocol": "SSH",
+    "protocol": "ACL",
     "action": "configure",
     "devices": [
       {
@@ -168,7 +168,8 @@
       }
     ],
     "parameters": {
-      "allowed_subnet": "192.168.1.0/24"
+      "service": "SSH",
+      "source_network": "192.168.1.0/24"
     },
     "requirements": [],
     "original_text": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco"
@@ -218,7 +219,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device",
+        "name": "Cisco switch",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -262,7 +263,9 @@
     "parameters": {
       "mtu": "9000"
     },
-    "requirements": [],
+    "requirements": [
+      "jumbo_frames"
+    ],
     "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
   },
   "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
@@ -278,8 +281,8 @@
       }
     ],
     "parameters": {
-      "interface": "Gig1/0/24",
-      "vlan": "10,20,30"
+      "interface_mode": "trunk",
+      "vlan_list": "10,20,30"
     },
     "requirements": [],
     "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
@@ -363,7 +366,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "CORE-RTR-01",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -502,7 +505,7 @@
     ],
     "parameters": {
       "interface": "Gig0/1",
-      "nat_type": "PAT",
+      "nat_type": "overload",
       "subnet": "192.168.10.0/24"
     },
     "requirements": [],
@@ -546,7 +549,8 @@
       }
     ],
     "parameters": {
-      "policy": "CS6",
+      "policy": "QoS",
+      "priority": "CS6",
       "traffic": "OSPF"
     },
     "requirements": [],

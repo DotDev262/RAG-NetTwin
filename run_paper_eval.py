@@ -353,7 +353,8 @@ class PaperQualityEvaluator:
             res = self.evaluate_intent(intent, retrieval_mode=retrieval_mode)
             if res:
                 all_results.append(res)
-            time.sleep(0.1)
+            # Sleep to avoid rate limits (Groq on-demand tier)
+            time.sleep(2.0)
 
         # 3. SAVE & SUMMARIZE
         os.makedirs("results/history", exist_ok=True)
@@ -519,7 +520,8 @@ class PaperQualityEvaluator:
                         "latency": latency,
                         "hallucinations": all_hal_reports,
                         "cfr_failure": cfr_failure,
-                        "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if k is None or not k.startswith("_")]
+                        "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if k is None or not k.startswith("_")],
+                        "retrieved_texts": [v.get("grounding_context", "") for k, v in rag_output.items() if k is None or not k.startswith("_")]
                     }
                     results["rag_nettwin"] = eval_res
                     

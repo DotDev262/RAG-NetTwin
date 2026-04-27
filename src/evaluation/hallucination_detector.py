@@ -170,7 +170,14 @@ class HallucinationDetector:
                         "vrrp", "virtual-address", "flow", "monitor", "exporter", "record", "collect", "counter", "bytes", "packets",
                         "prefix-list", "policy-options", "idle-timeout", "snooping", "dhcp", "channel-group", "lacp", "active", "passive",
                         "priority", "class", "class-map", "policy-map", "match", "ospfv3", "vrrp", "preempt", "plaintext", "flow-export",
-                        "authentication", "null", "key", "shared", "crypto", "isakmp"]
+                        "authentication", "null", "key", "shared", "crypto", "isakmp", "level", "destination", "source", "list", "pool",
+                        "dscp", "cs6", "orlonger", "ipv4", "transport", "udp", "ipfix", "version", "sys-uptime", "first", "last",
+                        "restrict", "console", "login", "class", "default", "nonegotiate", "auto", "qos", "voip", "mls", "trust", "cos",
+                        "map", "method", "algorithm", "establish-tunnels", "immediately", "bind-interface", "unit", "prefix", "input", "output", "timestamp",
+                        "authentication-method", "pre-shared-keys", "ike-policy", "ipsec-policy", "proposals", "proposals", "authentication-algorithm", "establish-tunnels", "immediately",
+                        "long", "metric", "family", "inet", "filter", "term", "then", "accept", "discard", "discard-icmp", "icmp",
+                        "security", "ike", "proposal", "gateway", "vpn", "bind-interface", "establish-tunnels", "immediately", "external-interface",
+                        "nonegotiate", "voip", "mls", "cos"]
         
         # Verbs that take arbitrary user input (leaf nodes)
         LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark", "community"]
@@ -211,16 +218,19 @@ class HallucinationDetector:
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters
                 is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address", "switchport", "neighbor",
-                                        "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3", "authentication", "null", "isakmp"]
+                                        "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3", "authentication", "null", "isakmp",
+                                        "level", "destination", "source", "list", "pool", "dscp", "cs6", "orlonger", "ipv4", "transport", "udp", "ipfix", "version", "restrict", "console", "default", "qos", "trust",
+                                        "security", "ike", "proposal", "gateway", "vpn"]
                 
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
                 # Improved regex for IPv6 (handles double colons)
                 is_numeric_ip = re.match(r'^[0-9.:/a-fA-F]+$', word) is not None and (any(c.isdigit() for c in word) or "::" in word)
-                is_interface = re.match(r'^[a-zA-Z]+[0-9/.]+$', word) is not None
+                # Handle interfaces with hyphens (e.g., fe-1/2/0.6)
+                is_interface = re.match(r'^[a-zA-Z-]+[0-9/.]+$', word) is not None
                 
                 # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN, discard_icmp
                 # Flag as user ID if it has a separator (-_.) OR is upper case (and not a known keyword)
-                is_user_id = (any(c in word for c in "-_.") or (word.isupper() and len(word) > 3)) and not is_keyword
+                is_user_id = (any(c in word for c in "-_.") or (word.isupper() and len(word) > 3)) and not is_keyword and w_lower not in COMMON_VERBS
                 
                 # 3. Present in the intent context (hostnames, names)
                 is_in_intent = (len(w_lower) > 2 and w_lower in intent_norm and not is_keyword)
@@ -247,7 +257,7 @@ class HallucinationDetector:
             
             if not all_tokens_grounded:
                 ungrounded.append(line_clean)
-                logger.debug(f"Ungrounded command (token missing): {line_clean}")
+                logger.info(f"Ungrounded command (token missing): {line_clean}")
                 continue
 
             # Sequence check for common verbs to detect fake protocols/subcommands
@@ -259,7 +269,7 @@ class HallucinationDetector:
                     prefix = f"{primary} {secondary}"
                     # Flag if both the combined prefix and the secondary token are missing
                     if prefix not in full_doc_text and secondary not in full_doc_text:
-                        logger.debug(f"Ungrounded command (sequence missing): {line_clean} | Prefix: {prefix}")
+                        logger.info(f"Ungrounded command (sequence missing): {line_clean} | Prefix: {prefix}")
                         ungrounded.append(line_clean)
         
         return ungrounded
