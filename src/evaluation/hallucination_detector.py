@@ -177,7 +177,9 @@ class HallucinationDetector:
                         "authentication-method", "pre-shared-keys", "ike-policy", "ipsec-policy", "proposals", "proposals", "authentication-algorithm", "establish-tunnels", "immediately",
                         "long", "metric", "family", "inet", "filter", "term", "then", "accept", "discard", "discard-icmp", "icmp",
                         "security", "ike", "proposal", "gateway", "vpn", "bind-interface", "establish-tunnels", "immediately", "external-interface",
-                        "nonegotiate", "voip", "mls", "cos"]
+                        "nonegotiate", "voip", "mls", "cos", "shutdown", "export",
+                        "perfect-forward-secrecy", "keys", "group2", "df-bit", "copy", "precedence", "percent", "bandwidth", "track", "longer",
+                        "encapsulation", "dot1q", "flow-cache", "timeout", "active", "inactive", "ingress", "egress", "console", "zone", "trust", "untrust", "permit"]
         
         # Verbs that take arbitrary user input (leaf nodes)
         LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark", "community"]
@@ -220,7 +222,7 @@ class HallucinationDetector:
                 is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address", "switchport", "neighbor",
                                         "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3", "authentication", "null", "isakmp",
                                         "level", "destination", "source", "list", "pool", "dscp", "cs6", "orlonger", "ipv4", "transport", "udp", "ipfix", "version", "restrict", "console", "default", "qos", "trust",
-                                        "security", "ike", "proposal", "gateway", "vpn"]
+                                        "security", "ike", "proposal", "gateway", "vpn", "shutdown", "export", "keys", "copy", "percent", "bandwidth", "encapsulation", "timeout"]
                 
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
                 # Improved regex for IPv6 (handles double colons)
@@ -228,9 +230,14 @@ class HallucinationDetector:
                 # Handle interfaces with hyphens (e.g., fe-1/2/0.6)
                 is_interface = re.match(r'^[a-zA-Z-]+[0-9/.]+$', word) is not None
                 
-                # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN, discard_icmp
-                # Flag as user ID if it has a separator (-_.) OR is upper case (and not a known keyword)
-                is_user_id = (any(c in word for c in "-_.") or (word.isupper() and len(word) > 3)) and not is_keyword and w_lower not in COMMON_VERBS
+                # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN, discard_icmp, Record1, ExportTest
+                # Flag as user ID if it has a separator (-_.), is upper case, contains a digit, or is TitleCase
+                has_separator = any(c in word for c in "-_.")
+                is_upper = word.isupper() and len(word) > 3
+                has_digit = any(c.isdigit() for c in word)
+                is_title_case = len(word) > 1 and word[0].isupper() and any(c.islower() for c in word)
+                
+                is_user_id = (has_separator or is_upper or has_digit or is_title_case) and not is_keyword and w_lower not in COMMON_VERBS
                 
                 # 3. Present in the intent context (hostnames, names)
                 is_in_intent = (len(w_lower) > 2 and w_lower in intent_norm and not is_keyword)
