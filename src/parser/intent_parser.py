@@ -258,6 +258,10 @@ RULES:
         # 3. Merge results and save to cache
         for i, intent in enumerate(batch_result.intents):
             intent.original_text = to_parse_texts[i]
+            # Assign a unique ID if missing
+            if not intent.intent_id:
+                intent.intent_id = hashlib.sha256(intent.original_text.encode()).hexdigest()[:12]
+            
             self._resolve_device_metadata(intent)
             
             # Save to cache
@@ -291,6 +295,10 @@ RULES:
             logger.error(f"DSPy parsing failed: {e}. Falling back to standard LLM.")
             result = self._legacy_parse(text, examples_str)
 
+        # Assign unique ID
+        if not result.intent_id:
+            result.intent_id = text_hash[:12]
+
         # 4. Save to Cache
         self.cache[text_hash] = result.model_dump()
         self._save_cache()
@@ -309,8 +317,12 @@ RULES:
             
             parsed = val
             if isinstance(val, str):
-                try: parsed = ast.literal_eval(val)
-                except: parsed = val
+                try: 
+                    # Clean up common LLM string artifacts
+                    cleaned_val = val.replace("```json", "").replace("```", "").strip()
+                    parsed = ast.literal_eval(cleaned_val)
+                except: 
+                    parsed = val
             
             # If we expect a list but got a single item (dict or string)
             if isinstance(default_type, list) and not isinstance(parsed, list):
@@ -345,9 +357,9 @@ Populate the 'requirements' list with any relevant constraints.
 """
         prompt = ChatPromptTemplate.from_messages([
                 ("system", system_prompt),
-                ("human", "{{input}}"),
+                ("human", "{input}"),
             ],
-            template_format="jinja2"
+            template_format="f-string"
         )
         chain = prompt | self.structured_llm
         intent = chain.invoke({"input": text})
@@ -357,19 +369,31 @@ Populate the 'requirements' list with any relevant constraints.
 
     def _resolve_device_metadata(self, intent: StructuredIntent):
         """Enhances device intents with data from the inventory resolver."""
-        for device in intent.devices:
+        for i, device in enumerate(intent.devices):
+            # Ensure name is never null
+            if not device.name:
+                device.name = f"Device-{i+1}"
+
             # Get metadata from inventory
             metadata = self.inventory_resolver.resolve(device.name)
 
             # Only override if hostname was actually found in inventory
             if metadata.get("found_in_inventory", False):
+                # Recommendation: Only override vendor if LLM didn't strongly identify one
+                # OR if the inventory is considered the "source of truth"
+                # For this project, we prioritize inventory if found.
                 device.vendor = metadata.get("vendor", device.vendor)
                 device.os_type = metadata.get("os_type", device.os_type)
                 device.os_version = metadata.get("os_version", device.os_version)
             else:
                 # No inventory match - use LLM-detected values or smart defaults
                 if not device.vendor:
-                    device.vendor = "cisco"
+                    # Smart fallback based on protocol context or text
+                    text_lower = (intent.original_text or "").lower()
+                    if "juniper" in text_lower or "junos" in text_lower:
+                        device.vendor = "juniper"
+                    else:
+                        device.vendor = "cisco"
                 
                 if not device.os_type:
                     device.os_type = "junos" if device.vendor == "juniper" else "ios-xe"
