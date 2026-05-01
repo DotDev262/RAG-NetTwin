@@ -145,11 +145,19 @@ class ConfigGenerator:
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
         coordination_prompt = self.coordinator.build_coordination_prompt(constraints)
 
-        # Build query once for all devices (Flaw 1: Include parameter values)
-        param_strs = [f"{k} {v}" for k, v in structured_intent.parameters.items()]
+        # Build query once for all devices (Optimized: Exclude specific parameter values to avoid query dilution)
+        # We keep the protocol and action, and add the parameter KEYS for semantic grounding
+        # We only keep parameter values if they look like protocols/keywords (no digits/IPs)
+        semantic_params = []
+        for k, v in structured_intent.parameters.items():
+            semantic_params.append(k)
+            # If value is a string and doesn't look like an IP or raw number, it might be a sub-protocol/mode
+            if isinstance(v, str) and not re.match(r'^[0-9.:/]+$', v) and len(v) > 2:
+                semantic_params.append(v)
+        
         query = (
             f"{structured_intent.protocol} {structured_intent.action} "
-            + " ".join(param_strs)
+            + " ".join(semantic_params)
         )
 
         # 1. Group devices by vendor + version for Consolidated Retrieval

@@ -1,24 +1,689 @@
 {
-  "3453e0fefbada327106c0c7927ea84031f517bf5b05044d2d43dfaa617df3cbe": {
-    "intent_id": "3453e0fefbad",
+  "24d686f4e757789c8b6775bc38a07c955bcfc9cebe1d1f3529ddda21e12db83f": {
+    "intent_id": "24d686f4e757",
     "protocol": "OSPF",
-    "action": "enable",
+    "action": "configure",
     "devices": [
       {
-        "name": "Router-A",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
       }
     ],
     "parameters": {
-      "process_id": "10",
-      "interface": "Gig0/1",
-      "ip_address": "192.168.1.1/24"
+      "area": "0",
+      "interface": "Gig1/0/1",
+      "ip": "10.10.10.1/24"
+    },
+    "requirements": [],
+    "original_text": "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24"
+  },
+  "11ecb8ff0ee9e0a9772a963fd890b985fc4f36ab2019f88960c4329a5f86996f": {
+    "intent_id": "11ecb8ff0ee9",
+    "protocol": "BGP",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "neighbor": "192.168.50.1",
+      "remote-as": "65000"
+    },
+    "requirements": [],
+    "original_text": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco"
+  },
+  "ca8d35e428fbcfd883d450de1d96caa559339087163d9d78b60525afd6a85430": {
+    "intent_id": "ca8d35e428fb",
+    "protocol": "Static",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "destination_network": "172.16.0.0/16",
+      "next_hop": "10.0.0.1"
+    },
+    "requirements": [],
+    "original_text": "Configure static route to 172.16.0.0/16 via 10.0.0.1"
+  },
+  "2c794579628bb608e8ebe9d2ebdf3b2b4b7040672d7d30bb19046a618455c2cb": {
+    "intent_id": "2c794579628b",
+    "protocol": "OSPF",
+    "action": "enable",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "process_id": "10"
+    },
+    "requirements": [],
+    "original_text": "Enable OSPF process 10 on all active interfaces for Juniper"
+  },
+  "3ead45d6d411921b6fb9a5cc7ab42118398efa3fc1537cdd1033db0dac6c3d30": {
+    "intent_id": "3ead45d6d411",
+    "protocol": "OSPF",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "router_id": "1.1.1.1"
+    },
+    "requirements": [],
+    "original_text": "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6"
+  },
+  "cdd78f46da903fd5ca052448aa8826912cad9dc99e220e73a98bb7d347ddefef": {
+    "intent_id": "cdd78f46da90",
+    "protocol": "ACL",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "acl_name": "BLOCK_WEB",
+      "action": "deny",
+      "destination_port": "80",
+      "protocol": "tcp",
+      "source_network": "any"
+    },
+    "requirements": [],
+    "original_text": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source"
+  },
+  "4a21ca46bbd23fbaa4985ffdaa3f1e39cd48908ab961421aaaefb0c7173260af": {
+    "intent_id": "4a21ca46bbd2",
+    "protocol": "Firewall Filter",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "action": "discard",
+      "protocol": "ICMP",
+      "source_network": "10.0.0.0/8"
+    },
+    "requirements": [],
+    "original_text": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8"
+  },
+  "d81a8c782ec71d65566e109598e08b19fd5529b99fb80cf84d3bbbe3cfa6d376": {
+    "intent_id": "d81a8c782ec7",
+    "protocol": "ACL",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "access_list": "101",
+      "direction": "inbound",
+      "interface": "GigabitEthernet0/1"
+    },
+    "requirements": [],
+    "original_text": "Apply access-list 101 inbound on interface GigabitEthernet0/1"
+  },
+  "2369035cc814160e6cbd3482972c67b5dcd6662b08487fa085f836a5c9a7b619": {
+    "intent_id": "2369035cc814",
+    "protocol": "SSH Access",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "allowed_subnet": "192.168.1.0/24"
+    },
+    "requirements": [],
+    "original_text": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco"
+  },
+  "3b56efc533baba2d4eb5bdc5d6097cc15f2ade2aa0b8d21dc14e617cca608d9b": {
+    "intent_id": "3b56efc533ba",
+    "protocol": "ACL",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "acl_number": "10",
+      "action": "permit",
+      "source_network": "10.1.1.0/24"
+    },
+    "requirements": [],
+    "original_text": "Create a standard ACL 10 to permit only 10.1.1.0/24"
+  },
+  "7caed717839b28bbb9c1581a22a1c7e7a5566d91daed9035c1586f5ed46126c2": {
+    "intent_id": "7caed717839b",
+    "protocol": "Interface",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "description": "Uplink to Core",
+      "interface": "Gig0/0"
+    },
+    "requirements": [],
+    "original_text": "Set description 'Uplink to Core' on interface Gig0/0"
+  },
+  "b05bfbb93f1fc957ec51b11a6b4abaff4292e30990ac1d17593c3178835e1570": {
+    "intent_id": "b05bfbb93f1f",
+    "protocol": "VLAN",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "vlan_id": "100",
+      "vlan_name": "DATABASE"
+    },
+    "requirements": [],
+    "original_text": "Configure VLAN 100 named 'DATABASE' on Cisco switch"
+  },
+  "39bd3565294cdbf8ca5514df9702b3d0e08f206b220edc0f2ead9b51f9004beb": {
+    "intent_id": "39bd3565294c",
+    "protocol": "LLDP",
+    "action": "enable",
+    "devices": [
+      {
+        "name": "EX switch",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {},
+    "requirements": [],
+    "original_text": "Enable LLDP globally on a Juniper EX switch"
+  },
+  "c49e7f2070e069a64438c3e1bf6e13acb753c2cc6d0816dd11c7f748b2ed6aaa": {
+    "intent_id": "c49e7f2070e0",
+    "protocol": "Interface",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device-1",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "mtu": "9000"
     },
     "requirements": [
-      "no_downtime"
+      "jumbo_frames"
     ],
-    "original_text": "Enable OSPF process 10 on Router-A (Cisco IOS-XE 17.6) for interface Gig0/1 with IP 192.168.1.1/24, ensuring no downtime."
+    "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
+  },
+  "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
+    "intent_id": "a5abd5546277",
+    "protocol": "Interface",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Gig1/0/24",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "port_mode": "trunk",
+      "vlan_list": "10,20,30"
+    },
+    "requirements": [],
+    "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
+  },
+  "d73f3bb549e38a15e6e2410eca1295b86a2662b5443da44048aa5c7e76daf618": {
+    "intent_id": "d73f3bb549e3",
+    "protocol": "OSPF",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Router-A",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      },
+      {
+        "name": "Router-B",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "area": "0"
+    },
+    "requirements": [],
+    "original_text": "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link"
+  },
+  "068a3fb3ffc2c47e6859fb45412c229d1d075b8d44f0dbe7627955078a8265b6": {
+    "intent_id": "068a3fb3ffc2",
+    "protocol": "BGP",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Router-A",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      },
+      {
+        "name": "Router-B",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "local_as": "65001",
+      "peer_as": "65002"
+    },
+    "requirements": [],
+    "original_text": "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002"
+  },
+  "2cf36ba546f0363b1455103fa192526eaa0f907257ec10fda86f8c557964b170": {
+    "intent_id": "2cf36ba546f0",
+    "protocol": "OSPF",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Router-A",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      },
+      {
+        "name": "Router-B",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "hello_interval": "5"
+    },
+    "requirements": [],
+    "original_text": "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers"
+  },
+  "4d755b3b60cca2683d6a3e0b790905b46ccd33405418e502ce65c771bbbab954": {
+    "intent_id": "4d755b3b60cc",
+    "protocol": "System",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "hostname": "CORE-RTR-01"
+    },
+    "requirements": [],
+    "original_text": "Set system hostname to CORE-RTR-01"
+  },
+  "d015e1a26f80af07c36bfc3bf39d73f2a64eaff3236f6f79c0ac08f644747afd": {
+    "intent_id": "d015e1a26f80",
+    "protocol": "NTP",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "ntp_server": "10.1.1.100"
+    },
+    "requirements": [],
+    "original_text": "Configure NTP server 10.1.1.100 on Cisco IOS-XE"
+  },
+  "437d04dfafde09b841874f74d481f4b45976179e0bf34137dc6765829330a961": {
+    "intent_id": "437d04dfafde",
+    "protocol": "SNMP",
+    "action": "enable",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "access": "RO",
+      "community": "public"
+    },
+    "requirements": [],
+    "original_text": "Enable SNMP community 'public' with RO access"
+  },
+  "80805c85d88ae92ffd800925dd1d5ae1dc333edf7d19eb6b76e0e1fa3d8dbfd4": {
+    "intent_id": "80805c85d88a",
+    "protocol": "Local User",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "level": "15",
+      "secret": "Cisco123",
+      "username": "admin"
+    },
+    "requirements": [],
+    "original_text": "Set up local user 'admin' with secret 'Cisco123' and level 15"
+  },
+  "903eec2d3ff9bdc16b910cba29a17ed8dbaab87b99e8bd174b30c40fea689320": {
+    "intent_id": "903eec2d3ff9",
+    "protocol": "Logging",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "buffer_size": "100000"
+    },
+    "requirements": [],
+    "original_text": "Configure logging buffer size to 100000"
+  },
+  "806f3c197a0e6382a281cedef76a57b88c5a72eb765ac947f601161a034766c7": {
+    "intent_id": "806f3c197a0e",
+    "protocol": "IPv6",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "interface": "GigabitEthernet0/2",
+      "ipv6_address": "2001:db8:acad::1/64"
+    },
+    "requirements": [],
+    "original_text": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2"
+  },
+  "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
+    "intent_id": "04ea347e82cb",
+    "protocol": "OSPFv3",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "area": "0",
+      "ip_version": "6"
+    },
+    "requirements": [],
+    "original_text": "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE"
+  },
+  "7a3c7bd72dfec9963fc8db2001f40acffeff13017790c8cfe284b9bcab9a60cf": {
+    "intent_id": "7a3c7bd72dfe",
+    "protocol": "NAT",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "interface": "Gig0/1",
+      "nat_type": "overload",
+      "subnet": "192.168.10.0/24"
+    },
+    "requirements": [],
+    "original_text": "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1"
+  },
+  "4468362ab6db0ef9afc3cf1ddd2a87315614c3689035a72e32840e7219dfe97f": {
+    "intent_id": "4468362ab6db",
+    "protocol": "VPN",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device1",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      },
+      {
+        "name": "Device2",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "psk": "SecretKey",
+      "vpn_type": "site-to-site"
+    },
+    "requirements": [],
+    "original_text": "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'"
+  },
+  "eb00cb3387a297adf6a19813d30e9d371d3de3a0ae315852427064a340b7d48e": {
+    "intent_id": "eb00cb3387a2",
+    "protocol": "QoS",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "policy": "CS6",
+      "traffic": "OSPF"
+    },
+    "requirements": [],
+    "original_text": "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco"
+  },
+  "c1f6ae4b27b67ecc70a51f5c923279b6973093454f5f9e09e65adf905298727e": {
+    "intent_id": "c1f6ae4b27b6",
+    "protocol": "VRRP",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "group": "10",
+      "interface": "ge-0/0/0",
+      "virtual_ip": "10.1.1.254"
+    },
+    "requirements": [],
+    "original_text": "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper"
+  },
+  "0c86b63f5bfe280556a3a7af68e6c6f8c66b690263988b13b76c6759b90370e5": {
+    "intent_id": "0c86b63f5bfe",
+    "protocol": "DHCP Snooping",
+    "action": "enable",
+    "devices": [
+      {
+        "name": "Catalyst",
+        "vendor": "cisco",
+        "os_type": "ios",
+        "os_version": "15.2"
+      }
+    ],
+    "parameters": {
+      "vlan": "10,20"
+    },
+    "requirements": [],
+    "original_text": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch"
+  },
+  "81c3547c97881417047f5603cc3258914a7182361a9620389c709d34be8ca005": {
+    "intent_id": "81c3547c9788",
+    "protocol": "Prefix-list",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "prefix": "10.0.0.0/8"
+    },
+    "requirements": [],
+    "original_text": "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper"
+  },
+  "d322ead949e9c3342697ae4fb32fa166313568daa0427460295b2451337c9f4c": {
+    "intent_id": "d322ead949e9",
+    "protocol": "LACP",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "group": "1",
+      "interfaces": "Gig1/0/1, Gig1/0/2"
+    },
+    "requirements": [],
+    "original_text": "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco"
+  },
+  "9b497b33d2d42071f6a68f88cf48d835785715cd4c20287c7f5395eb2c4f579b": {
+    "intent_id": "9b497b33d2d4",
+    "protocol": "NetFlow",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "export_ip": "10.1.1.50",
+      "export_port": "2055",
+      "version": "IPFIX"
+    },
+    "requirements": [],
+    "original_text": "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco"
+  },
+  "83b527600676540bc59f7e3c3360fd6d1fe2649f928a60b6327b15d3029346f9": {
+    "intent_id": "83b527600676",
+    "protocol": "Console",
+    "action": "configure",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "juniper",
+        "os_type": "junos",
+        "os_version": "21.4"
+      }
+    ],
+    "parameters": {
+      "execution_timeout": "5"
+    },
+    "requirements": [],
+    "original_text": "Restrict console access with an execution timeout of 5 minutes on Juniper"
+  },
+  "fff5f84fd2c011cbe2c917b3812d1e1d93aa4ff2b1409f8713f90d0f25fee3f0": {
+    "intent_id": "fff5f84fd2c0",
+    "protocol": "BGP",
+    "action": "create",
+    "devices": [
+      {
+        "name": "Device",
+        "vendor": "cisco",
+        "os_type": "ios-xe",
+        "os_version": "17.6"
+      }
+    ],
+    "parameters": {
+      "neighbor": "172.16.1.1",
+      "route_reflector": "true"
+    },
+    "requirements": [],
+    "original_text": "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco"
   }
 }

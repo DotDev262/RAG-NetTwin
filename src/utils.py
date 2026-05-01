@@ -571,6 +571,9 @@ def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
     file_handler.setFormatter(JsonFormatter())
     logger.addHandler(file_handler)
 
+    # Silence noisy 3rd party loggers
+    logging.getLogger("ciscoconfparse").setLevel(logging.WARNING)
+
     return logger
 
 

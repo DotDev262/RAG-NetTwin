@@ -293,11 +293,8 @@ class VectorStore:
         if vendor:
             where_conditions.append({"vendor": vendor})
         if os_version:
-            if exact_version:
-                where_conditions.append({"os_version": os_version})
-            else:
-                # Use $contains to allow "17.6" to match "ios-xe-17.6" (Flaw 2)
-                where_conditions.append({"os_version": {"$contains": os_version}})
+            # Use exact match for os_version ($eq is implicit in Chroma if no operator given)
+            where_conditions.append({"os_version": os_version})
         if tier:
             where_conditions.append({"tier": tier})
 
@@ -420,26 +417,12 @@ class VectorStore:
         tier: int = None,
         n_results: int = 5,
         k: int = 60, # RRF constant
-        exact_version: bool = True
     ) -> List[Dict]:
         """
         Performs Hybrid Search using Reciprocal Rank Fusion (RRF).
         Combines Semantic (Vector) and Keyword (BM25) results.
         """
-        # 1. Try initial retrieval (default: exact version)
-        results = self._hybrid_retrieve_internal(query, vendor, os_version, tier, n_results, k, exact_version)
-        
-        # 2. Fallback: If exact match failed and we have an os_version, try fuzzy major version (Flaw 2)
-        if not results and os_version and exact_version:
-            # Extract major version (e.g. "17.6" -> "17", "ios-xe-17.6" -> "17")
-            # This is a heuristic - we look for the first digits after a hyphen or at start
-            version_parts = re.findall(r'\d+', os_version)
-            if version_parts:
-                major = version_parts[0]
-                logger.info(f"Exact match for {os_version} failed. Falling back to major version {major} fuzzy match.")
-                results = self._hybrid_retrieve_internal(query, vendor, major, tier, n_results, k, exact_version=False)
-                
-        return results
+        return self._hybrid_retrieve_internal(query, vendor, os_version, tier, n_results, k)
 
     def _hybrid_retrieve_internal(
         self,
@@ -449,11 +432,10 @@ class VectorStore:
         tier: int = None,
         n_results: int = 5,
         k: int = 60,
-        exact_version: bool = True
     ) -> List[Dict]:
         """Internal hybrid retrieval logic."""
-        # 1. Semantic Search (passes exact_version flag)
-        vector_results = self.retrieve(query, vendor, os_version, tier, n_results=n_results*2, exact_version=exact_version)
+        # 1. Semantic Search
+        vector_results = self.retrieve(query, vendor, os_version, tier, n_results=n_results*2)
         
         # 2. Keyword Search (BM25)
         if not self.bm25:
@@ -477,10 +459,7 @@ class VectorStore:
                 
                 if os_version:
                     chunk_version = str(meta.get("os_version", ""))
-                    if exact_version:
-                        if chunk_version != os_version: continue
-                    else:
-                        if os_version not in chunk_version: continue
+                    if os_version not in chunk_version and chunk_version != os_version: continue
                         
                 if tier and meta.get("tier") != tier: continue
                 
