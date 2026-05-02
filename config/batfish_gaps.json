@@ -7,6 +7,17 @@
     "logging buffer",
     "priority level",
     "flow record",
-    "flow exporter"
+    "flow exporter",
+    "set protocols ospf area",
+    "set protocols ospf interface",
+    "set interfaces ge-",
+    "set security ike policy",
+    "set security ipsec vpn",
+    "set system syslog",
+    "set protocols vrrp group",
+    "set protocols lldp",
+    "set policy-options policy-statement",
+    "set routing-options static route",
+    "set security nat source"
   ]
 }

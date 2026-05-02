@@ -67,6 +67,11 @@ CISCO_CLI_PATTERNS = [
         r"(?m)^ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+.*?(?=^ip\s+route|\Z)",
         "static-route",
     ),
+    # NetFlow (Flexible NetFlow) patterns
+    (
+        r"(?m)^flow\s+(?:record|monitor|exporter)\s+\S+.*?(?=^flow|\Z)",
+        "netflow",
+    ),
     # VLAN patterns
     (r"(?m)^vlan\s+\d+.*?(?=^vlan|\Z)", "vlan"),
     (r"(?m)^switchport\s+mode\s+(?:trunk|access).*?(?=^switchport|\Z)", "switchport"),

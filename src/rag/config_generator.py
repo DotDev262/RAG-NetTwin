@@ -368,6 +368,11 @@ class ConfigGenerator:
                 "reasoning": response.reasoning_path,
             }
         except Exception as e:
+            # Check for rate limits (429) specifically to allow retry logic in evaluator
+            if "429" in str(e) or "rate_limit_exceeded" in str(e):
+                logger.error(f"Rate limit reached during generation for {device.name}")
+                raise e
+                
             logger.error(f"Generation failed for {device.name}: {e}")
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 

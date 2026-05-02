@@ -398,6 +398,11 @@ class PaperQualityEvaluator:
             cache_key = f"{retrieval_mode}:{intent_key}"
             cached_rag = self._cache_get(self.rag_cache, cache_key)
             
+            # IMPROVEMENT: Only reuse if it was NOT a hard failure (like 429)
+            if cached_rag and cached_rag.get("status") not in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]:
+                logger.info(f"Cached result for {intent_key[:20]} is {cached_rag.get('status')} - forcing retry.")
+                cached_rag = None
+
             if cached_rag:
                 results["rag_nettwin"] = cached_rag
                 

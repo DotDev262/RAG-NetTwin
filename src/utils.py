@@ -571,8 +571,20 @@ def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
     file_handler.setFormatter(JsonFormatter())
     logger.addHandler(file_handler)
 
-    # Silence noisy 3rd party loggers
+    # Silence noisy 3rd party loggers (standard logging)
     logging.getLogger("ciscoconfparse").setLevel(logging.WARNING)
+    logging.getLogger("pybatfish").setLevel(logging.WARNING)
+
+    # Silence Loguru noise from 3rd party libs
+    try:
+        from loguru import logger as loguru_logger
+        # Remove default handler
+        loguru_logger.remove()
+        # Re-add with a filter to exclude noisy ciscoconfparse messages
+        # We only keep ERROR or higher for ciscoconfparse, others stay at INFO
+        loguru_logger.add(sys.stderr, filter=lambda record: "ciscoconfparse" not in record["name"] or record["level"].no >= 40)
+    except ImportError:
+        pass
 
     return logger
 

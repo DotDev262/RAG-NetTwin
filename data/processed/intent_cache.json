@@ -110,7 +110,7 @@
       "action": "deny",
       "destination_port": "80",
       "protocol": "tcp",
-      "source_network": "any"
+      "source": "any"
     },
     "requirements": [],
     "original_text": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source"
@@ -253,7 +253,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device-1",
+        "name": "IOS-XE",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -262,9 +262,7 @@
     "parameters": {
       "mtu": "9000"
     },
-    "requirements": [
-      "jumbo_frames"
-    ],
+    "requirements": [],
     "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
   },
   "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
@@ -280,7 +278,7 @@
       }
     ],
     "parameters": {
-      "port_mode": "trunk",
+      "interface_mode": "trunk",
       "vlan_list": "10,20,30"
     },
     "requirements": [],
@@ -474,7 +472,7 @@
   "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
     "intent_id": "04ea347e82cb",
     "protocol": "OSPFv3",
-    "action": "configure",
+    "action": "create",
     "devices": [
       {
         "name": "Device",
@@ -529,6 +527,7 @@
       }
     ],
     "parameters": {
+      "authentication": "PSK",
       "psk": "SecretKey",
       "vpn_type": "site-to-site"
     },
@@ -582,8 +581,8 @@
       {
         "name": "Catalyst",
         "vendor": "cisco",
-        "os_type": "ios",
-        "os_version": "15.2"
+        "os_type": "ios-xe",
+        "os_version": "17.6"
       }
     ],
     "parameters": {
@@ -681,7 +680,7 @@
     ],
     "parameters": {
       "neighbor": "172.16.1.1",
-      "route_reflector": "true"
+      "route_reflector": "True"
     },
     "requirements": [],
     "original_text": "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco"
