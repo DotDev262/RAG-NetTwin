@@ -23,20 +23,15 @@ Typical Usage:
     # "Configure OSPF area 0 on Router-A for interface Gig0/1"
 """
 
-import sys
-import os
-import json
 
 # Ensure src is in path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 
-from parser.intent_parser import IntentParser
-from rag.config_generator import ConfigGenerator
-from exporter.gns3_exporter import GNS3Exporter
-from evaluation.blast_radius_analyzer import BlastRadiusAnalyzer
-from utils import setup_logger, generate_audit_report
-from config import settings
-from llm import LLMProvider
+from src.parser.intent_parser import IntentParser
+from src.rag.config_generator import ConfigGenerator
+from src.exporter.gns3_exporter import GNS3Exporter
+from src.evaluation.blast_radius_analyzer import BlastRadiusAnalyzer
+from src.utils import setup_logger, generate_audit_report
+from src.config import settings
 
 # Initialize Logger for this module
 logger = setup_logger("CLI")
@@ -70,8 +65,8 @@ def main():
         logger.critical(f"LLM Configuration Error: {e}")
         print(f"\n[!] Configuration Error: {e}")
         print("\nPlease set the appropriate API key in your .env file:")
-        print(f"  - For Groq: GROQ_API_KEY")
-        print(f"  - For Gemini: GEMINI_API_KEY")
+        print("  - For Groq: GROQ_API_KEY")
+        print("  - For Gemini: GEMINI_API_KEY")
         print(f"\nCurrent provider setting: {settings.llm_provider}")
         return
 
@@ -125,9 +120,9 @@ def main():
                 # Skip internal metadata keys
                 if device_name is not None and device_name.startswith("_"):
                     continue
-                    
+
                 print(f"Device: {device_name}")
-                sources = data.get('retrieved_sources', [])
+                sources = data.get("retrieved_sources", [])
                 print(f"Retrieved {len(sources)} references.")
                 print("\nGenerated Configuration:")
                 print("```")
@@ -138,7 +133,7 @@ def main():
                 # Optional Step 4: Run Tier 1 validation (Batfish)
                 # This catches syntax errors before deployment
                 try:
-                    from validation.batfish_validator import BatfishValidator
+                    from src.validation.batfish_validator import BatfishValidator
 
                     print("\n[4/4] Running Tier 1 Validation (Batfish)...")
                     validator = BatfishValidator()
@@ -155,35 +150,55 @@ def main():
                         )
                         for issue in validation_result.get("issues", [])[:3]:
                             print(f"   - [{issue['type']}] {issue['details']}")
-                        
+
                         # Step 4.5: Interactive Refinement (Recommendation 4)
-                        print("\nWould you like me to attempt a self-correction based on these errors? (y/n)")
+                        print(
+                            "\nWould you like me to attempt a self-correction based on these errors? (y/n)"
+                        )
                         choice = input("> ").strip().lower()
-                        if choice == 'y':
+                        if choice == "y":
                             print("Refining configuration...")
-                            error_text = "\n".join([i['details'] for i in validation_result.get("issues", [])])
-                            
+                            error_text = "\n".join(
+                                [
+                                    i["details"]
+                                    for i in validation_result.get("issues", [])
+                                ]
+                            )
+
                             # Get vendor/version for the device
-                            device_intent = next((d for d in structured_intent.devices if d.name == device_name), None)
+                            device_intent = next(
+                                (
+                                    d
+                                    for d in structured_intent.devices
+                                    if d.name == device_name
+                                ),
+                                None,
+                            )
                             vendor = device_intent.vendor if device_intent else "cisco"
-                            version = device_intent.os_version if device_intent else "17.6"
-                            
+                            version = (
+                                device_intent.os_version if device_intent else "17.6"
+                            )
+
                             fixed_config = generator.refine(
                                 device_name=device_name,
                                 config=data["config"],
                                 error_feedback=error_text,
                                 vendor=vendor,
-                                os_version=version
+                                os_version=version,
                             )
-                            
+
                             print("\nFixed Configuration:")
                             print("```")
                             print(fixed_config)
                             print("```")
-                            
+
                             print("Re-validating fixed configuration...")
-                            re_validation = validator.validate({device_name: fixed_config}, structured_intent)
-                            print(f"✅ Re-validation Status: {re_validation.get('status')}")
+                            re_validation = validator.validate(
+                                {device_name: fixed_config}, structured_intent
+                            )
+                            print(
+                                f"✅ Re-validation Status: {re_validation.get('status')}"
+                            )
                             # Update data with fixed config for downstream steps (like export)
                             data["config"] = fixed_config
                 except Exception as e:
@@ -213,57 +228,67 @@ def main():
             # Step 7: Functional Verification (Recommendation 1)
             print("\nWould you like to run Functional Verification in GNS3? (y/n)")
             run_func = input("> ").strip().lower()
-            if run_func == 'y':
+            if run_func == "y":
                 try:
-                    from validation.gns3_validator import GNS3Validator
+                    from src.validation.gns3_validator import GNS3Validator
+
                     gns3 = GNS3Validator()
-                    result = {} # Initialize
-                    
+                    result = {}  # Initialize
+
                     if not gns3.connected:
-                        print(f"      [!] GNS3 server not reachable at {settings.gns3_host}:{settings.gns3_port}")
+                        print(
+                            f"      [!] GNS3 server not reachable at {settings.gns3_host}:{settings.gns3_port}"
+                        )
                         print("          Please ensure the GNS3 application is open.")
                     else:
                         print("\n[7/7] Running Closed-Loop Functional Verification...")
                         # Initial validation (creates project, starts nodes)
-                        result = gns3.validate({}, structured_intent) 
-                    
+                        result = gns3.validate({}, structured_intent)
+
                         if result.get("status") == "ERROR":
                             print(f"      [!] GNS3 Error: {result.get('error')}")
                         else:
                             # 1. Capture Pre-Change Baseline
                             print("      ✓ Capturing Pre-Change Baseline...")
                             pre_state = gns3.get_network_state(result.get("nodes", {}))
-                            
+
                             # 2. Push Configs
                             print("      ✓ Pushing Configurations...")
                             # Skip internal metadata keys when preparing config map
                             config_map = {
-                                name: data["config"] 
-                                for name, data in configs.items() 
-                                if (name is None or not name.startswith("_")) and "config" in data
+                                name: data["config"]
+                                for name, data in configs.items()
+                                if (name is None or not name.startswith("_"))
+                                and "config" in data
                             }
                             gns3.push_configs(result.get("nodes", {}), config_map)
 
                             # 3. Run Verification Commands
                             v_data = {
-                                name: data.get("verification_commands", []) 
+                                name: data.get("verification_commands", [])
                                 for name, data in configs.items()
                                 if name is None or not name.startswith("_")
                             }
 
-                            v_results = gns3.verify_functional(result.get("nodes", {}), v_data)
-                            
+                            v_results = gns3.verify_functional(
+                                result.get("nodes", {}), v_data
+                            )
+
                             # 4. Capture Post-Change State
                             print("      ✓ Capturing Post-Change State...")
                             post_state = gns3.get_network_state(result.get("nodes", {}))
-                            
+
                             # 5. Analyze Blast Radius
-                            print("\n[8/7] Analyzing Blast Radius (Impact Assessment)...")
-                            analysis = blast_analyzer.analyze(user_input, pre_state, post_state)
+                            print(
+                                "\n[8/7] Analyzing Blast Radius (Impact Assessment)..."
+                            )
+                            analysis = blast_analyzer.analyze(
+                                user_input, pre_state, post_state
+                            )
                             print("\n--- Blast Radius Analysis ---")
                             print(analysis)
                             print("------------------------------")
-                            
+
                             print("\n--- Functional Verification Results ---")
                             for dev, v_list in v_results.items():
                                 print(f"Device: {dev}")
@@ -273,11 +298,13 @@ def main():
                                     else:
                                         print(f"  > {vr['command']}")
                                         # Show first few lines of output
-                                        out_lines = vr['output'].strip().splitlines()
+                                        out_lines = vr["output"].strip().splitlines()
                                         for line in out_lines[:5]:
                                             print(f"    {line}")
                                         if len(out_lines) > 5:
-                                            print(f"    ... ({len(out_lines)-5} more lines)")
+                                            print(
+                                                f"    ... ({len(out_lines)-5} more lines)"
+                                            )
                             print("---------------------------------------")
                 except Exception as e:
                     print(f"      [!] Functional Verification failed: {e}")

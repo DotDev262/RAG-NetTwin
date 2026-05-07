@@ -7,13 +7,12 @@ Runs fast evaluation without Batfish validation.
 import sys
 from pathlib import Path
 
-# Add project root/src to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "src"))
+# Ensure project root is in sys.path for imports
+sys.path.append(str(Path(__file__).parent.parent))
 
-from parser.intent_parser import IntentParser
-from rag.config_generator import ConfigGenerator
-from evaluation.hallucination_detector import HallucinationDetector
+from src.parser.intent_parser import IntentParser  # noqa: E402
+from src.rag.config_generator import ConfigGenerator  # noqa: E402
+from src.evaluation.hallucination_detector import HallucinationDetector  # noqa: E402
 
 TEST_INTENTS = [
     "Configure OSPF area 0 on interface GigabitEthernet0/1 with network 10.0.0.0/24",

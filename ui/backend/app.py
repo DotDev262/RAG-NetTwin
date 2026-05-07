@@ -1,20 +1,17 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Dict, Any, Optional
-import sys
+from typing import Dict, Any
 import uuid
 import time
-from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from parser.intent_parser import IntentParser, StructuredIntent
+from parser.intent_parser import IntentParser
 from rag.config_generator import ConfigGenerator
 from validation.batfish_validator import BatfishValidator
 from validation.containerlab_validator import ContainerlabValidator
-from utils import setup_logger
+from src.utils import setup_logger
 
 logger = setup_logger("Backend")
 app = FastAPI(

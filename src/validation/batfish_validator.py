@@ -13,7 +13,7 @@ Key Features:
 - Vendor-aware config file handling (.cfg vs .conf)
 
 Typical Usage:
-    from validation.batfish_validator import BatfishValidator
+    from src.validation.batfish_validator import BatfishValidator
 
     validator = BatfishValidator()
     configs = {"Router-A": "interface Gig0/1\n ip address 192.168.1.1 255.255.255.0"}
@@ -32,14 +32,12 @@ import json
 import time
 from pathlib import Path
 from pybatfish.client.session import Session
-from pybatfish.datamodel import Interface
-import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any
 
-from validation.base import NetworkValidator
-from config import settings
-from utils import setup_logger
-from utils import clean_cli_prose
+from src.validation.base import NetworkValidator
+from src.config import settings
+from src.utils import setup_logger
+from src.utils import clean_cli_prose
 
 logger = setup_logger("BatfishValidator")
 
@@ -59,7 +57,7 @@ class BatfishValidator(NetworkValidator):
 
     Validation Steps:
     1. Clean configs (remove LLM-generated labels that break parsing)
-    2. Detect vendor from config content (Cisco vs Juniper)
+    2. Detect vendor from src.config content (Cisco vs Juniper)
     3. Write configs with appropriate file extensions
     4. Initialize Batfish network and snapshot
     5. Run analysis questions (parse issues, undefined references)
@@ -176,11 +174,11 @@ class BatfishValidator(NetworkValidator):
                 # Handle unnamed devices (hostname is None)
                 if hostname is None:
                     hostname = "unnamed_device"
-                    
+
                 # Sanitize hostname to prevent directory traversal or path errors
                 safe_hostname = hostname.replace("/", "_").replace("\\", "_")
 
-                # Detect vendor from config content
+                # Detect vendor from src.config content
                 # Juniper configs use "set" commands at the start
                 # Cisco configs use Cisco IOS syntax
                 is_juniper = (
@@ -323,7 +321,7 @@ class BatfishValidator(NetworkValidator):
             if self.session:
                 try:
                     self.session.delete_network(network_name)
-                except:
+                except Exception:
                     pass
 
 

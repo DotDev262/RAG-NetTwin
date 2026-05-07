@@ -2,26 +2,26 @@ import os
 import json
 import time
 import hashlib
-from typing import List, Optional, Dict, Any, Type
-from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
-from config import settings
-from llm import LLMProvider
+from src.llm import LLMProvider
 import dspy
-from enum import Enum
-from parser.inventory_resolver import InventoryResolver
-from rag.vector_store import VectorStore
-from utils import setup_logger
+from src.schemas.intent import StructuredIntent, BatchStructuredIntent, ActionType
+from src.parser.inventory_resolver import InventoryResolver
+from src.rag.vector_store import VectorStore
+from src.utils import setup_logger
 
 logger = setup_logger("IntentParser")
 
 # Cache for parsed intents to avoid redundant API calls
 INTENT_CACHE_FILE = "data/processed/intent_cache.json"
 
+
 def with_retry(max_retries=5, initial_sleep=2):
     """
     Decorator for exponential backoff on RateLimitErrors.
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             retries = 0
@@ -33,29 +33,17 @@ def with_retry(max_retries=5, initial_sleep=2):
                     if "rate_limit" in e_str or "429" in e_str:
                         retries += 1
                         sleep_time = initial_sleep * (2 ** (retries - 1))
-                        logger.warning(f"Rate limit hit. Retrying in {sleep_time}s... ({retries}/{max_retries})")
+                        logger.warning(
+                            f"Rate limit hit. Retrying in {sleep_time}s... ({retries}/{max_retries})"
+                        )
                         time.sleep(sleep_time)
                     else:
                         raise e
-            return func(*args, **kwargs) # Last try
+            return func(*args, **kwargs)  # Last try
+
         return wrapper
+
     return decorator
-
-
-class DeviceIntent(BaseModel):
-    name: Optional[str] = Field(
-        description="Name of the device, e.g., Router-A. Default to 'Device' if unknown.",
-        default="Device",
-    )
-    vendor: Optional[str] = Field(
-        description="Device vendor, e.g., cisco, juniper", default=None
-    )
-    os_type: Optional[str] = Field(
-        description="Operating system type, e.g., ios-xe, junos", default=None
-    )
-    os_version: Optional[str] = Field(
-        description="OS version, e.g., 17.6, 21.4", default=None
-    )
 
 
 class IntentSignature(dspy.Signature):
@@ -63,13 +51,20 @@ class IntentSignature(dspy.Signature):
     Translate a natural language network intent into a structured JSON-like format.
     You must identify the protocol, action, target devices, and all critical parameters.
     """
+
     intent = dspy.InputField(desc="The natural language intent from the user.")
     context = dspy.InputField(desc="Relevant examples or documentation snippets.")
-    
+
     protocol = dspy.OutputField(desc="Primary network protocol (e.g., OSPF, BGP).")
-    action = dspy.OutputField(desc="Allowed values: 'create', 'update', 'delete', 'verify', etc.")
-    devices = dspy.OutputField(desc="List of devices with 'name', 'vendor', and 'os_type'.")
-    parameters = dspy.OutputField(desc="Dictionary of key-value parameters (e.g., area, as_number).")
+    action = dspy.OutputField(
+        desc="Allowed values: 'create', 'update', 'delete', 'verify', etc."
+    )
+    devices = dspy.OutputField(
+        desc="List of devices with 'name', 'vendor', and 'os_type'."
+    )
+    parameters = dspy.OutputField(
+        desc="Dictionary of key-value parameters (e.g., area, as_number)."
+    )
     requirements = dspy.OutputField(desc="List of constraints (e.g., no_downtime).")
 
 
@@ -80,51 +75,6 @@ class DSPyIntentParser(dspy.Module):
 
     def forward(self, intent, context=""):
         return self.generate_intent(intent=intent, context=context)
-
-
-class ActionType(str, Enum):
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
-    ENABLE = "enable"
-    DISABLE = "disable"
-    CONFIGURE = "configure"
-    SHOW = "show"
-    VERIFY = "verify"
-    MONITOR = "monitor"
-
-
-class StructuredIntent(BaseModel):
-    intent_id: Optional[str] = Field(
-        description="Unique identifier for the intent", default=None
-    )
-    protocol: Optional[str] = Field(
-        description="Network protocol involved, e.g., OSPF, BGP, Static, ACL, Interface",
-        default="Unknown",
-    )
-    action: ActionType = Field(
-        description="Specific operation: create, update, delete, enable, disable, configure, show, verify, monitor",
-        default=ActionType.CONFIGURE,
-    )
-    devices: List[DeviceIntent] = Field(
-        description="List of devices involved in the intent",
-        default_factory=list,
-    )
-    parameters: Dict[str, Any] = Field(
-        description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1/24'}",
-        default_factory=dict,
-    )
-    requirements: List[str] = Field(
-        description="Specific requirements or goals, e.g., ['establish_adjacency', 'no_downtime', 'validate_only']",
-        default_factory=list,
-    )
-    original_text: Optional[str] = Field(
-        description="The original natural language text", default=None
-    )
-
-
-class BatchStructuredIntent(BaseModel):
-    intents: List[StructuredIntent] = Field(description="List of structured intents")
 
 
 class IntentParser:
@@ -149,7 +99,7 @@ IMPORTANT VENDOR DETECTION:
         )
         self.inventory_resolver = InventoryResolver()
         self.vector_store = VectorStore()
-        
+
         # Recommendation 3: Initialize DSPy Engine
         lm = LLMProvider.get_dspy_lm(model=model_name)
         dspy.settings.configure(lm=lm)
@@ -202,10 +152,10 @@ IMPORTANT VENDOR DETECTION:
     def _parse_chunk(self, texts: List[str]) -> List[StructuredIntent]:
         """Parse a single chunk of intents with retry logic and caching."""
         # 1. Separate texts into cached and non-cached
-        results = {} # index -> intent
+        results = {}  # index -> intent
         to_parse_texts = []
         to_parse_indices = []
-        
+
         for idx, text in enumerate(texts):
             text_hash = hashlib.sha256(text.encode()).hexdigest()
             if text_hash in self.cache:
@@ -213,16 +163,18 @@ IMPORTANT VENDOR DETECTION:
             else:
                 to_parse_texts.append(text)
                 to_parse_indices.append(idx)
-        
+
         if not to_parse_texts:
             return [results[i] for i in range(len(texts))]
 
         # 2. Parse non-cached intents in a batch
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         count = len(to_parse_texts)
-        
+
         # Recommendation 2: Dynamic Few-Shot Retrieval (use first intent in chunk as anchor)
-        few_shot_examples = self.vector_store.retrieve_few_shot(to_parse_texts[0], n_results=3)
+        few_shot_examples = self.vector_store.retrieve_few_shot(
+            to_parse_texts[0], n_results=3
+        )
         examples_str = ""
         for i, ex in enumerate(few_shot_examples):
             examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
@@ -243,9 +195,12 @@ RULES:
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
-                ("human", "Parse these {{num}} intents into a JSON list:\n{{input_list}}"),
+                (
+                    "human",
+                    "Parse these {{num}} intents into a JSON list:\n{{input_list}}",
+                ),
             ],
-            template_format="jinja2"
+            template_format="jinja2",
         )
 
         input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(to_parse_texts)])
@@ -253,23 +208,27 @@ RULES:
         batch_result = chain.invoke({"input_list": input_list, "num": count})
 
         if len(batch_result.intents) != count:
-            raise ValueError(f"LLM returned {len(batch_result.intents)} intents but expected {count}")
+            raise ValueError(
+                f"LLM returned {len(batch_result.intents)} intents but expected {count}"
+            )
 
         # 3. Merge results and save to cache
         for i, intent in enumerate(batch_result.intents):
             intent.original_text = to_parse_texts[i]
             # Assign a unique ID if missing
             if not intent.intent_id:
-                intent.intent_id = hashlib.sha256(intent.original_text.encode()).hexdigest()[:12]
-            
+                intent.intent_id = hashlib.sha256(
+                    intent.original_text.encode()
+                ).hexdigest()[:12]
+
             self._resolve_device_metadata(intent)
-            
+
             # Save to cache
             text_hash = hashlib.sha256(intent.original_text.encode()).hexdigest()
             self.cache[text_hash] = intent.model_dump()
-            
+
             results[to_parse_indices[i]] = intent
-            
+
         self._save_cache()
         return [results[i] for i in range(len(texts))]
 
@@ -280,7 +239,7 @@ RULES:
         if text_hash in self.cache:
             logger.info(f"Intent cache hit: {text[:30]}...")
             return StructuredIntent(**self.cache[text_hash])
-            
+
         # 2. Dynamic Few-Shot Retrieval
         few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
         examples_str = ""
@@ -302,32 +261,34 @@ RULES:
         # 4. Save to Cache
         self.cache[text_hash] = result.model_dump()
         self._save_cache()
-        
+
         return result
 
     @with_retry(max_retries=5)
     def _dspy_parse(self, text: str, examples_str: str) -> StructuredIntent:
         """Internal DSPy call with retry logic."""
         response = self.dspy_parser(intent=text, context=examples_str)
-        
+
         # Helper to safely parse lists/dicts from strings
         import ast
+
         def safe_eval(val, default_type):
-            if not val: return [] if isinstance(default_type, list) else {}
-            
+            if not val:
+                return [] if isinstance(default_type, list) else {}
+
             parsed = val
             if isinstance(val, str):
-                try: 
+                try:
                     # Clean up common LLM string artifacts
                     cleaned_val = val.replace("```json", "").replace("```", "").strip()
                     parsed = ast.literal_eval(cleaned_val)
-                except: 
+                except Exception:
                     parsed = val
-            
+
             # If we expect a list but got a single item (dict or string)
             if isinstance(default_type, list) and not isinstance(parsed, list):
                 return [parsed] if parsed else []
-            
+
             return parsed
 
         intent = StructuredIntent(
@@ -336,7 +297,7 @@ RULES:
             action=response.action,
             devices=safe_eval(response.devices, []),
             parameters=safe_eval(response.parameters, {}),
-            requirements=safe_eval(response.requirements, [])
+            requirements=safe_eval(response.requirements, []),
         )
         self._resolve_device_metadata(intent)
         return intent
@@ -355,14 +316,17 @@ Populate the 'requirements' list with any relevant constraints.
 ### FEW-SHOT EXAMPLES ###
 {examples_str}
 """
-        prompt = ChatPromptTemplate.from_messages([
+        prompt = ChatPromptTemplate.from_messages(
+            [
                 ("system", system_prompt),
                 ("human", "{input}"),
             ],
-            template_format="f-string"
+            template_format="jinja2",
         )
+
         chain = prompt | self.structured_llm
         intent = chain.invoke({"input": text})
+
         intent.original_text = text
         self._resolve_device_metadata(intent)
         return intent
@@ -394,10 +358,10 @@ Populate the 'requirements' list with any relevant constraints.
                         device.vendor = "juniper"
                     else:
                         device.vendor = "cisco"
-                
+
                 if not device.os_type:
                     device.os_type = "junos" if device.vendor == "juniper" else "ios-xe"
-                
+
                 if not device.os_version:
                     device.os_version = "21.4" if device.vendor == "juniper" else "17.6"
 

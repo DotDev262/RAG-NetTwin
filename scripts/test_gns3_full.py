@@ -1,20 +1,27 @@
 import sys
-import time
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from validation.gns3_validator import GNS3Validator
-from parser.intent_parser import StructuredIntent, DeviceIntent
+
+# Ensure project root is in sys.path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
+from src.validation.gns3_validator import GNS3Validator  # noqa: E402
+from src.schemas.intent import StructuredIntent, DeviceIntent  # noqa: E402
 
 console = Console()
 
+
 def test_full_gns3_pipeline():
-    console.print(Panel.fit("[bold green]RAG-NetTwin: Full GNS3 Pipeline Stress Test[/bold green]"))
-    
+    console.print(
+        Panel.fit(
+            "[bold green]RAG-NetTwin: Full GNS3 Pipeline Stress Test[/bold green]"
+        )
+    )
+
     # 1. Initialize Validator
     v = GNS3Validator()
     if not v.connected:
@@ -27,7 +34,7 @@ def test_full_gns3_pipeline():
         protocol="TEST",
         action="create",
         devices=[DeviceIntent(name="R1", vendor="cisco", os_type="ios-xe")],
-        parameters={}
+        parameters={},
     )
 
     try:
@@ -36,9 +43,11 @@ def test_full_gns3_pipeline():
         # We pass empty config first to create the nodes
         result = v.validate({}, intent)
         if result.get("status") == "ERROR":
-            console.print(f"[red]❌ Failed to create project: {result.get('error')}[/red]")
+            console.print(
+                f"[red]❌ Failed to create project: {result.get('error')}[/red]"
+            )
             return
-        
+
         nodes = result.get("nodes", {})
         console.print(f"   ✅ Project Created: {result.get('project_id')}")
         console.print(f"   ✅ Node R1 ID: {nodes.get('R1')}")
@@ -57,13 +66,17 @@ def test_full_gns3_pipeline():
         console.print(f"   ✅ Config Push Status: {push_results}")
 
         # 6. Wait for Convergence & Functional Verify
-        console.print("\n[4/6] Running Functional Verification (show ip interface brief)...")
+        console.print(
+            "\n[4/6] Running Functional Verification (show ip interface brief)..."
+        )
         v_data = {"R1": ["show ip interface brief | include Loopback99"]}
         v_results = v.verify_functional(nodes, v_data)
-        
+
         for dev, outputs in v_results.items():
             for out in outputs:
-                console.print(f"   [bold blue]Device {dev} Output:[/bold blue]\n{out.get('output')}")
+                console.print(
+                    f"   [bold blue]Device {dev} Output:[/bold blue]\n{out.get('output')}"
+                )
 
         # 7. Capture Post-Change State
         console.print("\n[5/6] Capturing Post-Change State...")
@@ -76,13 +89,17 @@ def test_full_gns3_pipeline():
         # 8. Cleanup
         console.print("\n[6/6] Cleaning up test project...")
         import requests
+
         requests.delete(f"{v.base_url}/projects/{v.project_id}", auth=v.auth)
         console.print("   ✅ SUCCESS: Project deleted.")
 
-        console.print(Panel.fit("[bold green]ALL GNS3 PIPELINE TESTS PASSED![/bold green]"))
+        console.print(
+            Panel.fit("[bold green]ALL GNS3 PIPELINE TESTS PASSED![/bold green]")
+        )
 
     except Exception as e:
         console.print(f"[red]❌ UNEXPECTED ERROR: {e}[/red]")
+
 
 if __name__ == "__main__":
     test_full_gns3_pipeline()

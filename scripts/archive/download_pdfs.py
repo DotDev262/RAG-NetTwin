@@ -6,12 +6,12 @@ Extracts PDF URLs from HTML landing pages and downloads them
 
 import requests
 from pathlib import Path
-import re
-from urllib.parse import urljoin
 import time
 
+from typing import Dict, Any
+
 # PDF URLs discovered from HTML pages
-PDF_URLS = {
+PDF_URLS: Dict[str, Dict[str, Any]] = {
     "catalyst_9300_cmdref_17_6": {
         "url": "https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-6/command_reference/b_176_9300_cr.pdf",
         "title": "Cisco IOS-XE 17.6 Command Reference - Catalyst 9300",

@@ -1,0 +1,414 @@
+{
+  "/home/aryan/Projects/RAG-NetTwin/main.py": {
+    "mtime": 1778065573.9934094,
+    "hash": "50d90c7ffc5a8642998efdbcd38f83be"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/run_paper_eval.py": {
+    "mtime": 1778065573.994492,
+    "hash": "4965715012d0248bf6c93d8d65d6f3f5"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/analyze_spot_check.py": {
+    "mtime": 1776340250.355394,
+    "hash": "155cba4013b2d866bff432cffc3a0bdf"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/figure_chunking_sensitivity.py": {
+    "mtime": 1776340250.355394,
+    "hash": "c8cb3265eee1c655ec70793b66c3ba65"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/audit_demo.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "1b8caf9ad16473c68f7d8188dc45a9b0"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/generate_results_plot.py": {
+    "mtime": 1776477451.0216072,
+    "hash": "ab43a4dcb3d3fe97917a7344668a4a5c"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/iou_keygen.py": {
+    "mtime": 1776354058.9586027,
+    "hash": "5d98b4181cd8ca08c8653cda3c7cddc7"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/iou_keygen_v2.py": {
+    "mtime": 1776354612.9297104,
+    "hash": "a1ac43de3feead0cc424616d759ef4bb"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/iou_keygen_v3.py": {
+    "mtime": 1776354661.9472368,
+    "hash": "4896dbabef0d414c308adfcaea1f2450"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/iou_keygen_universal.py": {
+    "mtime": 1776354793.1465058,
+    "hash": "2e076f3286d55a8412271ecb53c183c2"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/clear_gns3.py": {
+    "mtime": 1778065573.9980748,
+    "hash": "f505ccdbb23128199c52b4cbf4e54b7b"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/quick_eval.py": {
+    "mtime": 1778065573.9993682,
+    "hash": "615d8218192096908d9a4d06b960014f"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/retrieval_benchmark.py": {
+    "mtime": 1778065574.0005486,
+    "hash": "374829ff6b6f52ff84ba42a3e968ca27"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/seed_few_shot.py": {
+    "mtime": 1778065574.0016043,
+    "hash": "4344b8cdb8f2eebd42f38232adb2c7b1"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/test_gns3_connection.py": {
+    "mtime": 1778065574.0027573,
+    "hash": "c8c13a420978da95e9bb27171230011d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/test_gns3_full.py": {
+    "mtime": 1778065574.0040402,
+    "hash": "80f042a4e42a3ef4c11d59bd7f10395b"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/test_retrieval.py": {
+    "mtime": 1778065574.0054214,
+    "hash": "0cdf23e6f383ab6a95a4ada79a3328c0"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/download_additional_docs.py": {
+    "mtime": 1776340250.3567872,
+    "hash": "6622576f0e8d291af21db64dce5a7ed2"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/download_cisco_docs.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "a2b0a7d470b0b79321f96aa934f26519"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/download_docs.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "b9c2144b509a29f628b8fa812a30608e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/download_juniper_docs.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "bcd3b9743e8e75409ed238cd6bc1beaa"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/download_pdfs.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "2c3b229882b658bf5f606d5177f3641c"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/extract_pdfs.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "6f5480e21336627fd6c8b29296114636"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/ingest_docs.py": {
+    "mtime": 1778065573.995708,
+    "hash": "0837bfdefbaffb46bcaaa471abbf72bc"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/scripts/archive/re_embed.py": {
+    "mtime": 1778065573.9968705,
+    "hash": "4328a4d8c5ebea29faeb8cc02e0ccb0d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/__init__.py": {
+    "mtime": 1776340250.3568687,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/config.py": {
+    "mtime": 1778065573.9919758,
+    "hash": "18720c834a3e84b8c14dac3d5183b9af"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/data_processing/__init__.py": {
+    "mtime": 1776340250.3575273,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/data_processing/pdf_extractor.py": {
+    "mtime": 1778065245.34879,
+    "hash": "ea812d2849622c811a130bf87b47de86"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/data_processing/cli_extractor.py": {
+    "mtime": 1778065437.2986746,
+    "hash": "0bc64d30ea14337cad1615c95b8ce131"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/data_processing/cli_chunker.py": {
+    "mtime": 1778065573.9571643,
+    "hash": "761fca184edf5e4cd3eb508b45ffefe4"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/__init__.py": {
+    "mtime": 1776340250.3576164,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/cache_manager.py": {
+    "mtime": 1778065294.338369,
+    "hash": "b7e9637a2f08533647fe3336176cc7f4"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/cfr_checker.py": {
+    "mtime": 1778065331.0716956,
+    "hash": "5b16c2c8d8721ec2195a803e3553433e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/stats_reporter.py": {
+    "mtime": 1778065339.8957741,
+    "hash": "47d50743657de72b51de2fc92bfb5ebd"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/blast_radius_analyzer.py": {
+    "mtime": 1778065443.5737908,
+    "hash": "782d3a8fff21ad5beee49221bf4e8e80"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/hallucination_detector.py": {
+    "mtime": 1778065573.9614406,
+    "hash": "3384668b8f01fa338d5cf35a9323cf10"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/evaluation/ensemble.py": {
+    "mtime": 1778065573.9626331,
+    "hash": "1afb1cdfa0a1003450e60699cdee52cb"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/llm/__init__.py": {
+    "mtime": 1778065573.9665089,
+    "hash": "5f9acd9c01f52416cf35dbc3ffd1281a"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/parser/__init__.py": {
+    "mtime": 1776340250.357756,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/parser/inventory_resolver.py": {
+    "mtime": 1778065573.9678202,
+    "hash": "7a511d3a209508e695dfe7fe2fc94231"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/parser/intent_parser.py": {
+    "mtime": 1778065573.9714293,
+    "hash": "514bd45d708044c044f2a02426bf0305"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/rag/__init__.py": {
+    "mtime": 1776340250.3579464,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/rag/multi_vendor_coordinator.py": {
+    "mtime": 1778065245.3598733,
+    "hash": "9969c46bdff59f1eec26b62db7b08274"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/rag/vector_store.py": {
+    "mtime": 1778065573.979615,
+    "hash": "1b0a469f521bfe59f6772513b1cdcffe"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/rag/config_generator.py": {
+    "mtime": 1778065573.980946,
+    "hash": "24218dd2e21d6458d095490199a58cb8"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/validation/__init__.py": {
+    "mtime": 1776340250.358101,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/validation/base.py": {
+    "mtime": 1778065035.8927717,
+    "hash": "3c9e384b2a81d1e60425145f6f416482"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/validation/batfish_validator.py": {
+    "mtime": 1778065573.9845757,
+    "hash": "837ab914125cfb1451abb654b49d9326"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/validation/containerlab_validator.py": {
+    "mtime": 1778065573.9856865,
+    "hash": "550271b2f026c5f2433efce52455e10e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/validation/gns3_validator.py": {
+    "mtime": 1778065573.9867876,
+    "hash": "d2cb4d94ccc93e5b682f180ed32c1f46"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/exporter/gns3_exporter.py": {
+    "mtime": 1778065573.9907155,
+    "hash": "f505b4d69fa992466ee2519dd8701501"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/schemas/__init__.py": {
+    "mtime": 1778064948.1457624,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/schemas/intent.py": {
+    "mtime": 1778065002.8834393,
+    "hash": "e37c982c4f06c5046a06be0bfd306892"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/__init__.py": {
+    "mtime": 1778065226.9487078,
+    "hash": "c2995bb54440e28d8ca607c8be82a696"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/logger.py": {
+    "mtime": 1778065205.8584876,
+    "hash": "8334e35ea025393b0ae16823daa28177"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/system.py": {
+    "mtime": 1778065205.8584876,
+    "hash": "8f79cfeda17e7b34ff755844fb27cf39"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/text.py": {
+    "mtime": 1778065205.8584876,
+    "hash": "22a1b77485517df027f9976c64b441df"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/metrics.py": {
+    "mtime": 1778065205.8584876,
+    "hash": "f9b1d560381f1111dbbac10d6a077a3e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/token_counter.py": {
+    "mtime": 1778065205.8584876,
+    "hash": "3bff8cc290236df047b4cf8cdb5ae445"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/src/utils/helpers.py": {
+    "mtime": 1778065223.496672,
+    "hash": "1f2bcb765ba7917515d7de6d6f9a035e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/ui/backend/main.py": {
+    "mtime": 1778065437.3001642,
+    "hash": "f47ec0503bcc060deaa409963a2f183d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/tests/test_cache_clear.py": {
+    "mtime": 1778065574.0065567,
+    "hash": "a3e418e536f5a0ac1066aabd20c3da96"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/tests/test_evaluation.py": {
+    "mtime": 1778065574.0077245,
+    "hash": "5be20761c254bd6b04a64d406a269dba"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/tests/test_gns3_exporter.py": {
+    "mtime": 1778065574.0090227,
+    "hash": "1ef9fe77c5c764296644ce7596849203"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/tests/test_hallucination.py": {
+    "mtime": 1778065574.010081,
+    "hash": "d52a5c856c589f9b11daf7312d884ceb"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/AGENTS.md": {
+    "mtime": 1776340249.6928642,
+    "hash": "e594bf8da884b1c63b588e429b241c7d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/README.md": {
+    "mtime": 1776659690.8782933,
+    "hash": "4e446c444712c5505606236c9c6f24f5"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/devenv.yaml": {
+    "mtime": 1776344938.9346745,
+    "hash": "d2e37630d8b4856e561f5fa4db5ccfb9"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/GEMINI.md": {
+    "mtime": 1777945136.136276,
+    "hash": "8ee39dcfe68a23b3797b02648930d699"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/Full_Phase_1_Report.md": {
+    "mtime": 1776340249.6928642,
+    "hash": "a85feb9c462c0b0068dec2d80fcae7a0"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/Phase_1_Report_Content.md": {
+    "mtime": 1776340249.6938205,
+    "hash": "ce4d4b91a60763056ec9e8889932547b"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/Phase_1_Report_Subheadings.md": {
+    "mtime": 1776340249.6938205,
+    "hash": "889f8b5f5da0d5dbe924f05ace2e9bf3"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/ARCHITECTURE.md": {
+    "mtime": 1776340250.3544855,
+    "hash": "383d0317e5be32b0504e3e6a8927ce31"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/CONFIGURATION.md": {
+    "mtime": 1776340250.355394,
+    "hash": "6beb2dece1da310b1e82cc58a538cce5"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/INSTALLATION.md": {
+    "mtime": 1776340250.355394,
+    "hash": "71792ea6efb557ac6573c7f629755688"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/PAPER.md": {
+    "mtime": 1776689366.342769,
+    "hash": "148c0111c2182f3c15bab155d7085108"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/QUICKSTART.md": {
+    "mtime": 1776340250.355394,
+    "hash": "ab71801725518ce59bb0434d1c853db9"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/TROUBLESHOOTING.md": {
+    "mtime": 1776340250.355394,
+    "hash": "d627b46d9cdac58178ebff3b99931028"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/USAGE.md": {
+    "mtime": 1776340250.355394,
+    "hash": "01998bf3b3e25935ae0e672fc9065811"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/docs/research/RESEARCH_PLAN.md": {
+    "mtime": 1776340250.355394,
+    "hash": "831af6b35dba18063bd12968f62e486e"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/ui/frontend/index.html": {
+    "mtime": 1776340250.3585606,
+    "hash": "07ed1cefe31e5086a4432c424f35cdac"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063020_Configure_OSPF_area_0_between.md": {
+    "mtime": 1776474020.7991996,
+    "hash": "075d04a709be8c519776cc38da99895c"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063300_Configure_OSPF_area_0_between.md": {
+    "mtime": 1776474180.7018232,
+    "hash": "0eb9df5334e437d8dc5c52d392a415b5"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063518_Configure_OSPF_area_0_between.md": {
+    "mtime": 1776474318.4040415,
+    "hash": "43b6bf4902da587cdef07fa126dc0935"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063846_Configure_OSPF_area_0_between.md": {
+    "mtime": 1776474526.1010013,
+    "hash": "da10ad1fbdafe75729cfb0d46071f2bf"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_064322_Configure_OSPF_area_0_between.md": {
+    "mtime": 1776474802.1834862,
+    "hash": "cd9289b4b7bcb5b635fdbba5a92b0eca"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_064705_on_cisco_R1_create_interface_L.md": {
+    "mtime": 1776475025.1134217,
+    "hash": "c52dde51ed61978fbf895b3ff15b0657"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_070225_On_Cisco_R1_configure_interfa.md": {
+    "mtime": 1776475945.8734512,
+    "hash": "ba63f2e33c85297a6f8a8051188324db"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_070655_On_Cisco_R1_configure_interfa.md": {
+    "mtime": 1776476215.2688406,
+    "hash": "511081f549416669e9a98651435a3324"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_071200_On_Cisco_R1_configure_interfa.md": {
+    "mtime": 1776476520.707886,
+    "hash": "fa3e4b94cbca483a2294eaa7294ba42f"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_072137_On_Cisco_R1_configure_interfa.md": {
+    "mtime": 1776477097.5061047,
+    "hash": "7bf94cec46d2aca8101198ce34865b5d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/figure_chunking_sensitivity.pdf": {
+    "mtime": 1776340250.3554857,
+    "hash": "512f9eebc15fc77b4042e31da2362776"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/main.pdf": {
+    "mtime": 1776340249.6994786,
+    "hash": "3ae84d8e9e313bbf7bb9dffd6ec87f41"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/test_fixed.pdf": {
+    "mtime": 1776340249.6994786,
+    "hash": "8e8262a55b04f04e0668a2874288af98"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/test_output.pdf": {
+    "mtime": 1776340249.7014787,
+    "hash": "08712d407168a6268d514c5bb8cfda2a"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/test_template.pdf": {
+    "mtime": 1776340249.7024786,
+    "hash": "34929b7fc75f82460d4caa87cac5d1f7"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/figure_chunking_sensitivity.png": {
+    "mtime": 1776340250.3554857,
+    "hash": "a5afe414bba42cbb512bbd8d5033227d"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/images/architecture_diagram.png": {
+    "mtime": 1776340249.6938205,
+    "hash": "c2788cee3e886417ddde43f8bdcc7640"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/images/figure_chunking_sensitivity.png": {
+    "mtime": 1776340249.6944785,
+    "hash": "f26af44c915cbdc09965d468506de2ad"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/images/logo.png": {
+    "mtime": 1776340249.6944785,
+    "hash": "57dd31961665c9ac63a2937665201bc6"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/images/logo_dept.png": {
+    "mtime": 1776340249.6944785,
+    "hash": "2cb02c5ee58194433010bab914d825aa"
+  },
+  "/home/aryan/Projects/RAG-NetTwin/Paper/images/performance_comparison.png": {
+    "mtime": 1776340249.6954787,
+    "hash": "09385b8d4cb0930506c9a7afd14968d6"
+  }
+}

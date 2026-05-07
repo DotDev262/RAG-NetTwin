@@ -6,12 +6,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-import json
-from sentence_transformers import SentenceTransformer
-import chromadb
-from chromadb.config import Settings
-from config import settings
-import os
+import json  # noqa: E402
+from sentence_transformers import SentenceTransformer  # noqa: E402
+import chromadb  # noqa: E402
+from chromadb.config import Settings  # noqa: E402
+from src.config import settings  # noqa: E402
+import os  # noqa: E402
 
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["HF_HUB_DISABLE_IMPLICIT_WEB"] = "1"
@@ -35,7 +35,7 @@ client = chromadb.PersistentClient(
 try:
     client.delete_collection(COLLECTION_NAME)
     print("Deleted old collection", flush=True)
-except:
+except Exception:
     pass
 
 collection = client.create_collection(

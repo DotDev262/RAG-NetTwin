@@ -12,7 +12,7 @@ Key Features:
 - Sentence transformer embeddings for semantic search
 
 Typical Usage:
-    from rag.vector_store import VectorStore
+    from src.rag.vector_store import VectorStore
 
     store = VectorStore()
 
@@ -34,15 +34,14 @@ from chromadb.utils import embedding_functions
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
-import os
 import hashlib
-import re
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
-from config import settings
-from utils import setup_logger
+from src.config import settings
+from src.utils import setup_logger
 
 logger = setup_logger("VectorStore")
+
 
 class VectorStore:
     """
@@ -72,7 +71,7 @@ class VectorStore:
         and defaults to a sentence-transformer model for semantic similarity.
     """
 
-    def __init__(self, persist_dir: str = None):
+    def __init__(self, persist_dir: Optional[str] = None):
         """
         Initialize the VectorStore.
 
@@ -121,45 +120,56 @@ class VectorStore:
             embedding_function=sentence_transformer_ef,
         )
 
+        # Get or create collection for Gold Standard Configs (Recommendation 3 - Phase 2)
+        self.gold_configs_collection = self.client.get_or_create_collection(
+            name="gold_configs",
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=sentence_transformer_ef,
+        )
+
         # Hybrid Search: BM25 components
-        self.bm25 = None
-        self.corpus_map = {} # chunk_id -> chunk_data
+        self.bm25: Optional[BM25Okapi] = None
+        self.corpus_map: Dict[str, Dict[str, Any]] = {}  # chunk_id -> chunk_data
         self._initialize_bm25()
 
         # Reranker: Cross-Encoder (Recommendation 1 Elite)
+        self.reranker: Optional[CrossEncoder] = None
         try:
             self.reranker = CrossEncoder(settings.reranker_model_name)
             print(f"Reranker initialized: {settings.reranker_model_name}")
         except Exception as e:
             print(f"Failed to initialize Reranker: {e}")
-            self.reranker = None
 
         print(f"Connected to ChromaDB at {self.persist_dir}")
         print(f"Collection '{settings.collection_name}' ready")
 
-    def _initialize_bm25(self):
+    def _initialize_bm25(self) -> None:
         """
         Builds the BM25 index from current ChromaDB contents.
         """
         try:
             # Fetch ALL chunks for the BM25 index
             all_data = self.collection.get()
-            if not all_data["ids"]:
+            if not all_data or not all_data.get("ids"):
                 return
 
-            tokenized_corpus = []
-            for i in range(len(all_data["ids"])):
-                chunk_id = all_data["ids"][i]
-                text = all_data["documents"][i]
-                metadata = all_data["metadatas"][i]
-                
+            tokenized_corpus: List[List[str]] = []
+            ids: List[str] = all_data["ids"]
+            documents: List[str] = all_data["documents"]
+            metadatas: List[Dict[str, Any]] = all_data["metadatas"]
+
+            for i in range(len(ids)):
+                chunk_id: str = ids[i]
+                text: str = documents[i]
+                metadata: Dict[str, Any] = metadatas[i]
+
                 # Store in map for fast lookup during retrieval
                 self.corpus_map[chunk_id] = {
                     "id": chunk_id,
                     "text": text,
-                    "metadata": metadata
+                    "metadata": metadata,
                 }
-                
+
                 # Tokenize for BM25 (simple whitespace + punctuation split)
                 tokenized_corpus.append(text.lower().split())
 
@@ -168,7 +178,7 @@ class VectorStore:
         except Exception as e:
             print(f"Failed to initialize BM25: {e}")
 
-    def add_chunks(self, chunks: List[Any], batch_size: int = 5000):
+    def add_chunks(self, chunks: List[Any], batch_size: int = 5000) -> None:
         """
         Add chunks to vector database in batches.
 
@@ -205,9 +215,9 @@ class VectorStore:
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
 
-            documents = []
-            metadatas = []
-            ids = []
+            documents: List[str] = []
+            metadatas: List[Dict[str, Any]] = []
+            ids: List[str] = []
 
             # Extract text and metadata from each chunk
             for chunk in batch:
@@ -238,12 +248,12 @@ class VectorStore:
     def retrieve(
         self,
         query: str,
-        vendor: str = None,
-        os_version: str = None,
-        tier: int = None,
+        vendor: Optional[str] = None,
+        os_version: Optional[str] = None,
+        tier: Optional[int] = None,
         n_results: int = 5,
         exact_version: bool = True,
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant chunks for a query.
 
@@ -289,7 +299,7 @@ class VectorStore:
         """
         # Build where clause for filtering
         # ChromaDB supports $and for combining multiple conditions
-        where_conditions = []
+        where_conditions: List[Dict[str, Any]] = []
         if vendor:
             where_conditions.append({"vendor": vendor})
         if os_version:
@@ -299,7 +309,7 @@ class VectorStore:
             where_conditions.append({"tier": tier})
 
         # Construct the where clause based on number of conditions
-        where_clause = None
+        where_clause: Optional[Dict[str, Any]] = None
         if len(where_conditions) == 1:
             # Single condition - use directly
             where_clause = where_conditions[0]
@@ -313,7 +323,7 @@ class VectorStore:
         )
 
         # Format results into list of dicts
-        formatted_results = []
+        formatted_results: List[Dict[str, Any]] = []
         if not results["ids"] or not results["ids"][0]:
             return formatted_results
 
@@ -336,73 +346,153 @@ class VectorStore:
         """
         if not examples:
             return
-        
-        ids = [hashlib.md5(ex["intent"].encode()).hexdigest() for ex in examples]
-        documents = [ex["intent"] for ex in examples]
-        metadatas = [{"structured": ex["structured"]} for ex in examples]
-        
+
+        ids: List[str] = [
+            hashlib.md5(ex["intent"].encode()).hexdigest() for ex in examples
+        ]
+        documents: List[str] = [ex["intent"] for ex in examples]
+        metadatas: List[Dict[str, Any]] = [
+            {"structured": ex["structured"]} for ex in examples
+        ]
+
         self.few_shot_collection.add(ids=ids, documents=documents, metadatas=metadatas)
         print(f"Added {len(examples)} examples to few-shot collection.")
 
-    def retrieve_few_shot(self, query: str, n_results: int = 3) -> List[Dict]:
+    def retrieve_few_shot(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """
         Retrieves the most similar intent-to-json examples.
         """
         results = self.few_shot_collection.query(
             query_texts=[query], n_results=n_results
         )
-        
-        formatted = []
+
+        formatted: List[Dict[str, Any]] = []
         if not results["ids"] or not results["ids"][0]:
             return formatted
-            
+
         for i in range(len(results["ids"][0])):
-            formatted.append({
-                "intent": results["documents"][0][i],
-                "structured": results["metadatas"][0][i]["structured"]
-            })
+            formatted.append(
+                {
+                    "intent": results["documents"][0][i],
+                    "structured": results["metadatas"][0][i]["structured"],
+                }
+            )
         return formatted
 
-    def check_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, threshold: float = 0.01) -> Optional[Dict]:
+    def add_gold_configs(self, examples: List[Dict[str, str]]):
         """
-        Checks the semantic cache for a matching intent.
+        Adds Intent-to-Config examples to the gold standard collection.
+        Examples should have 'intent', 'vendor', and 'config'.
+        """
+        if not examples:
+            return
+
+        ids: List[str] = [
+            hashlib.md5(f"{ex['vendor']}:{ex['intent']}".encode()).hexdigest()
+            for ex in examples
+        ]
+        documents: List[str] = [ex["intent"] for ex in examples]
+        metadatas: List[Dict[str, Any]] = [
+            {"vendor": ex["vendor"], "config": ex["config"]} for ex in examples
+        ]
+
+        self.gold_configs_collection.add(
+            ids=ids, documents=documents, metadatas=metadatas
+        )
+        print(f"Added {len(examples)} examples to gold standard collection.")
+
+    def retrieve_gold_configs(
+        self, query: str, vendor: str, n_results: int = 2
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves the most similar Intent-to-Config examples for a vendor.
+        """
+        results = self.gold_configs_collection.query(
+            query_texts=[query], n_results=n_results, where={"vendor": vendor}
+        )
+
+        formatted: List[Dict[str, Any]] = []
+        if not results["ids"] or not results["ids"][0]:
+            return formatted
+
+        for i in range(len(results["ids"][0])):
+            formatted.append(
+                {
+                    "intent": results["documents"][0][i],
+                    "config": results["metadatas"][0][i]["config"],
+                }
+            )
+        return formatted
+
+    def check_cache(
+        self,
+        intent_text: str,
+        parameters: Dict[str, Any],
+        vendor: str,
+        retrieval_mode: str = "tiered",
+        threshold: float = 0.01,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Checks the semantic cache for a matching intent, specific to retrieval mode.
         Threshold: 0.01 is highly restrictive (near identical).
         """
-        # We include parameters in the query to increase specificity
-        query = f"{intent_text} {json.dumps(parameters)}"
-        
+        # We include parameters and mode in the query to increase specificity
+        query: str = f"Mode: {retrieval_mode} | {intent_text} {json.dumps(parameters)}"
+
         results = self.cache_collection.query(
-            query_texts=[query], 
+            query_texts=[query],
             n_results=1,
-            where={"vendor": vendor}
+            where={"$and": [{"vendor": vendor}, {"retrieval_mode": retrieval_mode}]},
         )
-        
-        if results["ids"] and results["ids"][0] and results["distances"][0][0] <= threshold:
-            return json.loads(results["metadatas"][0][0]["response"])
+
+        if (
+            results["ids"]
+            and results["ids"][0]
+            and results["distances"]
+            and results["distances"][0]
+            and results["distances"][0][0] <= threshold
+        ):
+            metadata = results["metadatas"][0][0]
+            if metadata and "response" in metadata:
+                return json.loads(str(metadata["response"]))
         return None
 
-    def update_cache(self, intent_text: str, parameters: Dict[str, Any], vendor: str, response: Dict[str, Any]):
+    def update_cache(
+        self,
+        intent_text: str,
+        parameters: Dict[str, Any],
+        vendor: str,
+        response: Dict[str, Any],
+        retrieval_mode: str = "tiered",
+        version: str = "1.0.0",
+    ):
         """
         Adds a successfully generated configuration to the semantic cache.
         """
-        query = f"{intent_text} {json.dumps(parameters)}"
-        cache_id = hashlib.md5(f"{vendor}:{query}".encode()).hexdigest()
-        
+        query: str = f"Mode: {retrieval_mode} | {intent_text} {json.dumps(parameters)}"
+        # Include version in the ID to force invalidation on logic changes
+        cache_id: str = hashlib.md5(f"v{version}:{vendor}:{query}".encode()).hexdigest()
+
         self.cache_collection.add(
             ids=[cache_id],
             documents=[query],
-            metadatas=[{
-                "vendor": vendor,
-                "response": json.dumps(response)
-            }]
+            metadatas=[
+                {
+                    "vendor": vendor,
+                    "response": json.dumps(response),
+                    "retrieval_mode": retrieval_mode,
+                    "version": version,
+                }
+            ],
         )
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """
         Purges all entries from the semantic cache collection.
         """
         try:
-            ids = self.cache_collection.get()["ids"]
+            ids_result = self.cache_collection.get()
+            ids: Optional[List[str]] = ids_result.get("ids")
             if ids:
                 self.cache_collection.delete(ids=ids)
                 logger.info(f"Purged {len(ids)} entries from Semantic Cache.")
@@ -412,89 +502,106 @@ class VectorStore:
     def hybrid_retrieve(
         self,
         query: str,
-        vendor: str = None,
-        os_version: str = None,
-        tier: int = None,
+        vendor: Optional[str] = None,
+        os_version: Optional[str] = None,
+        tier: Optional[int] = None,
         n_results: int = 5,
-        k: int = 60, # RRF constant
-    ) -> List[Dict]:
+        k: int = 60,  # RRF constant
+    ) -> List[Dict[str, Any]]:
         """
         Performs Hybrid Search using Reciprocal Rank Fusion (RRF).
         Combines Semantic (Vector) and Keyword (BM25) results.
         """
-        return self._hybrid_retrieve_internal(query, vendor, os_version, tier, n_results, k)
+        return self._hybrid_retrieve_internal(
+            query, vendor, os_version, tier, n_results, k
+        )
 
     def _hybrid_retrieve_internal(
         self,
         query: str,
-        vendor: str = None,
-        os_version: str = None,
-        tier: int = None,
+        vendor: Optional[str] = None,
+        os_version: Optional[str] = None,
+        tier: Optional[int] = None,
         n_results: int = 5,
         k: int = 60,
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """Internal hybrid retrieval logic."""
         # 1. Semantic Search
-        vector_results = self.retrieve(query, vendor, os_version, tier, n_results=n_results*2)
-        
+        vector_results: List[Dict[str, Any]] = self.retrieve(
+            query, vendor, os_version, tier, n_results=n_results * 2
+        )
+
         # 2. Keyword Search (BM25)
         if not self.bm25:
-            return vector_results # Fallback
-            
-        tokenized_query = query.lower().split()
+            return vector_results  # Fallback
+
+        tokenized_query: List[str] = query.lower().split()
         # Get top matching docs from BM25
         bm25_scores = self.bm25.get_scores(tokenized_query)
-        
+
         # Sort BM25 results by score and apply filters manually
-        bm25_ranked = []
-        all_ids = list(self.corpus_map.keys())
+        bm25_ranked: List[str] = []
+        all_ids: List[str] = list(self.corpus_map.keys())
         for idx, score in enumerate(bm25_scores):
             if score > 0:
-                chunk_id = all_ids[idx]
-                chunk = self.corpus_map[chunk_id]
-                
+                chunk_id: str = all_ids[idx]
+                chunk: Dict[str, Any] = self.corpus_map[chunk_id]
+
                 # Apply metadata filters
-                meta = chunk["metadata"]
-                if vendor and meta.get("vendor") != vendor: continue
-                
+                meta: Dict[str, Any] = chunk["metadata"]
+                if vendor and meta.get("vendor") != vendor:
+                    continue
+
                 if os_version:
-                    chunk_version = str(meta.get("os_version", ""))
-                    if os_version not in chunk_version and chunk_version != os_version: continue
-                        
-                if tier and meta.get("tier") != tier: continue
-                
+                    chunk_version: str = str(meta.get("os_version", ""))
+                    if os_version not in chunk_version and chunk_version != os_version:
+                        continue
+
+                if tier and meta.get("tier") != tier:
+                    continue
+
                 bm25_ranked.append(chunk_id)
-        
-        bm25_ranked = bm25_ranked[:n_results*2]
+
+        bm25_ranked = bm25_ranked[: n_results * 2]
 
         # 3. Reciprocal Rank Fusion (RRF)
-        rrf_scores = {} # id -> rrf_score
-        
+        rrf_scores: Dict[str, float] = {}  # id -> rrf_score
+
         # Add vector ranks
         for rank, res in enumerate(vector_results):
-            chunk_id = res["id"]
-            rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0) + (1.0 / (k + rank + 1))
-            
+            chunk_id_res: str = str(res["id"])
+            rrf_scores[chunk_id_res] = rrf_scores.get(chunk_id_res, 0.0) + (
+                1.0 / (k + rank + 1)
+            )
+
         # Add BM25 ranks
-        for rank, chunk_id in enumerate(bm25_ranked):
-            rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0) + (1.0 / (k + rank + 1))
-            
+        for rank, chunk_id_bm25 in enumerate(bm25_ranked):
+            rrf_scores[chunk_id_bm25] = rrf_scores.get(chunk_id_bm25, 0.0) + (
+                1.0 / (k + rank + 1)
+            )
+
         # 4. Final Ranking
-        sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
-        
-        final_results = []
-        for chunk_id in sorted_ids[:n_results]:
-            chunk = self.corpus_map[chunk_id]
-            final_results.append({
-                "id": chunk["id"],
-                "text": chunk["text"],
-                "metadata": chunk["metadata"],
-                "rrf_score": rrf_scores[chunk_id]
-            })
-            
+        sorted_ids: List[str] = sorted(
+            rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True
+        )
+
+        final_results: List[Dict[str, Any]] = []
+        for chunk_id_final in sorted_ids[:n_results]:
+            chunk_final: Dict[str, Any] = self.corpus_map[chunk_id_final]
+            final_results.append(
+                {
+                    "id": chunk_final["id"],
+                    "text": chunk_final["text"],
+                    "metadata": chunk_final["metadata"],
+                    "rrf_score": rrf_scores[chunk_id_final],
+                }
+            )
+
         return final_results
 
-    def rerank(self, query: str, chunks: List[Dict], n_results: int = 1) -> List[Dict]:
+    def rerank(
+        self, query: str, chunks: List[Dict[str, Any]], n_results: int = 1
+    ) -> List[Dict[str, Any]]:
         """
         Uses the local Cross-Encoder to re-score and rank chunks.
         """
@@ -502,47 +609,72 @@ class VectorStore:
             return chunks[:n_results]
 
         # Prepare pairs for the Cross-Encoder: (Query, Document)
-        pairs = [[query, chunk["text"]] for chunk in chunks]
-        
+        pairs: List[List[str]] = [[query, str(chunk["text"])] for chunk in chunks]
+
         # Get scores (higher is better)
         scores = self.reranker.predict(pairs)
-        
+
         # Attach scores to chunks and sort
         for i, score in enumerate(scores):
             chunks[i]["rerank_score"] = float(score)
-            
-        ranked = sorted(chunks, key=lambda x: x["rerank_score"], reverse=True)
+
+        ranked: List[Dict[str, Any]] = sorted(
+            chunks, key=lambda x: x.get("rerank_score", 0.0), reverse=True
+        )
         return ranked[:n_results]
 
-    def retrieve_with_parents(self, results: List[Dict]) -> List[Dict]:
+    def reorder_lost_in_the_middle(
+        self, chunks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Reorders chunks to put most relevant information at the beginning and end.
+        Mitigates LLM 'Lost in the Middle' bias.
+        """
+        if len(chunks) <= 2:
+            return chunks
+
+        res: List[Optional[Dict[str, Any]]] = [None] * len(chunks)
+        for i, chunk in enumerate(chunks):
+            if i % 2 == 0:
+                res[i // 2] = chunk
+            else:
+                res[-(i // 2 + 1)] = chunk
+        return [c for c in res if c is not None]
+
+    def retrieve_with_parents(
+        self, results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Enhances results by fetching parent documents for any Tier 1 chunks.
         (Recommendation Elite: Knowledge Graph Readiness)
         """
-        enhanced_results = list(results)
-        parent_ids_to_fetch = []
-        
+        enhanced_results: List[Dict[str, Any]] = list(results)
+        parent_ids_to_fetch: List[str] = []
+
         # 1. Identify parents needed
         for res in results:
-            parent_id = res["metadata"].get("parent_id")
+            metadata: Dict[str, Any] = res.get("metadata", {})
+            parent_id: Optional[str] = metadata.get("parent_id")
             if parent_id and parent_id != "":
                 # Check if parent is already in the results
                 if not any(r["id"] == parent_id for r in enhanced_results):
                     parent_ids_to_fetch.append(parent_id)
-        
+
         # 2. Fetch parents from the corpus map (fast lookup)
         if parent_ids_to_fetch and self.corpus_map:
-            logger.info(f"Fetching {len(parent_ids_to_fetch)} parent documents for grounding path...")
+            logger.info(
+                f"Fetching {len(parent_ids_to_fetch)} parent documents for grounding path..."
+            )
             for pid in set(parent_ids_to_fetch):
                 if pid in self.corpus_map:
-                    parent_chunk = self.corpus_map[pid]
+                    parent_chunk: Dict[str, Any] = self.corpus_map[pid]
                     # Tag as parent for LLM transparency
                     parent_chunk["metadata"]["is_parent_context"] = True
                     enhanced_results.append(parent_chunk)
-                    
+
         return enhanced_results
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Get database statistics.
 
@@ -559,7 +691,7 @@ class VectorStore:
             >>> stats = store.get_stats()
             >>> print(f"Total chunks: {stats['total_chunks']}")
         """
-        count = self.collection.count()
+        count: int = self.collection.count()
         return {"total_chunks": count, "collection_name": self.collection.name}
 
 

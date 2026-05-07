@@ -4,3 +4,14 @@ repos:
     hooks:
       - id: gitleaks
         args: ["--config", "gitleaks.toml"]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: ["pydantic", "types-requests"]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [ --fix ]
+      - id: ruff-format

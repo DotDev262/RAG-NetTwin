@@ -67,7 +67,7 @@ def download_pdf(doc_name: str, doc_info: dict, output_dir: str = "data/raw_docs
         response = requests.get(url, headers=headers, stream=True, timeout=180)
 
         if response.status_code == 404:
-            print(f"[ERROR] 404 Not Found - URL may have changed")
+            print("[ERROR] 404 Not Found - URL may have changed")
             return False
 
         response.raise_for_status()

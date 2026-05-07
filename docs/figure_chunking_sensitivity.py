@@ -8,7 +8,6 @@ Requires: pip install matplotlib numpy
 """
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 # Data from Table III-a
 strategies = [
@@ -63,7 +62,7 @@ ax.set_ylim(0, 4.5)
 ax.set_xlim(-0.5, len(strategies) - 0.5)
 
 # Legend
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch  # noqa: E402
 
 legend_elements = [
     Patch(

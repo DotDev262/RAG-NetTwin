@@ -12,7 +12,7 @@ Key Features:
 - Config cleaning to avoid false positives from citation comments
 
 Typical Usage:
-    from evaluation.hallucination_detector import HallucinationDetector
+    from src.evaluation.hallucination_detector import HallucinationDetector
 
     detector = HallucinationDetector()
     report = detector.detect(
@@ -25,9 +25,9 @@ Typical Usage:
 """
 
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from utils import setup_logger
+from src.utils import setup_logger
 
 logger = setup_logger("HallucinationDetector")
 
@@ -63,7 +63,7 @@ class HallucinationDetector:
     2. Citation Hallucinations: LLM cites sources that weren't retrieved.
     3. Grounding Hallucinations: LLM generates commands not present in docs.
     """
-    
+
     # ... existing patterns ...
     HALLUCINATION_PATTERNS = [
         r"<YOUR_[A-Z_]+>",
@@ -80,8 +80,12 @@ class HallucinationDetector:
     ]
 
     def detect(
-        self, config: str, citations: List[str], valid_source_ids: List[str], 
-        retrieved_texts: List[str] = None, intent_context: str = ""
+        self,
+        config: str,
+        citations: List[str],
+        valid_source_ids: List[str],
+        retrieved_texts: Optional[List[str]] = None,
+        intent_context: str = "",
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
@@ -103,27 +107,38 @@ class HallucinationDetector:
         for cite in citations:
             # Clean 'ID: ' prefix if LLM included it (Fix)
             clean_cite = cite.replace("ID:", "").replace("id:", "").strip()
-            
+
             # Flexible citation check: ID match or ID is substring of citation (Flaw Fix)
             found_valid = False
             for valid_id in valid_source_ids:
-                if valid_id == clean_cite or valid_id in clean_cite or clean_cite in valid_id:
+                if (
+                    valid_id == clean_cite
+                    or valid_id in clean_cite
+                    or clean_cite in valid_id
+                ):
                     found_valid = True
                     break
-            
+
             if not found_valid and cite:
                 # Relax citation check: LLMs sometimes use descriptive text instead of exact IDs.
                 # Only flag as invalid if the citation looks like a completely fabricated ID format.
-                if re.match(r'^[a-f0-9]{8,16}$', clean_cite) or "dummy" in clean_cite.lower():
+                if (
+                    re.match(r"^[a-f0-9]{8,16}$", clean_cite)
+                    or "dummy" in clean_cite.lower()
+                ):
                     invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
         if retrieved_texts or intent_context:
-            all_docs = (retrieved_texts or [])
-            ungrounded = self._check_command_grounding(config_clean, all_docs, intent_context)
+            all_docs = retrieved_texts or []
+            ungrounded = self._check_command_grounding(
+                config_clean, all_docs, intent_context
+            )
 
         # Determine overall hallucination status
-        is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0
+        is_hallucinated = (
+            len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0
+        )
 
         # Build reason string
         reason = None
@@ -142,61 +157,278 @@ class HallucinationDetector:
             reason=reason,
             suspicious_commands=suspicious,
             invalid_citations=invalid_cites,
-            ungrounded_commands=ungrounded
+            ungrounded_commands=ungrounded,
         )
 
-    def _check_command_grounding(self, config: str, docs: List[str], intent_context: str = "") -> List[str]:
+    def _check_command_grounding(
+        self, config: str, docs: List[str], intent_context: str = ""
+    ) -> List[str]:
         """
-        Robust grounding check: verifies if config tokens are present in documentation 
-        OR derived from the user's intent. Prevents false positives on hostnames, 
+        Robust grounding check: verifies if config tokens are present in documentation
+        OR derived from the user's intent. Prevents false positives on hostnames,
         IPs, and user-defined identifiers.
         """
         ungrounded = []
         full_doc_text = "\n".join(docs).lower()
         intent_norm = (intent_context or "").lower()
-        
+
         # Noisy tokens that are common parts of commands but not informative for grounding
-        NOISY = ["no", "set", "exit", "end", "quit", "commit", "logging", "snmp", "line", "vty", "banner",
-                 "enable", "configure", "terminal", "firewall", "filter", "term", "protocols", "interfaces", "system"]
-        
+        NOISY = [
+            "no",
+            "set",
+            "exit",
+            "end",
+            "quit",
+            "commit",
+            "logging",
+            "snmp",
+            "line",
+            "vty",
+            "banner",
+            "enable",
+            "configure",
+            "terminal",
+            "firewall",
+            "filter",
+            "term",
+            "protocols",
+            "interfaces",
+            "system",
+        ]
+
         # Verbs that are very common and often grounded by system knowledge
-        COMMON_VERBS = ["interface", "router", "ip", "ipv6", "vlan", "access-list", "set", "show", "crypto", "policy", "tunnel", "route", "address", 
-                        "ospf", "bgp", "switchport", "neighbor", "snmp-server", "username", "hostname", "description", "logging", "system",
-                        "remote-as", "area", "permit", "deny", "tcp", "any", "timers", "hello-interval", "network", "mask",
-                        "firewall", "filter", "term", "protocol", "family", "inet", "standard", "extended", "privilege", "snmp", "community",
-                        "mode", "trunk", "allowed", "from", "to", "then", "discard", "accept", "source-address", "destination-address", 
-                        "in", "out", "access-group", "access-class", "peer-as", "group", "external", "local-address",
-                        "isakmp", "ipsec", "esp-aes", "esp-sha-hmac", "transform-set", "peer", "nat", "overload", "inside", "outside",
-                        "vrrp", "virtual-address", "flow", "monitor", "exporter", "record", "collect", "counter", "bytes", "packets",
-                        "prefix-list", "policy-options", "idle-timeout", "snooping", "dhcp", "channel-group", "lacp", "active", "passive",
-                        "priority", "class", "class-map", "policy-map", "match", "ospfv3", "vrrp", "preempt", "plaintext", "flow-export",
-                        "authentication", "null", "key", "shared", "crypto", "isakmp", "level", "destination", "source", "list", "pool",
-                        "dscp", "cs6", "orlonger", "ipv4", "transport", "udp", "ipfix", "version", "sys-uptime", "first", "last",
-                        "restrict", "console", "login", "class", "default", "nonegotiate", "auto", "qos", "voip", "mls", "trust", "cos",
-                        "map", "method", "algorithm", "establish-tunnels", "immediately", "bind-interface", "unit", "prefix", "input", "output", "timestamp",
-                        "authentication-method", "pre-shared-keys", "ike-policy", "ipsec-policy", "proposals", "proposals", "authentication-algorithm", "establish-tunnels", "immediately",
-                        "long", "metric", "family", "inet", "filter", "term", "then", "accept", "discard", "discard-icmp", "icmp",
-                        "security", "ike", "proposal", "gateway", "vpn", "bind-interface", "establish-tunnels", "immediately", "external-interface",
-                        "nonegotiate", "voip", "mls", "cos", "shutdown", "export",
-                        "perfect-forward-secrecy", "keys", "group2", "df-bit", "copy", "precedence", "percent", "bandwidth", "track", "longer",
-                        "encapsulation", "dot1q", "flow-cache", "timeout", "active", "inactive", "ingress", "egress", "console", "zone", "trust", "untrust", "permit"]
-        
+        COMMON_VERBS = [
+            "interface",
+            "router",
+            "ip",
+            "ipv6",
+            "vlan",
+            "access-list",
+            "set",
+            "show",
+            "crypto",
+            "policy",
+            "tunnel",
+            "route",
+            "address",
+            "ospf",
+            "bgp",
+            "switchport",
+            "neighbor",
+            "snmp-server",
+            "username",
+            "hostname",
+            "description",
+            "logging",
+            "system",
+            "remote-as",
+            "area",
+            "permit",
+            "deny",
+            "tcp",
+            "any",
+            "timers",
+            "hello-interval",
+            "network",
+            "mask",
+            "firewall",
+            "filter",
+            "term",
+            "protocol",
+            "family",
+            "inet",
+            "standard",
+            "extended",
+            "privilege",
+            "snmp",
+            "community",
+            "mode",
+            "trunk",
+            "allowed",
+            "from",
+            "to",
+            "then",
+            "discard",
+            "accept",
+            "source-address",
+            "destination-address",
+            "in",
+            "out",
+            "access-group",
+            "access-class",
+            "peer-as",
+            "group",
+            "external",
+            "local-address",
+            "isakmp",
+            "ipsec",
+            "esp-aes",
+            "esp-sha-hmac",
+            "transform-set",
+            "peer",
+            "nat",
+            "overload",
+            "inside",
+            "outside",
+            "vrrp",
+            "virtual-address",
+            "flow",
+            "monitor",
+            "exporter",
+            "record",
+            "collect",
+            "counter",
+            "bytes",
+            "packets",
+            "prefix-list",
+            "policy-options",
+            "idle-timeout",
+            "snooping",
+            "dhcp",
+            "channel-group",
+            "lacp",
+            "active",
+            "passive",
+            "priority",
+            "class",
+            "class-map",
+            "policy-map",
+            "match",
+            "ospfv3",
+            "vrrp",
+            "preempt",
+            "plaintext",
+            "flow-export",
+            "authentication",
+            "null",
+            "key",
+            "shared",
+            "crypto",
+            "isakmp",
+            "level",
+            "destination",
+            "source",
+            "list",
+            "pool",
+            "dscp",
+            "cs6",
+            "orlonger",
+            "ipv4",
+            "transport",
+            "udp",
+            "ipfix",
+            "version",
+            "sys-uptime",
+            "first",
+            "last",
+            "restrict",
+            "console",
+            "login",
+            "class",
+            "default",
+            "nonegotiate",
+            "auto",
+            "qos",
+            "voip",
+            "mls",
+            "trust",
+            "cos",
+            "map",
+            "method",
+            "algorithm",
+            "establish-tunnels",
+            "immediately",
+            "bind-interface",
+            "unit",
+            "prefix",
+            "input",
+            "output",
+            "timestamp",
+            "authentication-method",
+            "pre-shared-keys",
+            "ike-policy",
+            "ipsec-policy",
+            "proposals",
+            "proposals",
+            "authentication-algorithm",
+            "establish-tunnels",
+            "immediately",
+            "long",
+            "metric",
+            "family",
+            "inet",
+            "filter",
+            "term",
+            "then",
+            "accept",
+            "discard",
+            "discard-icmp",
+            "icmp",
+            "security",
+            "ike",
+            "proposal",
+            "gateway",
+            "vpn",
+            "bind-interface",
+            "establish-tunnels",
+            "immediately",
+            "external-interface",
+            "nonegotiate",
+            "voip",
+            "mls",
+            "cos",
+            "shutdown",
+            "export",
+            "perfect-forward-secrecy",
+            "keys",
+            "group2",
+            "df-bit",
+            "copy",
+            "precedence",
+            "percent",
+            "bandwidth",
+            "track",
+            "longer",
+            "encapsulation",
+            "dot1q",
+            "flow-cache",
+            "timeout",
+            "active",
+            "inactive",
+            "ingress",
+            "egress",
+            "console",
+            "zone",
+            "trust",
+            "untrust",
+            "permit",
+        ]
+
         # Verbs that take arbitrary user input (leaf nodes)
-        LEAF_VERBS = ["description", "name", "password", "hostname", "banner", "alias", "remark", "community"]
+        LEAF_VERBS = [
+            "description",
+            "name",
+            "password",
+            "hostname",
+            "banner",
+            "alias",
+            "remark",
+            "community",
+        ]
 
         for line in config.splitlines():
             line = line.strip()
             # Skip comments, labels, and empty lines
             if not line or line.startswith(("!", "#", "comment", "```", "**")):
                 continue
-            
+
             # Skip vendor labels like "Cisco:" or "Juniper:"
             if line.endswith(":") and len(line.split()) == 1:
                 continue
 
             # Clean citations from line if LLM included them inside the string
             line_clean = re.sub(r"\[Ref: [^\]]+\]", "", line).strip()
-            
+
             # Skip if the line is just markdown or common labels after cleaning
             if not line_clean or line_clean.lower() in ["cisco:", "juniper:", "cli:"]:
                 continue
@@ -207,61 +439,138 @@ class HallucinationDetector:
 
             # Skip lines starting with "leaf" verbs that take arbitrary strings
             # Or if the second token is a leaf verb (e.g., "snmp-server community")
-            if parts[0].lower().rstrip(":") in LEAF_VERBS or (len(parts) > 1 and parts[1].lower().rstrip(":") in LEAF_VERBS):
+            if parts[0].lower().rstrip(":") in LEAF_VERBS or (
+                len(parts) > 1 and parts[1].lower().rstrip(":") in LEAF_VERBS
+            ):
                 continue
 
             # Heuristic: Check if the command structural keywords are grounded.
             # We skip tokens that look like parameters (digits, IPs, or in intent).
             structural_tokens = []
-            
+
             for word in parts:
                 w_lower = word.lower().rstrip(":")
-                
+
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters
-                is_keyword = w_lower in ["vlan", "ospf", "bgp", "router", "interface", "set", "protocols", "mode", "type", "group", "area", "route", "address", "switchport", "neighbor",
-                                        "nat", "crypto", "isakmp", "ipsec", "vrrp", "flow", "monitor", "prefix-list", "class", "policy-map", "dhcp", "ospfv3", "authentication", "null", "isakmp",
-                                        "level", "destination", "source", "list", "pool", "dscp", "cs6", "orlonger", "ipv4", "transport", "udp", "ipfix", "version", "restrict", "console", "default", "qos", "trust",
-                                        "security", "ike", "proposal", "gateway", "vpn", "shutdown", "export", "keys", "copy", "percent", "bandwidth", "encapsulation", "timeout"]
-                
+                is_keyword = w_lower in [
+                    "vlan",
+                    "ospf",
+                    "bgp",
+                    "router",
+                    "interface",
+                    "set",
+                    "protocols",
+                    "mode",
+                    "type",
+                    "group",
+                    "area",
+                    "route",
+                    "address",
+                    "switchport",
+                    "neighbor",
+                    "nat",
+                    "crypto",
+                    "isakmp",
+                    "ipsec",
+                    "vrrp",
+                    "flow",
+                    "monitor",
+                    "prefix-list",
+                    "class",
+                    "policy-map",
+                    "dhcp",
+                    "ospfv3",
+                    "authentication",
+                    "null",
+                    "isakmp",
+                    "level",
+                    "destination",
+                    "source",
+                    "list",
+                    "pool",
+                    "dscp",
+                    "cs6",
+                    "orlonger",
+                    "ipv4",
+                    "transport",
+                    "udp",
+                    "ipfix",
+                    "version",
+                    "restrict",
+                    "console",
+                    "default",
+                    "qos",
+                    "trust",
+                    "security",
+                    "ike",
+                    "proposal",
+                    "gateway",
+                    "vpn",
+                    "shutdown",
+                    "export",
+                    "keys",
+                    "copy",
+                    "percent",
+                    "bandwidth",
+                    "encapsulation",
+                    "timeout",
+                ]
+
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
                 # Improved regex for IPv6 (handles double colons)
-                is_numeric_ip = re.match(r'^[0-9.:/a-fA-F]+$', word) is not None and (any(c.isdigit() for c in word) or "::" in word)
+                is_numeric_ip = re.match(r"^[0-9.:/a-fA-F]+$", word) is not None and (
+                    any(c.isdigit() for c in word) or "::" in word
+                )
                 # Handle interfaces with hyphens (e.g., fe-1/2/0.6)
-                is_interface = re.match(r'^[a-zA-Z-]+[0-9/.]+$', word) is not None
-                
+                is_interface = re.match(r"^[a-zA-Z-]+[0-9/.]+$", word) is not None
+
                 # 2. User-defined IDs: e.g., CORE-SW-01, PL_SEVEN, discard_icmp, Record1, ExportTest
                 # Flag as user ID if it has a separator (-_.), is upper case, contains a digit, or is TitleCase
                 has_separator = any(c in word for c in "-_.")
                 is_upper = word.isupper() and len(word) > 3
                 has_digit = any(c.isdigit() for c in word)
-                is_title_case = len(word) > 1 and word[0].isupper() and any(c.islower() for c in word)
-                
-                is_user_id = (has_separator or is_upper or has_digit or is_title_case) and not is_keyword and w_lower not in COMMON_VERBS
-                
+                is_title_case = (
+                    len(word) > 1
+                    and word[0].isupper()
+                    and any(c.islower() for c in word)
+                )
+
+                is_user_id = (
+                    (has_separator or is_upper or has_digit or is_title_case)
+                    and not is_keyword
+                    and w_lower not in COMMON_VERBS
+                )
+
                 # 3. Present in the intent context (hostnames, names)
-                is_in_intent = (len(w_lower) > 2 and w_lower in intent_norm and not is_keyword)
-                
+                is_in_intent = (
+                    len(w_lower) > 2 and w_lower in intent_norm and not is_keyword
+                )
+
                 if is_numeric_ip or is_interface or is_user_id or is_in_intent:
                     continue
-                
+
                 # Skip common noisy tokens
                 if w_lower in NOISY:
                     continue
-                    
+
                 structural_tokens.append(w_lower)
-            
+
             if not structural_tokens:
                 continue
 
             # Check if any structural token is completely missing from documentation
             all_tokens_grounded = True
             for token in structural_tokens:
-                if token not in full_doc_text and len(token) > 3 and token not in COMMON_VERBS:
+                if (
+                    token not in full_doc_text
+                    and len(token) > 3
+                    and token not in COMMON_VERBS
+                ):
                     all_tokens_grounded = False
                     # logger.debug(f"Ungrounded token: {token}")
                     break
-            
+
             if not all_tokens_grounded:
                 ungrounded.append(line_clean)
                 logger.info(f"Ungrounded command (token missing): {line_clean}")
@@ -276,7 +585,9 @@ class HallucinationDetector:
                     prefix = f"{primary} {secondary}"
                     # Flag if both the combined prefix and the secondary token are missing
                     if prefix not in full_doc_text and secondary not in full_doc_text:
-                        logger.info(f"Ungrounded command (sequence missing): {line_clean} | Prefix: {prefix}")
+                        logger.info(
+                            f"Ungrounded command (sequence missing): {line_clean} | Prefix: {prefix}"
+                        )
                         ungrounded.append(line_clean)
-        
+
         return ungrounded

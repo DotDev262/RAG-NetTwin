@@ -12,7 +12,7 @@ Key Features:
 - Priority-based resolution (live > local > defaults)
 
 Typical Usage:
-    from parser.inventory_resolver import InventoryResolver
+    from src.parser.inventory_resolver import InventoryResolver
 
     resolver = InventoryResolver()
     metadata = resolver.resolve("Router-A")
@@ -23,7 +23,6 @@ import os
 import json
 from typing import Dict, Any, Optional
 from pathlib import Path
-from config import settings
 
 
 class InventoryResolver:
@@ -64,8 +63,10 @@ class InventoryResolver:
             inventory_path: Optional path to inventory JSON file.
                 Defaults to INVENTORY_PATH env var or "data/inventory.json".
         """
-        self.inventory_path = inventory_path or os.getenv(
-            "INVENTORY_PATH", "data/inventory.json"
+        self.inventory_path: str = (
+            inventory_path
+            or os.getenv("INVENTORY_PATH", "data/inventory.json")
+            or "data/inventory.json"
         )
         self.inventory = self._load_inventory()
 
@@ -91,7 +92,7 @@ class InventoryResolver:
                 print(f"Warning: Failed to load inventory from {path}: {e}")
         return {}
 
-    def resolve(self, hostname: str) -> Dict[str, str]:
+    def resolve(self, hostname: str) -> Dict[str, Any]:
         """
         Main entry point to resolve device facts.
 

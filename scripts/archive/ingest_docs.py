@@ -7,9 +7,8 @@ import sys
 
 sys.path.insert(0, "src")
 
-from rag.vector_store import VectorStore
+from src.rag.vector_store import VectorStore
 from pathlib import Path
-import re
 import uuid
 
 
@@ -107,9 +106,9 @@ def ingest_documents():
 
     # Final stats
     final_stats = store.get_stats()
-    print(f"\n🎉 Ingestion complete!")
+    print("\n🎉 Ingestion complete!")
     print(f"📊 Total chunks in database: {final_stats['total_chunks']}")
-    print(f"\n💡 You can now run: uv run python main.py")
+    print("\n💡 You can now run: uv run python main.py")
 
 
 if __name__ == "__main__":

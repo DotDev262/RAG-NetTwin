@@ -1,15 +1,14 @@
 import os
-import yaml
+import yaml  # type: ignore
 import subprocess
 import time
-from pathlib import Path
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
-from validation.base import NetworkValidator
-from config import settings
-from utils import setup_logger
-from parser.intent_parser import StructuredIntent
+from src.validation.base import NetworkValidator
+from src.config import settings
+from src.utils import setup_logger
+from src.schemas.intent import StructuredIntent
 
 logger = setup_logger("ContainerlabValidator")
 
@@ -18,8 +17,8 @@ class ClabNode(BaseModel):
     kind: str
     image: str
     startup_config: Optional[str] = Field(None, alias="startup-config")
-    
-    model_config = {"populate_by_name": True}
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ClabLink(BaseModel):
@@ -37,16 +36,26 @@ class ContainerlabValidator(NetworkValidator):
     # Map vendor/OS to Containerlab kinds/images
     IMAGE_MAP = {
         "cisco": {
-            "ios-xe": {"kind": "cisco_iosxe", "image": "vrnetlab/vr-cisco-csr1000v:latest"},
-            "ios-xr": {"kind": "cisco_iosxr", "image": "vrnetlab/vr-cisco-xrv9k:latest"},
+            "ios-xe": {
+                "kind": "cisco_iosxe",
+                "image": "vrnetlab/vr-cisco-csr1000v:latest",
+            },
+            "ios-xr": {
+                "kind": "cisco_iosxr",
+                "image": "vrnetlab/vr-cisco-xrv9k:latest",
+            },
         },
         "juniper": {
-            "junos": {"kind": "juniper_vrrp", "image": "vrnetlab/vr-juniper-vrrp:latest"},
-            "crpd": {"kind": "linux", "image": "crpd:latest"}, # cRPD is often preferred for light tests
+            "junos": {
+                "kind": "juniper_vrrp",
+                "image": "vrnetlab/vr-juniper-vrrp:latest",
+            },
+            "crpd": {
+                "kind": "linux",
+                "image": "crpd:latest",
+            },  # cRPD is often preferred for light tests
         },
-        "arista": {
-            "eos": {"kind": "arista_ceos", "image": "ceos:latest"}
-        }
+        "arista": {"eos": {"kind": "arista_ceos", "image": "ceos:latest"}},
     }
 
     def __init__(self):
@@ -55,11 +64,13 @@ class ContainerlabValidator(NetworkValidator):
         self.lab_dir.mkdir(parents=True, exist_ok=True)
         self.clab_executable = os.getenv("CLAB_EXECUTABLE", "containerlab")
 
-    def validate(self, configs: Dict[str, str], intent: Optional[StructuredIntent] = None) -> Dict[str, Any]:
+    def validate(
+        self, configs: Dict[str, str], intent: Optional[StructuredIntent] = None
+    ) -> Dict[str, Any]:
         """
         Deploys configurations to a containerized lab and verifies protocols.
         """
-        if os.name == 'nt' and not settings.is_wsl_detected:
+        if os.name == "nt" and not settings.is_wsl_detected:
             return {
                 "status": "SKIPPED",
                 "tier": 2,
@@ -73,7 +84,7 @@ class ContainerlabValidator(NetworkValidator):
         try:
             # 1. Generate Topology Pydantic Model
             topo_model = self._generate_topology(configs, intent)
-            
+
             # Save configs for mounting
             for hostname, cfg_text in configs.items():
                 with open(config_mount_dir / f"{hostname}.cfg", "w") as f:
@@ -85,7 +96,13 @@ class ContainerlabValidator(NetworkValidator):
 
             # 3. Deploy Lab
             logger.info(f"Deploying Tier 2 Lab: {topo_path}")
-            deploy_cmd = [self.clab_executable, "deploy", "-t", str(topo_path), "--reconfigure"]
+            deploy_cmd = [
+                self.clab_executable,
+                "deploy",
+                "-t",
+                str(topo_path),
+                "--reconfigure",
+            ]
             subprocess.run(deploy_cmd, check=True, capture_output=True)
 
             # 4. Wait for convergence
@@ -94,69 +111,84 @@ class ContainerlabValidator(NetworkValidator):
 
             # 5. Verify Protocols
             results = self._verify_protocols(intent)
-            
-            status = "PASS" if all(r['success'] for r in results) else "FAIL"
+
+            status = "PASS" if all(r["success"] for r in results) else "FAIL"
 
             return {
                 "status": status,
                 "tier": 2,
                 "protocol_results": results,
-                "summary": f"Tier 2 convergence: {status}"
+                "summary": f"Tier 2 convergence: {status}",
             }
 
         except Exception as e:
             logger.error(f"Tier 2 validation failed: {e}")
             return {"status": "ERROR", "tier": 2, "error": str(e)}
 
-    def _generate_topology(self, configs: Dict[str, str], intent: Optional[StructuredIntent]) -> ClabTopology:
+    def _generate_topology(
+        self, configs: Dict[str, str], intent: Optional[StructuredIntent]
+    ) -> ClabTopology:
         """Creates a dynamic topology based on the intent devices and vendor mapping."""
         topo = ClabTopology()
         nodes = {}
         links = []
-        
+
         device_names = list(configs.keys())
-        
+
         for i, hostname in enumerate(device_names):
             # Try to find matching metadata from intent
             vendor = "cisco"
             os_type = "ios-xe"
-            
+
             if intent:
                 for dev_intent in intent.devices:
                     if dev_intent.name == hostname:
-                        vendor = dev_intent.vendor.lower()
-                        os_type = dev_intent.os_type.lower()
+                        vendor = (
+                            dev_intent.vendor.lower() if dev_intent.vendor else "cisco"
+                        )
+                        os_type = (
+                            dev_intent.os_type.lower()
+                            if dev_intent.os_type
+                            else "ios-xe"
+                        )
                         break
-            
+
             # Lookup image info
-            img_info = self.IMAGE_MAP.get(vendor, {}).get(os_type, self.IMAGE_MAP["cisco"]["ios-xe"])
-            
+            img_info = self.IMAGE_MAP.get(vendor, {}).get(
+                os_type, self.IMAGE_MAP["cisco"]["ios-xe"]
+            )
+
             nodes[hostname] = ClabNode(
                 kind=img_info["kind"],
                 image=img_info["image"],
-                startup_config=f"config/{hostname}.cfg"
+                **{"startup-config": f"config/{hostname}.cfg"},
             )
-            
+
             # Linear linking logic (simplification)
             if i > 0:
-                prev_host = device_names[i-1]
-                links.append(ClabLink(endpoints=[f"{prev_host}:eth2", f"{hostname}:eth1"]))
-        
+                prev_host = device_names[i - 1]
+                links.append(
+                    ClabLink(endpoints=[f"{prev_host}:eth2", f"{hostname}:eth1"])
+                )
+
         topo.topology["nodes"] = nodes
-        topo.topology["links"] = [l.model_dump() for l in links]
+        topo.topology["links"] = [link.model_dump() for link in links]
         return topo
 
-    def _verify_protocols(self, intent: Optional[StructuredIntent]) -> List[Dict[str, Any]]:
+    def _verify_protocols(
+        self, intent: Optional[StructuredIntent]
+    ) -> List[Dict[str, Any]]:
         """Executes verification commands inside containers."""
         if not intent:
             return []
-            
+
         # Placeholder for actual verification (e.g., running commands via docker exec)
         return [
             {
                 "check": f"{intent.protocol} Adjacency",
                 "device": d.name,
                 "success": True,
-                "details": "Simulated: State is operational"
-            } for d in intent.devices
+                "details": "Simulated: State is operational",
+            }
+            for d in intent.devices
         ]

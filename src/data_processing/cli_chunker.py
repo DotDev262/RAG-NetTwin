@@ -19,16 +19,14 @@ Typical Usage:
 """
 
 import re
-import sys
 from pathlib import Path
 from typing import List, Dict
 import hashlib
 
 # Add project root to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_processing.pdf_extractor import extract_text_from_pdf
-from rag.vector_store import VectorStore
+from src.rag.vector_store import VectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Cisco IOS CLI patterns - captures command blocks with context
@@ -188,15 +186,17 @@ def extract_semantic_chunks(text: str, vendor: str, tier: int = 2) -> List[Dict]
     for i, doc_text in enumerate(docs):
         # Generate unique ID based on content
         content_hash = hashlib.md5(doc_text.encode()).hexdigest()[:12]
-        
-        chunks.append({
-            "id": f"{vendor}_tier{tier}_{content_hash}",
-            "text": f"Tier {tier} Context ({vendor}):\n{doc_text}",
-            "vendor": vendor,
-            "os_version": "ios-xe-17.6" if vendor == "cisco" else "junos-21.4",
-            "command_type": "conceptual",
-            "tier": tier
-        })
+
+        chunks.append(
+            {
+                "id": f"{vendor}_tier{tier}_{content_hash}",
+                "text": f"Tier {tier} Context ({vendor}):\n{doc_text}",
+                "vendor": vendor,
+                "os_version": "ios-xe-17.6" if vendor == "cisco" else "junos-21.4",
+                "command_type": "conceptual",
+                "tier": tier,
+            }
+        )
 
     return chunks
 
@@ -226,7 +226,7 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
         # This provides the conceptual anchor for all CLI blocks on the same page
         tier2_parents = extract_semantic_chunks(page["text"], vendor, tier=2)
         all_chunks.extend(tier2_parents)
-        
+
         # We pick the first Tier 2 chunk as the primary parent for this page
         parent_id = tier2_parents[0]["id"] if tier2_parents else None
 
@@ -234,9 +234,9 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
         tier1 = extract_cli_examples(page["text"], vendor)
         if parent_id:
             for c in tier1:
-                c["parent_id"] = parent_id # Critical link for Recommendation Elite
+                c["parent_id"] = parent_id  # Critical link for Recommendation Elite
         all_chunks.extend(tier1)
-        
+
         # Step 3: Tier 3: Broad sections
         tier3 = extract_semantic_chunks(page["text"], vendor, tier=3)
         all_chunks.extend(tier3)
@@ -259,29 +259,35 @@ def reindex_with_cli_focus():
             # Chroma has limits on delete batch size too
             ids = existing["ids"]
             for i in range(0, len(ids), 5000):
-                vector_store.collection.delete(ids=ids[i:i+5000])
+                vector_store.collection.delete(ids=ids[i : i + 5000])
     except Exception as e:
         print(f"  Note: {e}")
 
     all_chunks = []
     raw_dir = Path("data/raw_docs")
     pdf_files = list(raw_dir.glob("*.pdf"))
-    
+
     print(f"📁 Found {len(pdf_files)} PDFs in {raw_dir}")
 
     for pdf in pdf_files:
         filename = pdf.name.lower()
-        
+
         # Vendor detection logic
-        if any(k in filename for k in ["cisco", "catalyst", "ios", "xe", "nexus", "programmability"]):
+        if any(
+            k in filename
+            for k in ["cisco", "catalyst", "ios", "xe", "nexus", "programmability"]
+        ):
             vendor = "cisco"
-        elif any(k in filename for k in ["junos", "juniper", "junoos", "mx", "ex", "srx", "qfx"]):
+        elif any(
+            k in filename
+            for k in ["junos", "juniper", "junoos", "mx", "ex", "srx", "qfx"]
+        ):
             vendor = "juniper"
         else:
             # Skip unknown vendors to maintain research quality
             print(f"  ⏩ Skipping {pdf.name} (unknown vendor)")
             continue
-            
+
         chunks = process_file_with_cli_extraction(str(pdf), vendor)
         all_chunks.extend(chunks)
 
@@ -298,7 +304,7 @@ def reindex_with_cli_focus():
         batch_size = 5000
         for i in range(0, len(unique_chunks), batch_size):
             batch = unique_chunks[i : i + batch_size]
-            
+
             texts = [c["text"] for c in batch]
             metadatas = [
                 {
@@ -315,7 +321,7 @@ def reindex_with_cli_focus():
 
             vector_store.collection.add(ids=ids, documents=texts, metadatas=metadatas)
             print(f"Added batch {i//batch_size + 1}: {len(batch)} chunks")
-        
+
         print(f"Successfully added {len(unique_chunks)} total chunks across all tiers.")
 
     # Print statistics

@@ -1,19 +1,21 @@
-from typing import Dict, Any, List, Optional
-import json
+from typing import Dict, Any, List
 import re
 from pydantic import BaseModel
-from utils import setup_logger
+from src.utils import setup_logger
 
 logger = setup_logger("MultiVendorCoordinator")
+
 
 class InteroperabilityConstraint(BaseModel):
     """
     Represents a shared parameter that must match across different vendors.
     """
+
     parameter_name: str
     value: Any
     protocol: str
     importance: str = "CRITICAL"
+
 
 class MultiVendorCoordinator:
     """
@@ -28,10 +30,12 @@ class MultiVendorCoordinator:
             "ospf": ["area", "process_id", "hello_interval", "dead_interval"],
             "bgp": ["local_as", "remote_as", "peer_group", "hold_time"],
             "vlan": ["vlan_id", "vlan_name"],
-            "interface": ["mtu", "speed", "duplex"]
+            "interface": ["mtu", "speed", "duplex"],
         }
 
-    def extract_shared_constraints(self, intent: Any) -> List[InteroperabilityConstraint]:
+    def extract_shared_constraints(
+        self, intent: Any
+    ) -> List[InteroperabilityConstraint]:
         """
         Identifies parameters in the intent that must be consistent across all devices.
         """
@@ -42,18 +46,22 @@ class MultiVendorCoordinator:
         if protocol in self.interop_map:
             for param_key in self.interop_map[protocol]:
                 if param_key in params:
-                    constraints.append(InteroperabilityConstraint(
-                        parameter_name=param_key,
-                        value=params[param_key],
-                        protocol=protocol
-                    ))
-        
+                    constraints.append(
+                        InteroperabilityConstraint(
+                            parameter_name=param_key,
+                            value=params[param_key],
+                            protocol=protocol,
+                        )
+                    )
+
         # Generic parameter extraction for cross-vendor logic
         # e.g., if 'ip' is mentioned, we might need subnet consistency (future enhancement)
-        
+
         return constraints
 
-    def build_coordination_prompt(self, constraints: List[InteroperabilityConstraint]) -> str:
+    def build_coordination_prompt(
+        self, constraints: List[InteroperabilityConstraint]
+    ) -> str:
         """
         Generates a prompt snippet to force the LLM to respect shared constraints.
         """
@@ -67,12 +75,14 @@ class MultiVendorCoordinator:
         prompt += "Failure to match these values will result in a functional validation error.\n"
         return prompt
 
-    def verify_alignment(self, configs: Dict[str, Any], constraints: List[InteroperabilityConstraint]) -> Dict[str, Any]:
+    def verify_alignment(
+        self, configs: Dict[str, Any], constraints: List[InteroperabilityConstraint]
+    ) -> Dict[str, Any]:
         """
         Performs a post-generation check to see if all configs respected the constraints.
         """
-        report = {"is_compatible": True, "discrepancies": []}
-        
+        report: Dict[str, Any] = {"is_compatible": True, "discrepancies": []}
+
         for device_name, data in configs.items():
             config_text = data.get("config", "").lower()
             for c in constraints:
@@ -80,11 +90,13 @@ class MultiVendorCoordinator:
                 # Use word boundaries to avoid false positives (e.g., VLAN 1 vs Gig0/10)
                 if not re.search(rf"\b{re.escape(val_str)}\b", config_text):
                     report["is_compatible"] = False
-                    report["discrepancies"].append({
-                        "device": device_name,
-                        "parameter": c.parameter_name,
-                        "expected": val_str,
-                        "issue": f"Shared parameter '{c.parameter_name}' mismatch."
-                    })
-                    
+                    report["discrepancies"].append(
+                        {
+                            "device": device_name,
+                            "parameter": c.parameter_name,
+                            "expected": val_str,
+                            "issue": f"Shared parameter '{c.parameter_name}' mismatch.",
+                        }
+                    )
+
         return report

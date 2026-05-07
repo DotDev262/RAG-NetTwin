@@ -5,7 +5,6 @@ Run this after completing the spot-check study to generate results for Section 5
 """
 
 import csv
-from collections import defaultdict
 import statistics
 
 
@@ -106,14 +105,14 @@ def main():
     print("RESULTS SUMMARY")
     print("-" * 40)
     print()
-    print(f"Without Audit Trail:")
+    print("Without Audit Trail:")
     print(
         f"  - Mean Time: {results['without_trail']['mean_time']:.1f}s ± {results['without_trail']['std_time']:.1f}"
     )
     print(f"  - Accuracy: {results['without_trail']['accuracy']:.1f}%")
     print(f"  - Confidence: {results['without_trail']['mean_confidence']:.2f}")
     print()
-    print(f"With Audit Trail:")
+    print("With Audit Trail:")
     print(
         f"  - Mean Time: {results['with_trail']['mean_time']:.1f}s ± {results['with_trail']['std_time']:.1f}"
     )

@@ -5,74 +5,22 @@ This module defines system-wide settings using Pydantic V2. It handles
 environment variable loading, validation, and provides derived properties
 for common paths. Settings can be overridden via .env file or environment
 variables.
-
-Key Features:
-- Pydantic V2 BaseSettings for type-safe configuration
-- Environment variable support via python-dotenv
-- Automatic WSL detection for Windows/WSL interoperability
-- Path normalization for cross-platform compatibility
-- Provider-specific API key validation
-
-Typical Usage:
-    from config import settings
-
-    # Access settings
-    print(settings.groq_model)
-    print(settings.chroma_persist_dir)
-
-    # Use derived paths
-    print(settings.data_dir)
-    print(settings.raw_docs_dir)
-
-Note:
-    Run validation at module import to catch config issues early.
-    Missing required keys will print warnings but not crash.
 """
 
 import os
-import platform
 from pathlib import Path
-from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
-from utils import is_wsl, fix_path, validate_provider_config
+from src.utils import is_wsl, fix_path
 
 # Load environment variables into os.environ for external libraries
-# LangChain, Groq, and other libraries read from os.environ
 load_dotenv()
 
 
 class Settings(BaseSettings):
     """
     System-wide settings for RAG-NetTwin using Pydantic V2.
-
-    This class defines all configurable settings for the application.
-    Settings can be provided via:
-    1. Environment variables (highest priority)
-    2. .env file in project root
-    3. Default values (lowest priority)
-
-    Attributes:
-        is_wsl_detected: Whether running in WSL (Windows Subsystem for Linux).
-        llm_provider: LLM provider to use ("groq", "gemini", or "llama_cpp").
-        groq_api_key: API key for Groq LLM service.
-        gemini_api_key: API key for Google Gemini service.
-        chroma_persist_dir: Path to ChromaDB persistence directory.
-        embedding_model_name: HuggingFace model name for embeddings.
-        collection_name: Name of the ChromaDB collection.
-        groq_model: Default Groq model to use.
-        gemini_model: Default Gemini model to use.
-        temperature: LLM temperature (0.0 = deterministic).
-        gns3_host: GNS3 server hostname.
-        gns3_port: GNS3 server port.
-        batfish_host: Batfish service hostname.
-        project_root: Derived path to project root directory.
-
-    Properties:
-        data_dir: Path to data directory (project_root/data).
-        raw_docs_dir: Path to raw documentation directory.
-        processed_chunks_dir: Path to processed chunks directory.
     """
 
     model_config = SettingsConfigDict(
@@ -117,79 +65,45 @@ class Settings(BaseSettings):
 
     @property
     def data_dir(self) -> Path:
-        """
-        Get the data directory path.
-
-        Returns:
-            Path to the data directory (project_root/data).
-        """
         return self.project_root / "data"
 
     @property
     def raw_docs_dir(self) -> Path:
-        """
-        Get the raw documentation directory path.
-
-        Returns:
-            Path to the raw docs directory (project_root/data/raw_docs).
-        """
         return self.data_dir / "raw_docs"
 
     @property
     def processed_chunks_dir(self) -> Path:
-        """
-        Get the processed chunks directory path.
-
-        Returns:
-            Path to the processed chunks directory
-            (project_root/data/processed_chunks).
-        """
         return self.data_dir / "processed_chunks"
 
     @field_validator("chroma_persist_dir")
     @classmethod
     def fix_chroma_path(cls, v: str) -> str:
-        """
-        Fix ChromaDB path for cross-platform compatibility.
-
-        This validator ensures the ChromaDB path is properly formatted
-        for the current platform, handling WSL path conversions if needed.
-
-        Args:
-            v: The path string to validate/fix.
-
-        Returns:
-            Fixed path string suitable for the current platform.
-        """
         return fix_path(v)
 
-    def validate_config(self):
+    @model_validator(mode="after")
+    def validate_llm_provider(self) -> "Settings":
         """
-        Perform manual validation of provider specific keys.
-
-        This method validates that required API keys are present for
-        the configured LLM provider. It checks:
-        - Groq: requires GROQ_API_KEY
-        - Gemini: requires GEMINI_API_KEY
-        - LlamaCpp: requires LLAMA_CPP_MODEL_PATH
-
-        Raises:
-            ValueError: If required keys are missing for the provider.
+        Ensure required keys are present for the selected LLM provider.
         """
-        config_dict = self.model_dump()
-        validate_provider_config(self.llm_provider, config_dict)
+        provider = self.llm_provider.lower()
+        if provider == "groq":
+            if not self.groq_api_key or self.groq_api_key == "your_api_key_here":
+                raise ValueError("GROQ_API_KEY is missing or invalid.")
+        elif provider == "gemini":
+            if not self.gemini_api_key or self.gemini_api_key == "your_api_key_here":
+                raise ValueError("GEMINI_API_KEY is missing or invalid.")
+        elif provider == "llamacpp":
+            if not self.llama_cpp_model_path:
+                raise ValueError("LLAMA_CPP_MODEL_PATH is required for llamacpp.")
+        else:
+            raise ValueError(f"Unsupported LLM provider: '{self.llm_provider}'")
+        return self
 
 
-# Global settings instance - singleton used throughout the application
-settings = Settings()
-
-# Run validation on import to catch config issues early
-# This ensures we fail fast if required configuration is missing
+# Global settings instance
 try:
-    settings.validate_config()
-except ValueError as e:
-    # Print a warning if config is incomplete instead of crashing
-    # This allows the system to run in limited mode
-    print(f"⚠️  Configuration Warning: {e}")
+    settings = Settings()
 except Exception as e:
-    print(f"⚠️  Unexpected error during config validation: {e}")
+    # Print a warning and use construct to avoid crashing non-LLM scripts
+    print(f"❌ Configuration Error: {e}")
+    settings = Settings.model_construct()

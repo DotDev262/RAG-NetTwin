@@ -79,7 +79,7 @@ Enter your network intent (or 'exit' to quit):
 
 ```bash
 # Start backend server
-uv run python ui/backend/main.py
+uv run python ui/backend/app.py
 
 # Server will start on http://localhost:5000
 ```

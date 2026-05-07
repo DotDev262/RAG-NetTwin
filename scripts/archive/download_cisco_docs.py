@@ -8,9 +8,9 @@ import requests
 from pathlib import Path
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urljoin, urlparse
 import json
 from datetime import datetime
+from typing import List, Dict, Any
 
 
 class CiscoDocDownloader:
@@ -47,7 +47,7 @@ class CiscoDocDownloader:
             },
         }
 
-        self.download_log = []
+        self.download_log: List[Dict[str, Any]] = []
 
     def download_html_doc(self, doc_name: str, save_as_text: bool = True):
         """
@@ -289,7 +289,7 @@ def main():
         )
     else:
         print(f"\n[SUCCESS] Downloaded {success_count} document(s)")
-        print(f"\nNext steps:")
+        print("\nNext steps:")
         print("  1. Check data/raw_docs/ directory")
         print("  2. Review downloaded text files")
         print("  3. Run chunking pipeline")

@@ -28,17 +28,18 @@ Note:
     data/processed_chunks/all_chunks.json
 """
 
-import json
 import sys
-import os
-import argparse
 from pathlib import Path
+
+# Ensure project root is in sys.path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
+import json
+import argparse
 from rich.console import Console
 from rich.panel import Panel
-from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.table import Table
-from rich import print as rprint
 
 # Ensure we're in the project root
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()

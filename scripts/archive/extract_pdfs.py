@@ -6,7 +6,7 @@ Processes Cisco and Juniper PDFs into clean text files
 
 import pypdf
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 import re
 from tqdm import tqdm
 
@@ -21,9 +21,9 @@ class PDFExtractor:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.extraction_stats = []
+        self.extraction_stats: List[Dict[str, Any]] = []
 
-    def extract_pdf(self, pdf_path: Path) -> Tuple[str, Dict]:
+    def extract_pdf(self, pdf_path: Path) -> Tuple[str, Dict[str, Any]]:
         """
         Extract text from a single PDF
 
@@ -32,8 +32,8 @@ class PDFExtractor:
         """
         print(f"\nProcessing: {pdf_path.name}")
 
-        text_content = []
-        stats = {
+        text_content: List[str] = []
+        stats: Dict[str, Any] = {
             "file": pdf_path.name,
             "total_pages": 0,
             "extracted_pages": 0,
@@ -175,8 +175,8 @@ class PDFExtractor:
                     f.write(text)
 
                 print(f"  [OK] Saved to: {output_file}")
-                total_chars += stats["total_chars"]
-                total_pages += stats["extracted_pages"]
+                total_chars += int(stats.get("total_chars", 0))
+                total_pages += int(stats.get("extracted_pages", 0))
 
             self.extraction_stats.append(stats)
 
@@ -228,7 +228,7 @@ def main():
 
     if result["success"]:
         print("\n[SUCCESS] Text extraction complete!")
-        print(f"\nNext: Run chunking pipeline to create 500+ chunks")
+        print("\nNext: Run chunking pipeline to create 500+ chunks")
     else:
         print("\n[FAILED] Extraction failed!")
 

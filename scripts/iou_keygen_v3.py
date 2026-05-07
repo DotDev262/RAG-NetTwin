@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
 import os
 import socket
 import hashlib
@@ -15,20 +21,20 @@ for char in hostname:
     ioukey += ord(char)
 
 # Common salt/padding used in Cisco IOL internal license checks
-iouPad1 = b'\x4B\x58\x21\xAD'
-iouPad2 = b'\x4B\x58\x21\xAD'
+iouPad1 = b"\x4b\x58\x21\xad"
+iouPad2 = b"\x4b\x58\x21\xad"
 
 # Create the MD5 hash of the padded data
 # Note the Big-Endian ('!I') packing of the calculated ioukey
-md5input = iouPad1 + iouPad2 + struct.pack('!I', ioukey) + hostname.encode('utf-8')
+md5input = iouPad1 + iouPad2 + struct.pack("!I", ioukey) + hostname.encode("utf-8")
 license_key = hashlib.md5(md5input).hexdigest()[:16]
 
-print(f"*********************************************************************")
-print(f"Classic Cisco IOL License Generator")
+print("*********************************************************************")
+print("Classic Cisco IOL License Generator")
 print(f"Hostname: {hostname}")
 print(f"Hostid:   {hostid:08x}")
 print(f"Key:      {license_key}")
-print(f"*********************************************************************")
+print("*********************************************************************")
 
 with open("iourc", "w") as f:
     f.write("[license]\n")

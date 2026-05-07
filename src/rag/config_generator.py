@@ -13,8 +13,8 @@ Key Features:
 - Fallback chain for robust retrieval
 
 Typical Usage:
-    from parser.intent_parser import IntentParser
-    from rag.config_generator import ConfigGenerator
+    from src.parser.intent_parser import IntentParser
+    from src.rag.config_generator import ConfigGenerator
 
     parser = IntentParser()
     generator = ConfigGenerator()
@@ -22,24 +22,23 @@ Typical Usage:
     config = generator.generate(intent)
 """
 
-import os
-import time
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 import json
 import re
-import hashlib
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from rag.vector_store import VectorStore
-from rag.multi_vendor_coordinator import MultiVendorCoordinator
-from parser.intent_parser import StructuredIntent
-from config import settings
-from llm import LLMProvider
-from utils import clean_cli_prose, setup_logger
+from src.rag.vector_store import VectorStore
+from src.rag.parameter_normalizer import ParameterNormalizer
+from src.rag.query_expander import QueryExpander
+from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
+from src.schemas.intent import StructuredIntent
+from src.llm import LLMProvider
+from src.utils import clean_cli_prose, setup_logger
 
+CONFIG_GENERATOR_VERSION = "2.1.0"  # Incremented for Multi-Query + Normalizer
 logger = setup_logger("ConfigGenerator")
 
 
@@ -66,7 +65,7 @@ class DeviceConfigOutput(BaseModel):
     commands: List[str] = Field(description="List of raw CLI configuration commands")
     citations: List[str] = Field(
         description="List of Source IDs from the DOCUMENTATION block used to ground this config. "
-                    "Use ONLY the strings following 'ID: '. Do NOT use document titles."
+        "Use ONLY the strings following 'ID: '. Do NOT use document titles."
     )
     confidence_score: float = Field(
         description="Confidence score (0.0 to 1.0) of the generated config", ge=0, le=1
@@ -76,7 +75,7 @@ class DeviceConfigOutput(BaseModel):
     )
     verification_commands: List[str] = Field(
         description="CLI commands to verify the configuration works (e.g., show ip ospf neighbor)",
-        default_factory=list
+        default_factory=list,
     )
     explanation: Optional[str] = Field(
         description="Brief summary of the changes", default=None
@@ -108,121 +107,164 @@ class ConfigGenerator:
         does not implement caching directly.
     """
 
-
-    def __init__(self, model_name: str = None):
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        vector_store: Optional[VectorStore] = None,
+        coordinator: Optional[MultiVendorCoordinator] = None,
+    ):
         """
         Initialize the ConfigGenerator.
 
         Args:
-            model_name: Optional model name override. If None, uses the default
-                model from LLMProvider configuration.
+            model_name: Optional model name override.
+            vector_store: Optional pre-instantiated VectorStore.
+            coordinator: Optional pre-instantiated MultiVendorCoordinator.
         """
         self.llm = LLMProvider.get_llm(model=model_name, temperature=0.0)
         self.structured_llm = LLMProvider.get_structured_llm(
             schema=DeviceConfigOutput, model=model_name, temperature=0.0
         )
-        self.vector_store = VectorStore()
-        self.coordinator = MultiVendorCoordinator()
+        self.vector_store = vector_store or VectorStore()
+        self.coordinator = coordinator or MultiVendorCoordinator()
+        self.query_expander = QueryExpander(model_name=model_name)
         self._sanity_lock = threading.Lock()
 
     def generate(
-        self, 
-        structured_intent: StructuredIntent, 
-        retrieval_mode: str = "tiered"
+        self, structured_intent: StructuredIntent, retrieval_mode: str = "tiered"
     ) -> Dict[str, Any]:
         """
         Generates CLI configuration for each device.
         retrieval_mode: 'tiered' (ours), 'flat' (standard top-k), or 'none' (baseline).
         """
-        configs = {}
+        configs: Dict[str, Any] = {}
         # Recommendation 3: Intent Sanity Check
         configs["_sanity_check"] = {"is_grounded": True, "warnings": []}
 
-        is_lite = self._check_lite_intent(structured_intent)
-        if retrieval_mode == "none": is_lite = True # Force baseline for ablation
-        
+        is_lite: bool = self._check_lite_intent(structured_intent)
+        if retrieval_mode == "none":
+            is_lite = True  # Force baseline for ablation
+
         # Recommendation 2 (Multi-Vendor): Extract shared constraints
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
-        coordination_prompt = self.coordinator.build_coordination_prompt(constraints)
+        coordination_prompt: str = self.coordinator.build_coordination_prompt(
+            constraints
+        )
 
         # Build query once for all devices (Optimized: Exclude specific parameter values to avoid query dilution)
         # We keep the protocol and action, and add the parameter KEYS for semantic grounding
         # We only keep parameter values if they look like protocols/keywords (no digits/IPs)
-        semantic_params = []
+        semantic_params: List[str] = []
         for k, v in structured_intent.parameters.items():
             semantic_params.append(k)
             # If value is a string and doesn't look like an IP or raw number, it might be a sub-protocol/mode
-            if isinstance(v, str) and not re.match(r'^[0-9.:/]+$', v) and len(v) > 2:
+            if isinstance(v, str) and not re.match(r"^[0-9.:/]+$", v) and len(v) > 2:
                 semantic_params.append(v)
-        
-        query = (
+
+        base_query: str = (
             f"{structured_intent.protocol} {structured_intent.action} "
             + " ".join(semantic_params)
         )
 
         # 1. Group devices by vendor + version for Consolidated Retrieval
-        device_groups = {}
+        device_groups: Dict[tuple[Optional[str], str], List[Any]] = {}
         for device in structured_intent.devices:
-            group_key = (device.vendor, self._normalize_version(device))
+            group_key: tuple[Optional[str], str] = (
+                device.vendor,
+                self._normalize_version(device),
+            )
             if group_key not in device_groups:
                 device_groups[group_key] = []
             device_groups[group_key].append(device)
 
-        full_context_map = {}
+        # Phase 2: Multi-Query Expansion
+        queries: List[str] = self.query_expander.expand(base_query)
+        logger.info(f"Expanded queries: {queries}")
+
+        full_context_map: Dict[str, Dict[str, Any]] = {}
 
         # 2. Retrieval Phase
         if not is_lite:
             for (vendor, search_version), devices in device_groups.items():
                 # Recommendation 5: Check Semantic Cache first (only in tiered/flat modes)
                 if retrieval_mode != "none":
-                    cached_response = self.vector_store.check_cache(
-                        structured_intent.original_text, 
-                        structured_intent.parameters, 
-                        vendor
+                    # Ensure vendor is string for type safety
+                    vendor_str: str = vendor if vendor else "unknown"
+                    intent_text: str = (
+                        structured_intent.original_text
+                        if structured_intent.original_text
+                        else ""
                     )
-                    
+
+                    cached_response: Optional[Dict[str, Any]] = (
+                        self.vector_store.check_cache(
+                            intent_text,
+                            structured_intent.parameters,
+                            vendor_str,
+                            retrieval_mode=retrieval_mode,
+                        )
+                    )
+
                     if cached_response:
-                        logger.info(f"Semantic Cache Hit for vendor {vendor}!")
+                        logger.info(f"Semantic Cache Hit for vendor {vendor_str}!")
                         for dev in devices:
                             configs[dev.name] = cached_response
                         continue
 
-                results = []
-                
-                if retrieval_mode == "tiered":
-                    # Balanced Hierarchical Hybrid Retrieval + Reranking (Elite Strategy)
-                    # 1. Fetch more candidates (n_results=5) for the Reranker to choose from
-                    syntax_candidates = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, tier=1, n_results=5
-                    )
-                    concept_candidates = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, tier=2, n_results=5
-                    )
-                    if not concept_candidates:
-                        concept_candidates = self.vector_store.hybrid_retrieve(
-                            query=query, vendor=vendor, os_version=search_version, tier=3, n_results=5
-                        )
-                    
-                    # 2. Use local Cross-Encoder to pick the absolute winner for each tier
-                    if syntax_candidates:
-                        results.extend(self.vector_store.rerank(query, syntax_candidates, n_results=1))
-                    if concept_candidates:
-                        results.extend(self.vector_store.rerank(query, concept_candidates, n_results=1))
-                
-                elif retrieval_mode == "flat":
-                    # Flat Hybrid + Reranking
-                    flat_candidates = self.vector_store.hybrid_retrieve(
-                        query=query, vendor=vendor, os_version=search_version, n_results=10
-                    )
-                    results = self.vector_store.rerank(query, flat_candidates, n_results=2)
+                results: List[Dict[str, Any]] = []
 
+                # Accumulate results from multiple queries
+                all_candidates: List[Dict[str, Any]] = []
+                for q in queries:
+                    if retrieval_mode == "tiered":
+                        syntax_candidates = self.vector_store.hybrid_retrieve(
+                            query=q,
+                            vendor=vendor,
+                            os_version=search_version,
+                            tier=1,
+                            n_results=3,
+                        )
+                        concept_candidates = self.vector_store.hybrid_retrieve(
+                            query=q,
+                            vendor=vendor,
+                            os_version=search_version,
+                            tier=2,
+                            n_results=3,
+                        )
+                        all_candidates.extend(syntax_candidates)
+                        all_candidates.extend(concept_candidates)
+
+                    elif retrieval_mode == "flat":
+                        flat_candidates = self.vector_store.hybrid_retrieve(
+                            query=q,
+                            vendor=vendor,
+                            os_version=search_version,
+                            n_results=5,
+                        )
+                        all_candidates.extend(flat_candidates)
+
+                # Deduplicate candidates by ID
+                unique_candidates_map: Dict[str, Dict[str, Any]] = {
+                    str(c["id"]): c for c in all_candidates
+                }
+                unique_candidates: List[Dict[str, Any]] = list(
+                    unique_candidates_map.values()
+                )
+
+                # Use Reranker on the combined candidates
+                if unique_candidates:
+                    results = self.vector_store.rerank(
+                        base_query, unique_candidates, n_results=3
+                    )
                 # Recommendation 3: Semantic Sanity Check
                 # If similarity scores are too low (distance too high), flag as ungrounded
                 if results:
                     # ChromaDB distance > 1.2 usually indicates poor semantic match
-                    avg_distance = sum(res.get('distance', 0) for res in results) / len(results)
+                    avg_distance: float = sum(
+                        res.get("distance", 0.0) for res in results
+                    ) / len(results)
                     if avg_distance > 1.2:
-                        warning = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
+                        warning: str = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
                         with self._sanity_lock:
                             configs["_sanity_check"]["warnings"].append(warning)
                             configs["_sanity_check"]["is_grounded"] = False
@@ -236,13 +278,25 @@ class ConfigGenerator:
                     # Recommendation Elite: Fetch Parent Grounding Context
                     results = self.vector_store.retrieve_with_parents(results)
 
+                # 3. Dynamic Few-Shot Selection (Recommendation 3 - Phase 2)
+                # Fetch gold standard Intent->Config examples for this vendor
+                vendor_str = vendor if vendor else "unknown"
+                gold_examples: List[Dict[str, Any]] = (
+                    self.vector_store.retrieve_gold_configs(
+                        query=base_query, vendor=vendor_str, n_results=2
+                    )
+                )
+
                 for dev in devices:
-                    full_context_map[dev.name] = results
+                    full_context_map[dev.name] = {
+                        "chunks": results,
+                        "examples": gold_examples,
+                    }
         else:
             logger.info(f"Lite-RAG path activated (Retrieval Mode: {retrieval_mode}).")
 
         # 3. Generation Phase: Parallelized
-        futures = []
+        futures: List[Any] = []
         with ThreadPoolExecutor(max_workers=5) as executor:
             for device in structured_intent.devices:
                 # If already served by cache, skip generation
@@ -250,40 +304,56 @@ class ConfigGenerator:
                     continue
 
                 # Recommendation 4: Distill context for token efficiency
-                device_context = ""
-                valid_ids = []
+                device_context: str = ""
+                valid_ids: List[str] = []
+                examples: List[Dict[str, Any]] = []
                 if device.name in full_context_map:
-                    device_context = self.distill_context(full_context_map[device.name])
-                    valid_ids = [c.get("id") for c in full_context_map[device.name]]
-                
+                    data = full_context_map[device.name]
+                    # Data is now a dict with 'chunks' and 'examples'
+                    device_context = self.distill_context(data["chunks"])
+                    valid_ids = [str(c.get("id")) for c in data["chunks"]]
+                    examples = data["examples"]
+
                 futures.append(
                     executor.submit(
-                        self._generate_single_device, 
-                        device, 
-                        structured_intent, 
+                        self._generate_single_device,
+                        device,
+                        structured_intent,
                         device_context,
                         coordination_prompt,
-                        valid_ids
+                        valid_ids,
+                        examples,
                     )
                 )
 
             # Collect results as they complete
             for future in as_completed(futures):
-                res = future.result()
-                device_name = res["device_name"]
-                
+                res: Dict[str, Any] = future.result()
+                device_name: str = str(res["device_name"])
+
                 # Merge into final configs
                 configs[device_name] = res
-                
+
                 # Update Semantic Cache
                 if res.get("config") != "ERROR":
                     # Find the device vendor for the cache
-                    device = next(d for d in structured_intent.devices if d.name == device_name)
+                    device_obj = next(
+                        d for d in structured_intent.devices if d.name == device_name
+                    )
+                    vendor_str = device_obj.vendor if device_obj.vendor else "unknown"
+                    intent_text = (
+                        structured_intent.original_text
+                        if structured_intent.original_text
+                        else ""
+                    )
+
                     self.vector_store.update_cache(
-                        structured_intent.original_text,
+                        intent_text,
                         structured_intent.parameters,
-                        device.vendor,
-                        res
+                        vendor_str,
+                        res,
+                        retrieval_mode=retrieval_mode,
+                        version=CONFIG_GENERATOR_VERSION,
                     )
 
         # Recommendation 2 (Post-Check): Verify all configs aligned on shared parameters
@@ -298,11 +368,24 @@ class ConfigGenerator:
         structured_intent: StructuredIntent,
         device_context: str,
         coordination_prompt: str = "",
-        valid_source_ids: List[str] = None
+        valid_source_ids: Optional[List[str]] = None,
+        examples: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Helper to generate config for a single device (for parallelization).
         """
+        # Format gold standard examples (Recommendation 3 - Phase 2)
+        examples_str = ""
+        if examples:
+            examples_str = "\n### REFERENCE EXAMPLES (GOLD STANDARD) ###\n"
+            for i, ex in enumerate(examples):
+                examples_str += f"Example {i+1}:\nIntent: {ex['intent']}\nConfig:\n{ex['config']}\n\n"
+
+        # Phase 1: Syntactic Formatting Hints
+        formatting_hints = ParameterNormalizer.normalize_ip_parameters(
+            structured_intent.parameters, device.vendor
+        )
+
         # Build prompt with explicit vendor syntax rules
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -322,6 +405,8 @@ class ConfigGenerator:
                     "Device: {device_name} ({vendor} {os_version})\n"
                     "Intent: {intent_text}\n"
                     "Parameters: {intent_params}\n\n"
+                    "{examples_str}"
+                    "{formatting_hints}"
                     "### DOCUMENTATION ###\n"
                     "{device_context}\n\n"
                     "### INSTRUCTIONS ###\n"
@@ -335,27 +420,35 @@ class ConfigGenerator:
 
         try:
             chain = prompt | self.structured_llm
-            
+
             lite_context = (
-                device_context if device_context 
+                device_context
+                if device_context
                 else f"Use your base knowledge of {device.vendor} {device.os_version} syntax."
             )
 
-            response = chain.invoke({
-                "intent_params": json.dumps(structured_intent.parameters),
-                "intent_text": structured_intent.original_text,
-                "device_context": lite_context,
-                "device_name": device.name,
-                "vendor": device.vendor,
-                "os_version": device.os_version or "latest",
-                "coordination_prompt": coordination_prompt
-            })
+            response = chain.invoke(
+                {
+                    "intent_params": json.dumps(structured_intent.parameters),
+                    "intent_text": structured_intent.original_text,
+                    "device_context": lite_context,
+                    "device_name": device.name,
+                    "vendor": device.vendor,
+                    "os_version": device.os_version or "latest",
+                    "coordination_prompt": coordination_prompt,
+                    "examples_str": examples_str,
+                    "formatting_hints": formatting_hints,
+                }
+            )
 
             config_text = "\n".join(response.commands)
             comment_char = "#" if (device.vendor or "").lower() == "juniper" else "!"
-            
+
             if response.citations:
-                config_text = f"{comment_char} Based on [Ref: {', '.join(response.citations)}]\n" + config_text
+                config_text = (
+                    f"{comment_char} Based on [Ref: {', '.join(response.citations)}]\n"
+                    + config_text
+                )
 
             return {
                 "device_name": device.name,
@@ -372,41 +465,48 @@ class ConfigGenerator:
             if "429" in str(e) or "rate_limit_exceeded" in str(e):
                 logger.error(f"Rate limit reached during generation for {device.name}")
                 raise e
-                
+
             logger.error(f"Generation failed for {device.name}: {e}")
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
-    def distill_context(self, raw_chunks: List[Dict]) -> str:
+    def distill_context(self, raw_chunks: List[Dict[str, Any]]) -> str:
         """
         Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.
         Extracts ONLY CLI blocks and key configuration context.
+        Also applies 'Lost-in-the-Middle' reordering (Phase 3).
         """
-        distilled = ""
+        # Phase 3: Reorder chunks to put most relevant at edges
+        raw_chunks = self.vector_store.reorder_lost_in_the_middle(raw_chunks)
+
+        distilled: str = ""
         # Regex to find CLI blocks (lines starting with common network keywords or 'set')
         cli_pattern = re.compile(
-            r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$", 
-            re.IGNORECASE
+            r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$",
+            re.IGNORECASE,
         )
-        
+
         for res in raw_chunks:
-            text = res['text']
+            text: str = str(res.get("text", ""))
             # 1. Extract CLI lines
-            cli_lines = cli_pattern.findall(text)
-            
+            cli_lines: List[str] = cli_pattern.findall(text)
+
             # 2. Extract prose that looks like a definition (contains 'is used to' or 'specifies')
-            prose_context = []
+            prose_context: List[str] = []
             for line in text.splitlines():
-                if any(k in line.lower() for k in ["is used to", "specifies", "defines", "mandatory"]):
+                if any(
+                    k in line.lower()
+                    for k in ["is used to", "specifies", "defines", "mandatory"]
+                ):
                     prose_context.append(line.strip())
-            
+
             if cli_lines or prose_context:
-                distilled += f"ID: {res['id']}\n"
+                distilled += f"ID: {res.get('id')}\n"
                 if cli_lines:
                     distilled += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
                 if prose_context:
                     distilled += "RULES:\n" + "\n".join(prose_context[:3]) + "\n"
                 distilled += "---\n"
-                
+
         return distilled
 
     def _check_lite_intent(self, intent: StructuredIntent) -> bool:
@@ -445,7 +545,7 @@ class ConfigGenerator:
         config: str,
         error_feedback: str,
         vendor: str,
-        os_version: str = None,
+        os_version: Optional[str] = None,
     ) -> str:
         """
         Refines a configuration based on validation error feedback.

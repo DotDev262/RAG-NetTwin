@@ -4,7 +4,6 @@ Documentation Downloader for RAG-NetTwin
 Downloads free vendor documentation PDFs to expand the knowledge base.
 """
 
-import os
 import urllib.request
 from pathlib import Path
 from typing import List, Dict
@@ -302,9 +301,12 @@ def download_file(url: str, dest_path: Path) -> bool:
         return False
 
 
+from typing import Any, Optional  # noqa: E402
+
+
 def download_documentation(
-    download_all: bool = True, specific_keys: List[str] = None
-) -> List[Dict]:
+    download_all: bool = True, specific_keys: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """Download documentation PDFs."""
     downloaded = []
 

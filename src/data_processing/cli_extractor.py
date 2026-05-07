@@ -22,17 +22,15 @@ Typical Usage:
 
 import re
 import os
-import sys
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import List, Dict
 import hashlib
 
 # Add parent to path for imports
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
-from src.data_processing.pdf_extractor import extract_text_from_pdf
-from src.rag.vector_store import VectorStore
+from src.data_processing.pdf_extractor import extract_text_from_pdf  # noqa: E402
+from src.rag.vector_store import VectorStore  # noqa: E402
 
 
 class CLIExtractor:

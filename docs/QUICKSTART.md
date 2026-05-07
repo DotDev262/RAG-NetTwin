@@ -94,7 +94,7 @@ This installs:
 uv run python main.py
 
 # Run Web UI
-uv run python ui/backend/main.py
+uv run python ui/backend/app.py
 
 # Verify validators
 sudo ./scripts/install_validators_ubuntu.sh --verify

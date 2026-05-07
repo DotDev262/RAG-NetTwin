@@ -1,0 +1,1 @@
+{"nodes": [{"id": "chunking_sensitivity", "label": "Chunking Sensitivity Analysis", "file_type": "rationale", "source_file": "docs/figure_chunking_sensitivity.py", "rationale": "Identifies Tiered Hierarchical chunking as the sweet spot for minimizing hallucination rates (1.4%) compared to flat strategies."}], "edges": [], "hyperedges": []}

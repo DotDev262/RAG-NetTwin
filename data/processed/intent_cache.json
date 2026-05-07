@@ -63,7 +63,7 @@
     "action": "enable",
     "devices": [
       {
-        "name": "Device",
+        "name": "Device-1",
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
@@ -81,7 +81,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device",
+        "name": "Device-1",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -99,7 +99,7 @@
     "action": "create",
     "devices": [
       {
-        "name": "Device",
+        "name": "Device-1",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -218,7 +218,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device",
+        "name": "switch",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -278,8 +278,8 @@
       }
     ],
     "parameters": {
-      "interface_mode": "trunk",
-      "vlan_list": "10,20,30"
+      "interface": "Gig1/0/24",
+      "vlan": "10,20,30"
     },
     "requirements": [],
     "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
@@ -472,7 +472,7 @@
   "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
     "intent_id": "04ea347e82cb",
     "protocol": "OSPFv3",
-    "action": "create",
+    "action": "configure",
     "devices": [
       {
         "name": "Device",
@@ -514,20 +514,19 @@
     "action": "create",
     "devices": [
       {
-        "name": "Device1",
+        "name": "1.1.1.1",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
       },
       {
-        "name": "Device2",
+        "name": "2.2.2.2",
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
       }
     ],
     "parameters": {
-      "authentication": "PSK",
       "psk": "SecretKey",
       "vpn_type": "site-to-site"
     },
@@ -547,7 +546,8 @@
       }
     ],
     "parameters": {
-      "policy": "CS6",
+      "policy": "QoS",
+      "priority": "CS6",
       "traffic": "OSPF"
     },
     "requirements": [],
