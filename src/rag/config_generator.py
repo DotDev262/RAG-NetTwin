@@ -396,7 +396,11 @@ class ConfigGenerator:
                     "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax.\n"
                     "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax.\n"
                     "3. NEVER mix syntax between vendors.\n"
-                    "4. RESPECT all shared constraints provided in the task."
+                    "4. RESPECT all shared constraints provided in the task.\n\n"
+                    "### NETWORK PREREQUISITES (Functional Integrity) ###\n"
+                    "- Ensure all modified physical interfaces are explicitly enabled (e.g., 'no shutdown' for Cisco).\n"
+                    "- Ensure dependent configurations (like IP addresses) are defined before they are used by protocols.\n"
+                    "- If configuring OSPF/BGP, ensure a valid router-id is set if not already present.\n"
                     "{coordination_prompt}",
                 ),
                 (

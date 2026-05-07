@@ -128,7 +128,7 @@
       }
     ],
     "parameters": {
-      "action": "discard",
+      "filter_type": "discard",
       "protocol": "ICMP",
       "source_network": "10.0.0.0/8"
     },
@@ -157,7 +157,7 @@
   },
   "2369035cc814160e6cbd3482972c67b5dcd6662b08487fa085f836a5c9a7b619": {
     "intent_id": "2369035cc814",
-    "protocol": "SSH Access",
+    "protocol": "ACL",
     "action": "configure",
     "devices": [
       {
@@ -168,7 +168,8 @@
       }
     ],
     "parameters": {
-      "allowed_subnet": "192.168.1.0/24"
+      "service": "SSH",
+      "source_network": "192.168.1.0/24"
     },
     "requirements": [],
     "original_text": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco"
@@ -278,7 +279,6 @@
       }
     ],
     "parameters": {
-      "interface": "Gig1/0/24",
       "vlan": "10,20,30"
     },
     "requirements": [],
@@ -472,7 +472,7 @@
   "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
     "intent_id": "04ea347e82cb",
     "protocol": "OSPFv3",
-    "action": "configure",
+    "action": "create",
     "devices": [
       {
         "name": "Device",
@@ -546,8 +546,7 @@
       }
     ],
     "parameters": {
-      "policy": "QoS",
-      "priority": "CS6",
+      "policy": "CS6",
       "traffic": "OSPF"
     },
     "requirements": [],

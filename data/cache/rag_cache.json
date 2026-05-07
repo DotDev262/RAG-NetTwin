@@ -210,8 +210,10 @@
       "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Syntax_Guide]\ninterface GigabitEthernet0/1\nip access-group 101 in"
     },
     "status": "FAIL",
-    "functional_status": "SKIPPED",
-    "latency": 5.3039023876190186,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "latency": 7.207169771194458,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -230,7 +232,7 @@
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:18:12.989876",
+    "timestamp": "2026-05-07T14:25:45.718536",
     "mode_tag": "tiered"
   },
   "2.1.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
@@ -1054,8 +1056,10 @@
       "Device": "ERROR"
     },
     "status": "FAIL",
-    "functional_status": "SKIPPED",
-    "latency": 4.312926769256592,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "latency": 1.4815666675567627,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -1072,7 +1076,7 @@
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:21:48.740751",
+    "timestamp": "2026-05-07T14:36:55.471979",
     "mode_tag": "tiered"
   }
 }

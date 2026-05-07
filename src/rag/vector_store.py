@@ -614,9 +614,28 @@ class VectorStore:
         # Get scores (higher is better)
         scores = self.reranker.predict(pairs)
 
-        # Attach scores to chunks and sort
+        # Attach scores to chunks
         for i, score in enumerate(scores):
-            chunks[i]["rerank_score"] = float(score)
+            # Base score from Cross-Encoder
+            final_score = float(score)
+
+            # Phase 1: Syntax-Aware Reranking (Functional Improvement)
+            # Boost chunks that contain explicit configuration syntax
+            text_lower = str(chunks[i]["text"]).lower()
+            syntax_markers = [
+                "(config)#",
+                "(config-if)#",
+                "router ",
+                "interface ",  # Cisco
+                "[edit]",
+                "set ",
+                "edit ",
+                "hierarchy",  # Juniper
+            ]
+            if any(marker in text_lower for marker in syntax_markers):
+                final_score *= 1.15
+
+            chunks[i]["rerank_score"] = final_score
 
         ranked: List[Dict[str, Any]] = sorted(
             chunks, key=lambda x: x.get("rerank_score", 0.0), reverse=True

@@ -1,0 +1,551 @@
+{
+  "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
+    "config": "Cisco:\n```\nenable\nconfigure terminal\ninterface GigabitEthernet1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 1 area 0\nexit\n```\n\nJuniper:\n```\nset protocols ospf area 0.0.0.0\nset interfaces ge-1/0/1 unit 0 family inet address 10.10.10.1/24\nset protocols ospf interface ge-1/0/1.0\ncommit\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:22:47.167553",
+    "mode_tag": "vanilla"
+  },
+  "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
+    "config": "```\nconfigure terminal\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:23:09.120559",
+    "mode_tag": "vanilla"
+  },
+  "Configure static route to 172.16.0.0/16 via 10.0.0.1": {
+    "config": "Cisco:\nip route 172.16.0.0 255.255.0.0 10.0.0.1\n\nJuniper:\nset routing-options static route 172.16.0.0/16 next-hop 10.0.0.1",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:23:31.107793",
+    "mode_tag": "vanilla"
+  },
+  "Enable OSPF process 10 on all active interfaces for Juniper": {
+    "config": "```\nset protocols ospf area 0.0.0.0\nset protocols ospf interface all\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:24:01.406032",
+    "mode_tag": "vanilla"
+  },
+  "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
+    "config": "router ospf 1\nrouter-id 1.1.1.1",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:24:22.686226",
+    "mode_tag": "vanilla"
+  },
+  "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
+    "config": "Cisco:\nip access-list extended BLOCK_WEB\ndeny tcp any any eq 80\nexit\n\nJuniper:\nset firewall family inet filter BLOCK_WEB term 1 from protocol tcp\nset firewall family inet filter BLOCK_WEB term 1 from destination-port 80\nset firewall family inet filter BLOCK_WEB term 1 then discard\nset firewall family inet filter BLOCK_WEB term 2 then accept",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:24:45.669294",
+    "mode_tag": "vanilla"
+  },
+  "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
+    "config": "set firewall filter discard-icmp term 1 from protocol icmp\nset firewall filter discard-icmp term 1 from source-address 10.0.0.0/8\nset firewall filter discard-icmp term 1 then discard\nset firewall filter discard-icmp term 2 then accept",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:25:15.704197",
+    "mode_tag": "vanilla"
+  },
+  "Apply access-list 101 inbound on interface GigabitEthernet0/1": {
+    "config": "Cisco:\nip access-group 101 in\ninterface GigabitEthernet0/1\nip access-group 101 in\n\nJuniper:\nset interfaces ge-0/0/1 unit 0 family inet filter input acl_101\nset firewall filter acl_101 term 1 from protocol tcp\nset firewall filter acl_101 term 1 then accept\nset interfaces ge-0/0/1 unit 0 family inet filter input acl_101",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:26:05.685000",
+    "mode_tag": "vanilla"
+  },
+  "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
+    "config": "```\nip access-list standard SSH_ACCESS\npermit 192.168.1.0 0.0.0.255\nline vty 0 15\naccess-class SSH_ACCESS in\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:26:27.212507",
+    "mode_tag": "vanilla"
+  },
+  "Create a standard ACL 10 to permit only 10.1.1.0/24": {
+    "config": "Cisco:\nip access-list standard 10\npermit 10.1.1.0 0.0.0.255\n\nJuniper:\nset firewall family inet filter 10 term 1 from protocol ip\nset firewall family inet filter 10 term 1 from destination-address 10.1.1.0/24\nset firewall family inet filter 10 term 1 then accept\nset firewall family inet filter 10 term 2 then discard",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:26:50.182197",
+    "mode_tag": "vanilla"
+  },
+  "Set description 'Uplink to Core' on interface Gig0/0": {
+    "config": "Cisco: \ninterface Gig0/0\ndescription Uplink to Core\n\nJuniper: \nset interfaces ge-0/0/0 description \"Uplink to Core\"",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set interfaces ge-0/0/0 description \"Uplink to Core\"']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set interfaces ge-0/0/0 description \"Uplink to Core\""
+      ]
+    },
+    "timestamp": "2026-05-07T14:27:11.690812",
+    "mode_tag": "vanilla"
+  },
+  "Configure VLAN 100 named 'DATABASE' on Cisco switch": {
+    "config": "vlan 100\nname DATABASE",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:27:37.171551",
+    "mode_tag": "vanilla"
+  },
+  "Enable LLDP globally on a Juniper EX switch": {
+    "config": "set protocols lldp interface all\nset protocols lldp enable",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:28:07.099735",
+    "mode_tag": "vanilla"
+  },
+  "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
+    "config": "interface GigabitEthernet1\n mtu 9000\nexit",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:28:28.623342",
+    "mode_tag": "vanilla"
+  },
+  "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
+    "config": "Cisco:\n```\ninterface GigabitEthernet1/0/24\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n```\n\nJuniper:\n```\nset interfaces ge-1/0/24 unit 0 family ethernet-switching port-mode trunk\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10', 'set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20', 'set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10",
+        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20",
+        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30"
+      ]
+    },
+    "timestamp": "2026-05-07T14:28:50.600985",
+    "mode_tag": "vanilla"
+  },
+  "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
+    "config": "Cisco:\n```\ninterface GigabitEthernet0/0\n ip address 10.1.1.1 255.255.255.252\n ip ospf network point-to-point\n router ospf 1\n  network 10.1.1.0 0.0.0.3 area 0\n```\n\nJuniper:\n```\nset interfaces ge-0/0/0 unit 0 family inet address 10.1.1.2/30\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0\nset protocols ospf neighbor 10.1.1.1\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:29:16.726307",
+    "mode_tag": "vanilla"
+  },
+  "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
+    "config": "**Cisco:**\n```\nrouter bgp 65001\n neighbor 10.10.10.2 remote-as 65002\n neighbor 10.10.10.2 description Juniper-AS65002\n neighbor 10.10.10.2 update-source GigabitEthernet0/0\n neighbor 10.10.10.2 ebgp-multihop 2\n```\n\n**Juniper:**\n```\nset protocols bgp group external-peers type external\nset protocols bgp group external-peers peer-as 65001\nset protocols bgp group external-peers neighbor 10.10.10.1 description Cisco-AS65001\nset protocols bgp group external-peers neighbor 10.10.10.1 local-address 10.10.10.2\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set protocols bgp group external-peers type external']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set protocols bgp group external-peers type external"
+      ]
+    },
+    "timestamp": "2026-05-07T14:29:38.340930",
+    "mode_tag": "vanilla"
+  },
+  "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
+    "config": "Cisco:\nip ospf hello-interval 5\n\nJuniper:\nset protocols ospf hello-interval 5",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:29:58.925417",
+    "mode_tag": "vanilla"
+  },
+  "Set system hostname to CORE-RTR-01": {
+    "config": "Cisco: \nhostname CORE-RTR-01\n\nJuniper: \nset system host-name CORE-RTR-01",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:30:21.463632",
+    "mode_tag": "vanilla"
+  },
+  "Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
+    "config": "```\nconfigure terminal\nntp server 10.1.1.100\nexit\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:30:42.922690",
+    "mode_tag": "vanilla"
+  },
+  "Enable SNMP community 'public' with RO access": {
+    "config": "Cisco:\n```\nsnmp-server community public RO\n```\n\nJuniper:\n```\nset snmp community public authorization read-only\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set snmp community public authorization read-only']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set snmp community public authorization read-only"
+      ]
+    },
+    "timestamp": "2026-05-07T14:31:04.387329",
+    "mode_tag": "vanilla"
+  },
+  "Set up local user 'admin' with secret 'Cisco123' and level 15": {
+    "config": "Cisco:\nusername admin privilege 15 secret Cisco123\n\nJuniper:\nset system login user admin class super-user\nset system login user admin authentication plain-text-password\nset system login user admin authentication plain-text-password Cisco123",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:31:26.404377",
+    "mode_tag": "vanilla"
+  },
+  "Configure logging buffer size to 100000": {
+    "config": "Cisco: \nlogging buffer 100000\n\nJuniper: \nset system syslog file messages size 100000",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set system syslog file messages size 100000']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set system syslog file messages size 100000"
+      ]
+    },
+    "timestamp": "2026-05-07T14:31:48.868743",
+    "mode_tag": "vanilla"
+  },
+  "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
+    "config": "Cisco:\ninterface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64\n\nJuniper:\nset interfaces ge-0/0/2 unit 0 family inet6 address 2001:db8:acad::1/64",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:32:10.346839",
+    "mode_tag": "vanilla"
+  },
+  "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE": {
+    "config": "```\nipv6 router ospf 1\nrouter-id 10.10.10.10\narea 0 authentication null\nexit\ninterface GigabitEthernet1\nipv6 ospf 1 area 0\nipv6 ospf priority 10\nno shutdown\nexit\ninterface GigabitEthernet2\nipv6 ospf 1 area 0\nipv6 ospf priority 10\nno shutdown\nexit\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:32:31.885539",
+    "mode_tag": "vanilla"
+  },
+  "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
+    "config": "Cisco:\n```\nconfigure terminal\nip nat inside source list 1 interface Gig0/1 overload\nip access-list standard 1\npermit 192.168.10.0 0.0.0.255\ninterface Gig0/1\nip nat outside\nexit\ninterface Gig0/0\nip nat inside\nexit\n```\n\nJuniper:\n```\nset interfaces ge-0/0/1 unit 0 family inet nat source rule-set rs1 from interface ge-0/0/1\nset interfaces ge-0/0/1 unit 0 family inet nat source rule-set rs1 to interface ge-0/0/1\nset interfaces ge-0/0/1 unit 0 family inet address 0.0.0.0/0\nset security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24\nset security nat source rule-set rs1 rule r1 then source-nat interface\nset interfaces ge-0/0/0 unit 0 family inet\nset security zone security-zones trust interfaces ge-0/0/0\nset security zone security-zones untrust interfaces ge-0/0/1\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24', 'set security nat source rule-set rs1 rule r1 then source-nat interface']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24",
+        "set security nat source rule-set rs1 rule r1 then source-nat interface"
+      ]
+    },
+    "timestamp": "2026-05-07T14:32:54.381488",
+    "mode_tag": "vanilla"
+  },
+  "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
+    "config": "**Cisco:**\n```\ncrypto isakmp policy 1\n encryption aes 256\n authentication pre-share\n group 2\ncrypto isakmp key SecretKey address 2.2.2.2\ncrypto ipsec transform-set TS esp-aes 256 esp-sha-hmac\n mode transport\ncrypto map CM 1 ipsec-isakmp\n set peer 2.2.2.2\n set transform-set TS\n match address 101\ncrypto map CM interface outside\naccess-list 101 permit ip 10.10.10.0 0.0.0.255 10.10.20.0 0.0.0.255\n```\n\n**Juniper:**\n```\nset security ike proposal PSK-proposal authentication-method pre-shared-keys\nset security ike proposal PSK-proposal dh-group group2\nset security ike policy PSK-policy mode main\nset security ike policy PSK-policy proposals PSK-proposal\nset security ike policy PSK-policy pre-shared-key ascii-text SecretKey\nset security ipsec proposal PSK-proposal protocol esp\nset security ipsec proposal PSK-proposal authentication-algorithm hmac-sha1-96\nset security ipsec proposal PSK-proposal encryption-algorithm aes-256-cbc\nset security ipsec policy PSK-policy proposals PSK-proposal\nset security ipsec vpn VPN-1-2 term 10.10.10.0/24 10.10.20.0/24\nset security ipsec vpn VPN-1-2 ike gateway 1.1.1.1\nset security ipsec vpn VPN-1-2 ike ipsec-policy PSK-policy\nset security ipsec vpn VPN-1-2 establish-tunnels immediately\nset interfaces st0 unit 1 description VPN-1-2\nset interfaces st0 unit 1 family inet address 0.0.0.0/0\nset security zone security-zones trust interfaces st0.1\nset security ipsec vpn VPN-1-2 bind-interface st0.1\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['encryption aes 256', 'set transform-set TS', 'set security ike policy PSK-policy mode main']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "encryption aes 256",
+        "set transform-set TS",
+        "set security ike policy PSK-policy mode main"
+      ]
+    },
+    "timestamp": "2026-05-07T14:33:27.982636",
+    "mode_tag": "vanilla"
+  },
+  "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco": {
+    "config": "```\nclass-map match-all OSPF\n match ip precedence 6\nclass-map match-all OTHER\n match ip precedence 0 1 2 3 4 5 7\npolicy-map QOS_POLICY\n class OSPF\n  priority percent 30\n class OTHER\n  bandwidth percent 70\ninterface GigabitEthernet0/0\n service-policy output QOS_POLICY\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:33:50.973685",
+    "mode_tag": "vanilla"
+  },
+  "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
+    "config": "set protocols vrrp group 10 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0\nset protocols vrrp group 10 track interface ge-0/0/0\ncommit",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:34:21.461820",
+    "mode_tag": "vanilla"
+  },
+  "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
+    "config": "ip dhcp snooping\nip dhcp snooping vlan 10,20\nip dhcp snooping information option\nservice dhcp",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['ip dhcp snooping information option', 'service dhcp']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "ip dhcp snooping information option",
+        "service dhcp"
+      ]
+    },
+    "timestamp": "2026-05-07T14:34:42.958376",
+    "mode_tag": "vanilla"
+  },
+  "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
+    "config": "set policy-options prefix-list PL-10-0-0-0/8 10.0.0.0/8\nset policy-options prefix-list PL-10-0-0-0/8 10.0.0.0/8 longer",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:35:12.828931",
+    "mode_tag": "vanilla"
+  },
+  "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
+    "config": "```\ninterface GigabitEthernet1/0/1\n channel-group 1 mode active\nexit\ninterface GigabitEthernet1/0/2\n channel-group 1 mode active\nexit\ninterface Port-Channel1\n switchport trunk encapsulation dot1q\n switchport mode trunk\nexit\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:35:39.951527",
+    "mode_tag": "vanilla"
+  },
+  "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco": {
+    "config": "```\nconfigure terminal\nip flow-export version 9\nip flow-export destination 10.1.1.50 2055\nip flow-cache timeout active 1\nip flow-cache timeout inactive 15\ninterface GigabitEthernet0/0\n ip flow ingress\n ip flow egress\nexit\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:36:01.973861",
+    "mode_tag": "vanilla"
+  },
+  "Restrict console access with an execution timeout of 5 minutes on Juniper": {
+    "config": "set system login class restrict-console-access login-timeout 5 \nset system login class restrict-console-access idle-timeout 5 \nset system login user console class restrict-console-access",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['set system login user console class restrict-console-access']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "set system login user console class restrict-console-access"
+      ]
+    },
+    "timestamp": "2026-05-07T14:36:31.903209",
+    "mode_tag": "vanilla"
+  },
+  "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
+    "config": "```\nrouter bgp 100\n bgp router-id 172.16.1.2\n bgp log-neighbor-changes\n neighbor 172.16.1.1 remote-as 100\n neighbor 172.16.1.1 description iBGP_NBR\n neighbor 172.16.1.1 update-source Loopback0\n neighbor 172.16.1.1 next-hop-self\n neighbor 172.16.1.1 route-reflector-client\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": []
+    },
+    "timestamp": "2026-05-07T14:37:15.454092",
+    "mode_tag": "vanilla"
+  }
+}
