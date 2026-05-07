@@ -84,14 +84,14 @@ class GNS3Validator(NetworkValidator):
             }
 
         try:
-            # 1. Reuse or Create Persistent Project (Recommendation Elite)
+            # 1. Reuse or Create Persistent Project
             project_name = "RAG_NetTwin_DigitalTwin"
             self.project_id = self._get_or_create_project(project_name)
             logger.info(
                 f"Using persistent GNS3 project: {project_name} ({self.project_id})"
             )
 
-            # 2. Cleanup: Delete all existing nodes/links for a clean research slate
+            # 2. Cleanup
             self._cleanup_project()
 
             # 3. Build Topology
@@ -118,23 +118,47 @@ class GNS3Validator(NetworkValidator):
                     "Some nodes may not have booted fully, proceeding with config push anyway."
                 )
 
-            # 4. Push Configs
+            # 4. Push Configs & Track Stats (Recommendation CAR)
             results = {}
+            total_commands = 0
+            accepted_commands = 0
+
             for device_name, config in configs.items():
                 if device_name in nodes:
                     logger.info(f"Pushing config to {device_name}...")
-                    success = self._push_config_to_node(nodes[device_name], config)
-                    results[device_name] = "Success" if success else "Failed"
+                    node_stats = self._push_config_to_node(nodes[device_name], config)
+
+                    if node_stats["total"] > 0:
+                        results[device_name] = (
+                            "Success"
+                            if node_stats["accepted"] == node_stats["total"]
+                            else "Partial"
+                        )
+                        total_commands += node_stats["total"]
+                        accepted_commands += node_stats["accepted"]
+                    else:
+                        results[device_name] = "Failed"
 
             status = "PASS" if all(v == "Success" for v in results.values()) else "FAIL"
+            car = (accepted_commands / total_commands) if total_commands > 0 else 0.0
+
+            # Check for Interoperability (Multi-vendor)
+            vendors = (
+                set(d.vendor.lower() for d in devices if d.vendor) if devices else set()
+            )
+            is_multi_vendor = len(vendors) > 1
 
             return {
                 "status": status,
                 "tier": 3,
+                "car": car,
+                "total_commands": total_commands,
+                "accepted_commands": accepted_commands,
+                "is_multi_vendor": is_multi_vendor,
                 "project_id": self.project_id,
                 "nodes": nodes,
                 "config_results": results,
-                "summary": "Tier 3 GNS3 validation complete.",
+                "summary": f"Tier 3 GNS3 validation complete. CAR: {car*100:.1f}%",
             }
 
         except Exception as e:
@@ -151,8 +175,13 @@ class GNS3Validator(NetworkValidator):
         for device_name, config in configs.items():
             if device_name in nodes:
                 logger.info(f"Pushing config to {device_name}...")
-                success = self._push_config_to_node(nodes[device_name], config)
-                results[device_name] = "Success" if success else "Failed"
+                node_stats = self._push_config_to_node(nodes[device_name], config)
+                results[device_name] = (
+                    "Success"
+                    if node_stats["accepted"] == node_stats["total"]
+                    and node_stats["total"] > 0
+                    else "Failed"
+                )
         return results
 
     def verify_functional(
@@ -472,15 +501,16 @@ class GNS3Validator(NetworkValidator):
                 auth=self.auth,
             )
 
-    def _push_config_to_node(self, node_id: str, config: str) -> bool:
-        """Pushes configuration via Telnet."""
+    def _push_config_to_node(self, node_id: str, config: str) -> Dict[str, int]:
+        """Pushes configuration via Telnet and tracks command acceptance."""
+        stats = {"total": 0, "accepted": 0}
         try:
             resp = requests.get(
                 f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
                 auth=self.auth,
             )
             if resp.status_code != 200:
-                return False
+                return stats
 
             node_info = resp.json()
             console_port = node_info.get("console")
@@ -489,27 +519,49 @@ class GNS3Validator(NetworkValidator):
                 console_host = self.host
 
             if not console_port:
-                logger.warning(f"No console port for node {node_id}")
-                return False
+                return stats
 
-            logger.info(f"Connecting to {console_host}:{console_port}...")
+            error_keywords = [
+                "% Invalid input",
+                "Error:",
+                "Unknown command",
+                "Ambiguous command",
+                "syntax error",
+                "Invalid command",
+            ]
+
             tn = telnetlib.Telnet(console_host, console_port, timeout=10)
             tn.write(b"\r\n")
             time.sleep(1)
 
-            commands = [b"enable", b"configure terminal"]
+            # Navigation commands (not counted in CAR)
+            tn.write(b"enable\r\n")
+            tn.write(b"configure terminal\r\n")
+            tn.expect([b">", b"#"], timeout=5)
+
             for line in config.splitlines():
-                if line.strip():
-                    commands.append(line.encode("ascii"))
-            commands.append(b"end")
-            commands.append(b"write memory")
+                cmd = line.strip()
+                if not cmd or cmd.startswith("!") or cmd.startswith("#"):
+                    continue
 
-            for cmd in commands:
-                tn.write(cmd + b"\r\n")
-                time.sleep(0.2)
+                stats["total"] += 1
+                tn.write(cmd.encode("ascii") + b"\r\n")
 
+                # Check for errors after each command
+                idx, match, text = tn.expect([b">", b"#"], timeout=5)
+                output = text.decode("ascii", errors="ignore")
+
+                if not any(err.lower() in output.lower() for err in error_keywords):
+                    stats["accepted"] += 1
+                else:
+                    logger.warning(f"GNS3 Reject: {cmd} | Output: {output.strip()}")
+
+            tn.write(b"end\r\n")
+            tn.write(b"write memory\r\n")
+            tn.expect([b">", b"#"], timeout=5)
             tn.close()
-            return True
+
+            return stats
         except Exception as e:
             logger.error(f"Config push failed: {e}")
-            return False
+            return stats

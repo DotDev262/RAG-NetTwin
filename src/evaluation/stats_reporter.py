@@ -78,6 +78,20 @@ class StatsReporter:
                 1 for d in mode_data if d.get("functional_status") == "PASS"
             )
 
+            # GNS3 Metrics (Recommendation CAR & ISR)
+            gns3_data = [
+                d for d in mode_data if d.get("functional_status") != "SKIPPED"
+            ]
+            car_sum = sum(d.get("car", 0.0) for d in gns3_data)
+            avg_car = (car_sum / len(gns3_data)) if gns3_data else 0.0
+
+            # Interoperability Success Rate (ISR)
+            multi_vendor_data = [d for d in gns3_data if d.get("is_multi_vendor")]
+            isr_pass = sum(
+                1 for d in multi_vendor_data if d.get("functional_status") == "PASS"
+            )
+            isr_rate = (isr_pass / len(multi_vendor_data)) if multi_vendor_data else 0.0
+
             if mode == "vanilla":
                 hal_count = sum(
                     1
@@ -101,8 +115,9 @@ class StatsReporter:
                     "Mode": display_mode,
                     "N": n,
                     "Strict SV": self.compute_wilson_ci(strict_pass_count, n),
-                    "Gap Rate": f"{(gap_count / n) * 100:.1f}%",
                     "PEA (CFR)": self.compute_wilson_ci(cfr_success, n),
+                    "GNS3 CAR": f"{avg_car*100:.1f}%",
+                    "GNS3 ISR": f"{isr_rate*100:.1f}%" if multi_vendor_data else "N/A",
                     "Functional": self.compute_wilson_ci(functional_pass, n),
                     "Hallucination": f"{(hal_count / n) * 100:.1f}%",
                 }

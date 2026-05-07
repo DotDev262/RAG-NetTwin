@@ -251,9 +251,15 @@ class PaperQualityEvaluator:
                 cfr_failure = self.cfr_checker.check(intent, aggregate_config)
 
                 functional_status = "SKIPPED"
+                gns3_car = 0.0
+                is_multi_vendor = False
+
                 if self.run_gns3 and self.gns3:
                     try:
                         g_res = self.gns3.validate(device_configs, intent)
+                        gns3_car = g_res.get("car", 0.0)
+                        is_multi_vendor = g_res.get("is_multi_vendor", False)
+
                         if g_res.get("status") == "PASS":
                             v_cmds = {
                                 k: v.get("verification_commands", [])
@@ -270,16 +276,25 @@ class PaperQualityEvaluator:
                                     if isinstance(cmd_outputs, dict)
                                     else cmd_outputs
                                 )
-                                if any(
-                                    out
-                                    and (
-                                        str(out).startswith("ERROR:")
-                                        or str(out).startswith("TIMEOUT:")
-                                    )
-                                    for out in outputs_to_check
-                                ):
-                                    has_functional_error = True
+
+                                # Process raw outputs from verify_functional (it returns list of dicts)
+                                if isinstance(outputs_to_check, list):
+                                    for entry in outputs_to_check:
+                                        out = (
+                                            entry.get("output", "")
+                                            if isinstance(entry, dict)
+                                            else str(entry)
+                                        )
+                                        if (
+                                            "ERROR:" in out
+                                            or "TIMEOUT:" in out
+                                            or "Invalid input" in out
+                                        ):
+                                            has_functional_error = True
+                                            break
+                                if has_functional_error:
                                     break
+
                             functional_status = (
                                 "PASS" if not has_functional_error else "FAIL"
                             )
@@ -294,6 +309,8 @@ class PaperQualityEvaluator:
                     "configs": device_configs,
                     "status": val_report.get("status"),
                     "functional_status": functional_status,
+                    "car": gns3_car,
+                    "is_multi_vendor": is_multi_vendor,
                     "latency": latency,
                     "hallucinations": all_hal_reports,
                     "cfr_failure": cfr_failure,
