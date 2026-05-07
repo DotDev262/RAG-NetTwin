@@ -24,6 +24,3 @@ __pycache__/
 *.log
 *.gns3
 iourc
-
-# Knowledge Graph Output
-graphify-out/
