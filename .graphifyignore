@@ -1,1 +1,26 @@
+# Large data and processed artifacts
 data/
+results/
+logs/
+refplat-*/
+refplat-*.zip
+
+# Environment & Caches
+.venv/
+.devenv/
+.git/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Binary & Media Assets
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.zip
+*.log
+*.gns3
+iourc

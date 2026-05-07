@@ -1,25 +1,42 @@
+# Environments
 .env
 .venv/
-data/chroma_db/
-__pycache__/
-*.pyc
-.pytest_cache/
-.coverage
-htmlcov/
-results/
-*.log
-models/
-Reference papers/
-
-# Devenv
-.devenv*
+.devenv/
+.direnv/
 devenv.local.nix
 devenv.local.yaml
 
-# direnv
-.direnv
+# Caches and Build Artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# GNS3 & Local Research Assets
+# Project Data & Assets
+data/chroma_db/
+data/processed/
+data/processed_chunks/
+data/raw_docs/
 refplat-*/
 refplat-*.zip
 iourc
+models/
+Reference papers/
+
+# Outputs & Logs
+results/
+logs/
+*.log
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gns3
+
+# OS Files
+.DS_Store
+Thumbs.db

@@ -184,16 +184,16 @@
     "hash": "241c9cdd94114191bf6929d64423d2af"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/rag/vector_store.py": {
-    "mtime": 1778126458.9277954,
-    "hash": "2816596ba0114d26b60501902541f27f"
+    "mtime": 1778153260.9189842,
+    "hash": "7be46e46b0aa857a96f8140331a7a4c4"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/rag/query_expander.py": {
     "mtime": 1778126458.9227953,
     "hash": "60ddac8782cc9b64a270fb994af39fe2"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/rag/config_generator.py": {
-    "mtime": 1778126458.9317954,
-    "hash": "0fb77194e406f294e092afd5555c9897"
+    "mtime": 1778152408.5910516,
+    "hash": "18bf550f8dc441bcb7561ef0ec59aec6"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/validation/__init__.py": {
     "mtime": 1776340250.358101,
@@ -338,89 +338,5 @@
   "/home/aryan/Projects/RAG-NetTwin/ui/frontend/index.html": {
     "mtime": 1776340250.3585606,
     "hash": "07ed1cefe31e5086a4432c424f35cdac"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063020_Configure_OSPF_area_0_between.md": {
-    "mtime": 1776474020.7991996,
-    "hash": "075d04a709be8c519776cc38da99895c"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063300_Configure_OSPF_area_0_between.md": {
-    "mtime": 1776474180.7018232,
-    "hash": "0eb9df5334e437d8dc5c52d392a415b5"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063518_Configure_OSPF_area_0_between.md": {
-    "mtime": 1776474318.4040415,
-    "hash": "43b6bf4902da587cdef07fa126dc0935"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_063846_Configure_OSPF_area_0_between.md": {
-    "mtime": 1776474526.1010013,
-    "hash": "da10ad1fbdafe75729cfb0d46071f2bf"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_064322_Configure_OSPF_area_0_between.md": {
-    "mtime": 1776474802.1834862,
-    "hash": "cd9289b4b7bcb5b635fdbba5a92b0eca"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_064705_on_cisco_R1_create_interface_L.md": {
-    "mtime": 1776475025.1134217,
-    "hash": "c52dde51ed61978fbf895b3ff15b0657"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_070225_On_Cisco_R1_configure_interfa.md": {
-    "mtime": 1776475945.8734512,
-    "hash": "ba63f2e33c85297a6f8a8051188324db"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_070655_On_Cisco_R1_configure_interfa.md": {
-    "mtime": 1776476215.2688406,
-    "hash": "511081f549416669e9a98651435a3324"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_071200_On_Cisco_R1_configure_interfa.md": {
-    "mtime": 1776476520.707886,
-    "hash": "fa3e4b94cbca483a2294eaa7294ba42f"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/results/audits/audit_20260418_072137_On_Cisco_R1_configure_interfa.md": {
-    "mtime": 1776477097.5061047,
-    "hash": "7bf94cec46d2aca8101198ce34865b5d"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/figure_chunking_sensitivity.pdf": {
-    "mtime": 1776340250.3554857,
-    "hash": "512f9eebc15fc77b4042e31da2362776"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/main.pdf": {
-    "mtime": 1776340249.6994786,
-    "hash": "3ae84d8e9e313bbf7bb9dffd6ec87f41"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/test_fixed.pdf": {
-    "mtime": 1776340249.6994786,
-    "hash": "8e8262a55b04f04e0668a2874288af98"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/test_output.pdf": {
-    "mtime": 1776340249.7014787,
-    "hash": "08712d407168a6268d514c5bb8cfda2a"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/test_template.pdf": {
-    "mtime": 1776340249.7024786,
-    "hash": "34929b7fc75f82460d4caa87cac5d1f7"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/figure_chunking_sensitivity.png": {
-    "mtime": 1776340250.3554857,
-    "hash": "a5afe414bba42cbb512bbd8d5033227d"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/images/architecture_diagram.png": {
-    "mtime": 1776340249.6938205,
-    "hash": "c2788cee3e886417ddde43f8bdcc7640"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/images/figure_chunking_sensitivity.png": {
-    "mtime": 1776340249.6944785,
-    "hash": "f26af44c915cbdc09965d468506de2ad"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/images/logo.png": {
-    "mtime": 1776340249.6944785,
-    "hash": "57dd31961665c9ac63a2937665201bc6"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/images/logo_dept.png": {
-    "mtime": 1776340249.6944785,
-    "hash": "2cb02c5ee58194433010bab914d825aa"
-  },
-  "/home/aryan/Projects/RAG-NetTwin/Paper/images/performance_comparison.png": {
-    "mtime": 1776340249.6954787,
-    "hash": "09385b8d4cb0930506c9a7afd14968d6"
   }
 }
