@@ -137,6 +137,8 @@ class MultiVendorCoordinator:
             )
             return plan
         except Exception as e:
+            if "429" in str(e) or "rate_limit" in str(e).lower():
+                raise e
             logger.error(f"Failed to generate interop plan: {e}")
             return NetworkMasterPlan(
                 proposed_parameters={}, rationale="Fallback: Plan generation failed."

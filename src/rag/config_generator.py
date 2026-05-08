@@ -343,30 +343,41 @@ class ConfigGenerator:
                 )
 
             for future in as_completed(futures):
-                res: Dict[str, Any] = future.result()
-                device_name: str = str(res["device_name"])
+                try:
+                    res: Dict[str, Any] = future.result()
+                    device_name: str = str(res["device_name"])
 
-                # Extract trace from device result if present
-                if "_device_trace" in res:
-                    trace["llm_calls"][device_name] = res.pop("_device_trace")
+                    # Extract trace from device result if present
+                    if "_device_trace" in res:
+                        trace["llm_calls"][device_name] = res.pop("_device_trace")
 
-                configs[device_name] = res
+                    configs[device_name] = res
 
-                if res.get("config") != "ERROR":
-                    device_obj = next(
-                        d for d in structured_intent.devices if d.name == device_name
-                    )
-                    vendor_str = device_obj.vendor if device_obj.vendor else "unknown"
-                    intent_text = structured_intent.original_text or ""
+                    if res.get("config") != "ERROR":
+                        device_obj = next(
+                            d
+                            for d in structured_intent.devices
+                            if d.name == device_name
+                        )
+                        vendor_str = (
+                            device_obj.vendor if device_obj.vendor else "unknown"
+                        )
+                        intent_text = structured_intent.original_text or ""
 
-                    self.vector_store.update_cache(
-                        intent_text,
-                        structured_intent.parameters,
-                        vendor_str,
-                        res,
-                        retrieval_mode=retrieval_mode,
-                        version=CONFIG_GENERATOR_VERSION,
-                    )
+                        self.vector_store.update_cache(
+                            intent_text,
+                            structured_intent.parameters,
+                            vendor_str,
+                            res,
+                            retrieval_mode=retrieval_mode,
+                            version=CONFIG_GENERATOR_VERSION,
+                        )
+                except Exception as e:
+                    if "429" in str(e) or "rate_limit" in str(e).lower():
+                        logger.error(f"Rate limit hit in background thread: {e}")
+                        raise e
+                    logger.error(f"Thread execution failed: {e}")
+                    # Continue for other devices, but this device will be missing from configs
 
         alignment_report = self.coordinator.verify_alignment(configs, constraints)
         configs["_interoperability_report"] = alignment_report

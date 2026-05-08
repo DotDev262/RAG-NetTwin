@@ -147,11 +147,37 @@ class PaperQualityEvaluator:
         parsed_intents = self.parser.parse_batch(scenarios)
 
         logger.info(f"Phase 2: Evaluating... (Retrieval Mode: {retrieval_mode})")
-        for intent in tqdm(parsed_intents, desc=f"Evaluating ({retrieval_mode})"):
-            res = self.evaluate_intent(intent, retrieval_mode=retrieval_mode)
-            if res:
-                all_results.append(res)
-            time.sleep(2.0)
+        for i, intent in enumerate(
+            tqdm(parsed_intents, desc=f"Evaluating ({retrieval_mode})")
+        ):
+            try:
+                res = self.evaluate_intent(intent, retrieval_mode=retrieval_mode)
+                if res:
+                    # Check for rate limit errors embedded in results
+                    if (
+                        "rag_nettwin" in res
+                        and res["rag_nettwin"].get("status") == "ERROR"
+                    ):
+                        err_msg = str(res["rag_nettwin"].get("error", ""))
+                        if "429" in err_msg or "rate_limit" in err_msg.lower():
+                            logger.error(
+                                f"\n🛑 RATE LIMIT EXCEEDED at Intent #{i+1}: {intent.original_text[:50]}..."
+                            )
+                            logger.error(f"Error Details: {err_msg}")
+                            break
+
+                    all_results.append(res)
+                time.sleep(2.0)
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    logger.error(
+                        f"\n🛑 RATE LIMIT EXCEEDED at Intent #{i+1}: {intent.original_text[:50]}..."
+                    )
+                    logger.error(f"Error Details: {err_str}")
+                    break
+                logger.error(f"Unexpected error at Intent #{i+1}: {e}")
+                continue
 
         os.makedirs("results/history", exist_ok=True)
         report = {"metadata": metadata, "results": all_results}
