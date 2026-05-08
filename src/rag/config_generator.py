@@ -33,39 +33,35 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.rag.vector_store import VectorStore
 from src.rag.parameter_normalizer import ParameterNormalizer
 from src.rag.query_expander import QueryExpander
+from src.validation.referential_integrity import ReferentialIntegrityValidator
 from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
 from src.schemas.intent import StructuredIntent
 from src.llm import LLMProvider
 from src.utils import clean_cli_prose, setup_logger
 
-CONFIG_GENERATOR_VERSION = "2.1.0"  # Incremented for Multi-Query + Normalizer
+CONFIG_GENERATOR_VERSION = "2.2.0"  # Incremented for Citation Gating
 logger = setup_logger("ConfigGenerator")
+
+
+class CommandBlock(BaseModel):
+    """
+    A block of CLI commands grounded in specific documentation.
+    """
+
+    commands: List[str] = Field(description="List of raw CLI configuration commands")
+    source_ids: List[str] = Field(
+        description="IDs from the DOCUMENTATION block that justify these specific commands. "
+        "Leave empty ONLY if the command is a generic prerequisite (like 'configure terminal')."
+    )
 
 
 class DeviceConfigOutput(BaseModel):
     """
     Pydantic model for structured configuration output.
-
-    This model defines the expected output format when the LLM generates
-    a network device configuration. It ensures the LLM provides commands,
-    citations, confidence scores, and reasoning in a consistent format.
-
-    Attributes:
-        commands: List of raw CLI configuration commands to apply to the device.
-        citations: List of documentation reference IDs used to generate
-            the config. These correspond to ChromaDB chunk IDs.
-        confidence_score: Float between 0.0 and 1.0 indicating how confident
-            the LLM is in the generated config's correctness.
-        reasoning_path: Step-by-step explanation of why specific commands
-            were chosen and how they satisfy the intent.
-        explanation: Optional brief summary of the configuration changes
-            being made (e.g., "Enabled OSPF area 0 on router").
     """
 
-    commands: List[str] = Field(description="List of raw CLI configuration commands")
-    citations: List[str] = Field(
-        description="List of Source IDs from the DOCUMENTATION block used to ground this config. "
-        "Use ONLY the strings following 'ID: '. Do NOT use document titles."
+    blocks: List[CommandBlock] = Field(
+        description="List of command blocks, each with its own documentation sources"
     )
     confidence_score: float = Field(
         description="Confidence score (0.0 to 1.0) of the generated config", ge=0, le=1
@@ -153,10 +149,20 @@ class ConfigGenerator:
         if retrieval_mode == "none":
             is_lite = True  # Force baseline for ablation
 
-        # Recommendation 2 (Multi-Vendor): Extract shared constraints
+        # Recommendation 2 (Multi-Vendor): Extract shared constraints and generate plan
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
+
+        master_plan: Optional[Any] = None
+        if len(structured_intent.devices) > 1:
+            master_plan = self.coordinator.generate_interop_plan(structured_intent)
+            trace["master_plan"] = (
+                master_plan.model_dump()
+                if hasattr(master_plan, "model_dump")
+                else master_plan
+            )
+
         coordination_prompt: str = self.coordinator.build_coordination_prompt(
-            constraints
+            constraints, master_plan=master_plan
         )
 
         # Build query once for all devices
@@ -364,6 +370,24 @@ class ConfigGenerator:
 
         alignment_report = self.coordinator.verify_alignment(configs, constraints)
         configs["_interoperability_report"] = alignment_report
+
+        # Phase 3: Referential Integrity Pre-Validation
+        for device_name, data in configs.items():
+            if device_name.startswith("_") or data.get("config") == "ERROR":
+                continue
+
+            device_obj = next(
+                d for d in structured_intent.devices if d.name == device_name
+            )
+            ref_issues = ReferentialIntegrityValidator.check_config(
+                data["config"], vendor=device_obj.vendor or "cisco"
+            )
+            if ref_issues:
+                with self._sanity_lock:
+                    configs["_sanity_check"]["warnings"].extend(ref_issues)
+                    # We mark as ungrounded if referential integrity is broken
+                    configs["_sanity_check"]["is_grounded"] = False
+
         configs["_trace"] = trace
 
         return configs
@@ -452,12 +476,23 @@ class ConfigGenerator:
 
             response = chain.invoke(llm_input)
 
-            config_text = "\n".join(response.commands)
+            # Phase 2: Citation Gating
+            # Flatten blocks for backward compatibility in results and main config
+            all_commands: List[str] = []
+            all_citations: List[str] = []
+            for block in response.blocks:
+                all_commands.extend(block.commands)
+                all_citations.extend(block.source_ids)
+
+            # Remove duplicates from citations
+            unique_citations: List[str] = list(set(all_citations))
+
+            config_text: str = "\n".join(all_commands)
             comment_char = "#" if (device.vendor or "").lower() == "juniper" else "!"
 
-            if response.citations:
+            if unique_citations:
                 config_text = (
-                    f"{comment_char} Based on [Ref: {', '.join(response.citations)}]\n"
+                    f"{comment_char} Based on [Ref: {', '.join(unique_citations)}]\n"
                     + config_text
                 )
 
@@ -465,7 +500,8 @@ class ConfigGenerator:
                 "device_name": device.name,
                 "config": config_text,
                 "verification_commands": response.verification_commands or [],
-                "retrieved_sources": response.citations or [],
+                "retrieved_sources": unique_citations,
+                "blocks": [b.model_dump() for b in response.blocks],
                 "valid_source_ids": valid_source_ids or [],
                 "grounding_context": device_context,
                 "confidence": response.confidence_score,

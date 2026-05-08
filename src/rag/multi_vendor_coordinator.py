@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import re
-from pydantic import BaseModel
+import json
+from pydantic import BaseModel, Field
 from src.utils import setup_logger
 
 logger = setup_logger("MultiVendorCoordinator")
@@ -15,6 +16,17 @@ class InteroperabilityConstraint(BaseModel):
     value: Any
     protocol: str
     importance: str = "CRITICAL"
+
+
+class NetworkMasterPlan(BaseModel):
+    """
+    Proposed global parameters for a multi-device intent.
+    """
+
+    proposed_parameters: Dict[str, Dict[str, Any]] = Field(
+        description="Map of device name -> parameter dictionary"
+    )
+    rationale: str = Field(description="Explanation of the planning decisions")
 
 
 class MultiVendorCoordinator:
@@ -60,20 +72,75 @@ class MultiVendorCoordinator:
         return constraints
 
     def build_coordination_prompt(
-        self, constraints: List[InteroperabilityConstraint]
+        self,
+        constraints: List[InteroperabilityConstraint],
+        master_plan: Optional[NetworkMasterPlan] = None,
     ) -> str:
         """
-        Generates a prompt snippet to force the LLM to respect shared constraints.
+        Generates a prompt snippet to force the LLM to respect shared constraints
+        and follow the global network plan.
         """
-        if not constraints:
-            return ""
+        prompt = ""
 
-        prompt = "\n### MULTI-VENDOR INTEROPERABILITY CONSTRAINTS ###\n"
-        prompt += "To ensure the network functions correctly across different vendors, you MUST use these exact values:\n"
-        for c in constraints:
-            prompt += f"- {c.protocol.upper()} {c.parameter_name}: {c.value}\n"
-        prompt += "Failure to match these values will result in a functional validation error.\n"
+        if constraints:
+            prompt += "\n### SHARED PARAMETER CONSTRAINTS ###\n"
+            prompt += "To ensure the network functions correctly, you MUST use these exact values:\n"
+            for c in constraints:
+                prompt += f"- {c.protocol.upper()} {c.parameter_name}: {c.value}\n"
+
+        if master_plan:
+            prompt += "\n### GLOBAL NETWORK MASTER PLAN ###\n"
+            prompt += (
+                "The following parameters have been pre-calculated for this topology. "
+            )
+            prompt += "You MUST follow these assignments to ensure peer adjacencies form correctly:\n"
+            prompt += json.dumps(master_plan.proposed_parameters, indent=2) + "\n"
+            prompt += f"PLANNING RATIONALE: {master_plan.rationale}\n"
+
+        if prompt:
+            prompt += "\nFailure to follow these constraints will result in a Tier 3 Functional Error.\n"
+
         return prompt
+
+    def generate_interop_plan(self, intent: Any) -> NetworkMasterPlan:
+        """
+        Uses an LLM to pre-calculate a consistent network plan for all devices.
+        This ensures that dynamically assigned IPs, ASNs, and IDs match across peers.
+        """
+        from langchain_core.prompts import ChatPromptTemplate
+        from src.llm import LLMProvider
+
+        logger.info("Generating global interoperability plan...")
+
+        planning_llm = LLMProvider.get_structured_llm(NetworkMasterPlan, temperature=0)
+
+        prompt = ChatPromptTemplate.from_template(
+            "You are a Senior Network Architect planning a multi-device configuration.\n"
+            "Task: Given the intent, propose consistent IP addresses, AS numbers, and IDs for ALL involved devices.\n"
+            "Ensure that peer interfaces on the same link are in the same subnet (e.g. .1 and .2).\n\n"
+            "INTENT: {intent_text}\n"
+            "PARAMETERS: {params}\n"
+            "DEVICES: {devices}\n\n"
+            "Output the plan strictly in the requested JSON format."
+        )
+
+        chain = prompt | planning_llm
+
+        try:
+            device_info = [{"name": d.name, "vendor": d.vendor} for d in intent.devices]
+            plan = chain.invoke(
+                {
+                    "intent_text": intent.original_text,
+                    "params": json.dumps(intent.parameters),
+                    "devices": json.dumps(device_info),
+                }
+            )
+            return plan
+        except Exception as e:
+            logger.error(f"Failed to generate interop plan: {e}")
+            return NetworkMasterPlan(
+                proposed_parameters={}, rationale="Fallback: Plan generation failed."
+            )
 
     def verify_alignment(
         self, configs: Dict[str, Any], constraints: List[InteroperabilityConstraint]

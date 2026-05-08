@@ -63,7 +63,7 @@
     "action": "enable",
     "devices": [
       {
-        "name": "Device-1",
+        "name": "Device",
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
@@ -81,7 +81,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "Device-1",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -99,7 +99,7 @@
     "action": "create",
     "devices": [
       {
-        "name": "Device-1",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -198,7 +198,7 @@
   "7caed717839b28bbb9c1581a22a1c7e7a5566d91daed9035c1586f5ed46126c2": {
     "intent_id": "7caed717839b",
     "protocol": "Interface",
-    "action": "configure",
+    "action": "update",
     "devices": [
       {
         "name": "Device",
@@ -220,7 +220,7 @@
     "action": "configure",
     "devices": [
       {
-        "name": "switch",
+        "name": "Device",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
@@ -264,9 +264,7 @@
     "parameters": {
       "mtu": "9000"
     },
-    "requirements": [
-      "jumbo_frames"
-    ],
+    "requirements": [],
     "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
   },
   "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
@@ -285,9 +283,7 @@
       "interface": "Gig1/0/24",
       "vlan": "10,20,30"
     },
-    "requirements": [
-      "trunk_port"
-    ],
+    "requirements": [],
     "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
   },
   "d73f3bb549e38a15e6e2410eca1295b86a2662b5443da44048aa5c7e76daf618": {
@@ -552,7 +548,8 @@
       }
     ],
     "parameters": {
-      "policy": "CS6",
+      "policy": "QoS",
+      "priority": "CS6",
       "traffic": "OSPF"
     },
     "requirements": [],
@@ -674,7 +671,7 @@
   "fff5f84fd2c011cbe2c917b3812d1e1d93aa4ff2b1409f8713f90d0f25fee3f0": {
     "intent_id": "fff5f84fd2c0",
     "protocol": "BGP",
-    "action": "configure",
+    "action": "create",
     "devices": [
       {
         "name": "Device",
