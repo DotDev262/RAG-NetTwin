@@ -207,13 +207,13 @@
   "2.1.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
     "scenario": "Apply access-list 101 inbound on interface GigabitEthernet0/1",
     "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Syntax_Guide]\ninterface GigabitEthernet0/1\nip access-group 101 in"
+      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\ninterface GigabitEthernet0/1\nip access-group 101 in"
     },
     "status": "FAIL",
-    "functional_status": "PASS",
-    "car": 1.0,
+    "functional_status": "SKIPPED",
+    "car": 0.0,
     "is_multi_vendor": false,
-    "latency": 7.207169771194458,
+    "latency": 5.579188585281372,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -226,13 +226,14 @@
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco_IOS_XE_Syntax_Guide"
+        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-07T14:25:45.718536",
+    "deep_trace_file": "results/traces/20260508_083649_tiered_ea6b1776.json",
+    "timestamp": "2026-05-08T08:36:49.402019",
     "mode_tag": "tiered"
   },
   "2.1.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
@@ -1056,10 +1057,10 @@
       "Device": "ERROR"
     },
     "status": "FAIL",
-    "functional_status": "PASS",
-    "car": 1.0,
+    "functional_status": "SKIPPED",
+    "car": 0.0,
     "is_multi_vendor": false,
-    "latency": 1.4815666675567627,
+    "latency": 1.1329684257507324,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -1076,7 +1077,8 @@
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-07T14:36:55.471979",
+    "deep_trace_file": "results/traces/20260508_083744_tiered_0f14037b.json",
+    "timestamp": "2026-05-08T08:37:44.982955",
     "mode_tag": "tiered"
   }
 }

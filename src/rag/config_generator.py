@@ -138,6 +138,14 @@ class ConfigGenerator:
         retrieval_mode: 'tiered' (ours), 'flat' (standard top-k), or 'none' (baseline).
         """
         configs: Dict[str, Any] = {}
+        # Deep Trace: Initialize trace dictionary
+        trace: Dict[str, Any] = {
+            "base_query": "",
+            "expanded_queries": [],
+            "retrieval_results": {},
+            "llm_calls": {},
+        }
+
         # Recommendation 3: Intent Sanity Check
         configs["_sanity_check"] = {"is_grounded": True, "warnings": []}
 
@@ -151,13 +159,10 @@ class ConfigGenerator:
             constraints
         )
 
-        # Build query once for all devices (Optimized: Exclude specific parameter values to avoid query dilution)
-        # We keep the protocol and action, and add the parameter KEYS for semantic grounding
-        # We only keep parameter values if they look like protocols/keywords (no digits/IPs)
+        # Build query once for all devices
         semantic_params: List[str] = []
         for k, v in structured_intent.parameters.items():
             semantic_params.append(k)
-            # If value is a string and doesn't look like an IP or raw number, it might be a sub-protocol/mode
             if isinstance(v, str) and not re.match(r"^[0-9.:/]+$", v) and len(v) > 2:
                 semantic_params.append(v)
 
@@ -165,8 +170,9 @@ class ConfigGenerator:
             f"{structured_intent.protocol} {structured_intent.action} "
             + " ".join(semantic_params)
         )
+        trace["base_query"] = base_query
 
-        # 1. Group devices by vendor + version for Consolidated Retrieval
+        # 1. Group devices by vendor + version
         device_groups: Dict[tuple[Optional[str], str], List[Any]] = {}
         for device in structured_intent.devices:
             group_key: tuple[Optional[str], str] = (
@@ -179,6 +185,7 @@ class ConfigGenerator:
 
         # Phase 2: Multi-Query Expansion
         queries: List[str] = self.query_expander.expand(base_query)
+        trace["expanded_queries"] = queries
         logger.info(f"Expanded queries: {queries}")
 
         full_context_map: Dict[str, Dict[str, Any]] = {}
@@ -186,15 +193,10 @@ class ConfigGenerator:
         # 2. Retrieval Phase
         if not is_lite:
             for (vendor, search_version), devices in device_groups.items():
-                # Recommendation 5: Check Semantic Cache first (only in tiered/flat modes)
+                # Recommendation 5: Check Semantic Cache first
                 if retrieval_mode != "none":
-                    # Ensure vendor is string for type safety
                     vendor_str: str = vendor if vendor else "unknown"
-                    intent_text: str = (
-                        structured_intent.original_text
-                        if structured_intent.original_text
-                        else ""
-                    )
+                    intent_text: str = structured_intent.original_text or ""
 
                     cached_response: Optional[Dict[str, Any]] = (
                         self.vector_store.check_cache(
@@ -251,15 +253,28 @@ class ConfigGenerator:
                     unique_candidates_map.values()
                 )
 
-                # Use Reranker on the combined candidates
+                # Use Reranker
                 if unique_candidates:
                     results = self.vector_store.rerank(
                         base_query, unique_candidates, n_results=3
                     )
-                # Recommendation 3: Semantic Sanity Check
-                # If similarity scores are too low (distance too high), flag as ungrounded
+
+                # Trace retrieval details
+                for dev in devices:
+                    trace["retrieval_results"][dev.name] = [
+                        {
+                            "id": r.get("id"),
+                            "tier": r.get("metadata", {}).get("tier"),
+                            "distance": r.get("distance"),
+                            "rerank_score": r.get("rerank_score"),
+                            "text_preview": (
+                                str(r.get("text"))[:100] if r.get("text") else ""
+                            ),
+                        }
+                        for r in results
+                    ]
+
                 if results:
-                    # ChromaDB distance > 1.2 usually indicates poor semantic match
                     avg_distance: float = sum(
                         res.get("distance", 0.0) for res in results
                     ) / len(results)
@@ -275,11 +290,9 @@ class ConfigGenerator:
                         configs["_sanity_check"]["is_grounded"] = False
 
                 if results:
-                    # Recommendation Elite: Fetch Parent Grounding Context
                     results = self.vector_store.retrieve_with_parents(results)
 
-                # 3. Dynamic Few-Shot Selection (Recommendation 3 - Phase 2)
-                # Fetch gold standard Intent->Config examples for this vendor
+                # 3. Dynamic Few-Shot Selection
                 vendor_str = vendor if vendor else "unknown"
                 gold_examples: List[Dict[str, Any]] = (
                     self.vector_store.retrieve_gold_configs(
@@ -299,17 +312,14 @@ class ConfigGenerator:
         futures: List[Any] = []
         with ThreadPoolExecutor(max_workers=5) as executor:
             for device in structured_intent.devices:
-                # If already served by cache, skip generation
                 if device.name in configs:
                     continue
 
-                # Recommendation 4: Distill context for token efficiency
                 device_context: str = ""
                 valid_ids: List[str] = []
                 examples: List[Dict[str, Any]] = []
                 if device.name in full_context_map:
                     data = full_context_map[device.name]
-                    # Data is now a dict with 'chunks' and 'examples'
                     device_context = self.distill_context(data["chunks"])
                     valid_ids = [str(c.get("id")) for c in data["chunks"]]
                     examples = data["examples"]
@@ -326,26 +336,22 @@ class ConfigGenerator:
                     )
                 )
 
-            # Collect results as they complete
             for future in as_completed(futures):
                 res: Dict[str, Any] = future.result()
                 device_name: str = str(res["device_name"])
 
-                # Merge into final configs
+                # Extract trace from device result if present
+                if "_device_trace" in res:
+                    trace["llm_calls"][device_name] = res.pop("_device_trace")
+
                 configs[device_name] = res
 
-                # Update Semantic Cache
                 if res.get("config") != "ERROR":
-                    # Find the device vendor for the cache
                     device_obj = next(
                         d for d in structured_intent.devices if d.name == device_name
                     )
                     vendor_str = device_obj.vendor if device_obj.vendor else "unknown"
-                    intent_text = (
-                        structured_intent.original_text
-                        if structured_intent.original_text
-                        else ""
-                    )
+                    intent_text = structured_intent.original_text or ""
 
                     self.vector_store.update_cache(
                         intent_text,
@@ -356,9 +362,9 @@ class ConfigGenerator:
                         version=CONFIG_GENERATOR_VERSION,
                     )
 
-        # Recommendation 2 (Post-Check): Verify all configs aligned on shared parameters
         alignment_report = self.coordinator.verify_alignment(configs, constraints)
         configs["_interoperability_report"] = alignment_report
+        configs["_trace"] = trace
 
         return configs
 
@@ -431,19 +437,20 @@ class ConfigGenerator:
                 else f"Use your base knowledge of {device.vendor} {device.os_version} syntax."
             )
 
-            response = chain.invoke(
-                {
-                    "intent_params": json.dumps(structured_intent.parameters),
-                    "intent_text": structured_intent.original_text,
-                    "device_context": lite_context,
-                    "device_name": device.name,
-                    "vendor": device.vendor,
-                    "os_version": device.os_version or "latest",
-                    "coordination_prompt": coordination_prompt,
-                    "examples_str": examples_str,
-                    "formatting_hints": formatting_hints,
-                }
-            )
+            # Deep Trace: Capture the full prompts
+            llm_input = {
+                "intent_params": json.dumps(structured_intent.parameters),
+                "intent_text": structured_intent.original_text,
+                "device_context": lite_context,
+                "device_name": device.name,
+                "vendor": device.vendor,
+                "os_version": device.os_version or "latest",
+                "coordination_prompt": coordination_prompt,
+                "examples_str": examples_str,
+                "formatting_hints": formatting_hints,
+            }
+
+            response = chain.invoke(llm_input)
 
             config_text = "\n".join(response.commands)
             comment_char = "#" if (device.vendor or "").lower() == "juniper" else "!"
@@ -463,6 +470,16 @@ class ConfigGenerator:
                 "grounding_context": device_context,
                 "confidence": response.confidence_score,
                 "reasoning": response.reasoning_path,
+                "_device_trace": {
+                    "system_prompt": prompt.messages[0].prompt.template.format(
+                        vendor=device.vendor,
+                        os_version=device.os_version or "latest",
+                        coordination_prompt=coordination_prompt,
+                    ),
+                    "human_prompt": prompt.messages[1].prompt.template.format(
+                        **llm_input
+                    ),
+                },
             }
         except Exception as e:
             # Check for rate limits (429) specifically to allow retry logic in evaluator

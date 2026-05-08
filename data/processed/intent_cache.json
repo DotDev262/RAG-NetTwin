@@ -51,8 +51,8 @@
       }
     ],
     "parameters": {
-      "destination_network": "172.16.0.0/16",
-      "next_hop": "10.0.0.1"
+      "destination": "172.16.0.0/16",
+      "next-hop": "10.0.0.1"
     },
     "requirements": [],
     "original_text": "Configure static route to 172.16.0.0/16 via 10.0.0.1"
@@ -168,7 +168,8 @@
       }
     ],
     "parameters": {
-      "service": "SSH",
+      "access_list": null,
+      "protocol": "SSH",
       "source_network": "192.168.1.0/24"
     },
     "requirements": [],
@@ -263,7 +264,9 @@
     "parameters": {
       "mtu": "9000"
     },
-    "requirements": [],
+    "requirements": [
+      "jumbo_frames"
+    ],
     "original_text": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE"
   },
   "a5abd554627783beaa4e24001e3aeb9078165f58a7484a2a2f2018d8dec0dd0f": {
@@ -279,9 +282,12 @@
       }
     ],
     "parameters": {
+      "interface": "Gig1/0/24",
       "vlan": "10,20,30"
     },
-    "requirements": [],
+    "requirements": [
+      "trunk_port"
+    ],
     "original_text": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30"
   },
   "d73f3bb549e38a15e6e2410eca1295b86a2662b5443da44048aa5c7e76daf618": {
@@ -472,7 +478,7 @@
   "04ea347e82cb2927f021805849de7c4c727eba067a27b22c3f0d86f0287653a1": {
     "intent_id": "04ea347e82cb",
     "protocol": "OSPFv3",
-    "action": "create",
+    "action": "configure",
     "devices": [
       {
         "name": "Device",
@@ -514,13 +520,13 @@
     "action": "create",
     "devices": [
       {
-        "name": "1.1.1.1",
+        "name": "Device1",
         "vendor": "cisco",
         "os_type": "ios-xe",
         "os_version": "17.6"
       },
       {
-        "name": "2.2.2.2",
+        "name": "Device2",
         "vendor": "juniper",
         "os_type": "junos",
         "os_version": "21.4"
@@ -668,7 +674,7 @@
   "fff5f84fd2c011cbe2c917b3812d1e1d93aa4ff2b1409f8713f90d0f25fee3f0": {
     "intent_id": "fff5f84fd2c0",
     "protocol": "BGP",
-    "action": "create",
+    "action": "configure",
     "devices": [
       {
         "name": "Device",

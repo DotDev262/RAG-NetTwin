@@ -3,8 +3,10 @@ import time
 import os
 import argparse
 import random
+import hashlib
 import numpy as np
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Dict, Any
 from tqdm import tqdm
 
 # Add src to path for imports
@@ -304,6 +306,11 @@ class PaperQualityEvaluator:
                         logger.error(f"GNS3 validation failed: {ge}")
                         functional_status = "ERROR"
 
+                # Deep Trace: Aggregate RAG and Functional logs
+                deep_trace = rag_output.pop("_trace", {})
+                if self.run_gns3 and self.gns3 and "g_res" in locals():
+                    deep_trace["telnet_logs"] = g_res.get("telnet_logs", {})
+
                 eval_res = {
                     "scenario": intent.original_text,
                     "configs": device_configs,
@@ -325,6 +332,11 @@ class PaperQualityEvaluator:
                         if k is None or not k.startswith("_")
                     ],
                 }
+
+                # Save trace to disk and link it
+                trace_path = self._save_deep_trace(intent, retrieval_mode, deep_trace)
+                eval_res["deep_trace_file"] = trace_path
+
                 results["rag_nettwin"] = eval_res
                 self.cache_manager.set(
                     self.rag_cache, cache_key, eval_res, mode=retrieval_mode
@@ -403,6 +415,23 @@ class PaperQualityEvaluator:
         )
         chain = prompt | self.vanilla_llm
         return chain.invoke({"request": scenario}).content
+
+    def _save_deep_trace(self, intent, mode: str, trace_data: Dict[str, Any]) -> str:
+        """
+        Saves detailed execution trace to a timestamped JSON file.
+        """
+        trace_dir = Path("results/traces")
+        trace_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        intent_id = hashlib.md5(intent.original_text.encode()).hexdigest()[:8]
+        filename = f"{timestamp}_{mode}_{intent_id}.json"
+        filepath = trace_dir / filename
+
+        with open(filepath, "w") as f:
+            json.dump(trace_data, f, indent=2)
+
+        return str(filepath)
 
 
 if __name__ == "__main__":

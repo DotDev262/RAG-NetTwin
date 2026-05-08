@@ -122,11 +122,13 @@ class GNS3Validator(NetworkValidator):
             results = {}
             total_commands = 0
             accepted_commands = 0
+            telnet_logs = {}
 
             for device_name, config in configs.items():
                 if device_name in nodes:
                     logger.info(f"Pushing config to {device_name}...")
                     node_stats = self._push_config_to_node(nodes[device_name], config)
+                    telnet_logs[device_name] = node_stats.get("telnet_log", [])
 
                     if node_stats["total"] > 0:
                         results[device_name] = (
@@ -154,6 +156,7 @@ class GNS3Validator(NetworkValidator):
                 "car": car,
                 "total_commands": total_commands,
                 "accepted_commands": accepted_commands,
+                "telnet_logs": telnet_logs,
                 "is_multi_vendor": is_multi_vendor,
                 "project_id": self.project_id,
                 "nodes": nodes,
@@ -501,9 +504,9 @@ class GNS3Validator(NetworkValidator):
                 auth=self.auth,
             )
 
-    def _push_config_to_node(self, node_id: str, config: str) -> Dict[str, int]:
+    def _push_config_to_node(self, node_id: str, config: str) -> Dict[str, Any]:
         """Pushes configuration via Telnet and tracks command acceptance."""
-        stats = {"total": 0, "accepted": 0}
+        stats: Dict[str, Any] = {"total": 0, "accepted": 0, "telnet_log": []}
         try:
             resp = requests.get(
                 f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
@@ -551,10 +554,18 @@ class GNS3Validator(NetworkValidator):
                 idx, match, text = tn.expect([b">", b"#"], timeout=5)
                 output = text.decode("ascii", errors="ignore")
 
-                if not any(err.lower() in output.lower() for err in error_keywords):
+                accepted = not any(
+                    err.lower() in output.lower() for err in error_keywords
+                )
+                if accepted:
                     stats["accepted"] += 1
                 else:
                     logger.warning(f"GNS3 Reject: {cmd} | Output: {output.strip()}")
+
+                # Deep Trace: Log everything
+                stats["telnet_log"].append(
+                    {"command": cmd, "output": output.strip(), "accepted": accepted}
+                )
 
             tn.write(b"end\r\n")
             tn.write(b"write memory\r\n")
