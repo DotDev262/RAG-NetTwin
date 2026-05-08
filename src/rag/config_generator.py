@@ -189,10 +189,11 @@ class ConfigGenerator:
                 device_groups[group_key] = []
             device_groups[group_key].append(device)
 
-        # Phase 2: Multi-Query Expansion
-        queries: List[str] = self.query_expander.expand(base_query)
+        # Phase 2: Multi-Query Expansion (Adaptive)
+        # We start with just the base query and only expand if retrieval is poor.
+        queries: List[str] = [base_query]
+        expansion_triggered: bool = False
         trace["expanded_queries"] = queries
-        logger.info(f"Expanded queries: {queries}")
 
         full_context_map: Dict[str, Dict[str, Any]] = {}
 
@@ -219,9 +220,31 @@ class ConfigGenerator:
                             configs[dev.name] = cached_response
                         continue
 
+                # Efficiency Phase 2: Pilot Retrieval & Adaptive Expansion
+                if not expansion_triggered and retrieval_mode != "none":
+                    # Quick check: how good is the base query?
+                    pilot = self.vector_store.hybrid_retrieve(
+                        query=base_query,
+                        vendor=vendor,
+                        os_version=search_version,
+                        n_results=1,
+                    )
+                    # If distance > 0.4, documentation match is weak, trigger LLM expansion
+                    if not pilot or pilot[0].get("distance", 1.0) > 0.4:
+                        logger.info(
+                            f"Low confidence pilot search for {vendor}. Triggering Multi-Query Expansion..."
+                        )
+                        queries = self.query_expander.expand(base_query)
+                        trace["expanded_queries"] = queries
+                        expansion_triggered = True
+                    else:
+                        logger.info(
+                            f"High confidence pilot search for {vendor} (dist: {pilot[0].get('distance'):.2f}). Skipping expansion."
+                        )
+
                 results: List[Dict[str, Any]] = []
 
-                # Accumulate results from multiple queries
+                # Accumulate results from available queries
                 all_candidates: List[Dict[str, Any]] = []
                 for q in queries:
                     if retrieval_mode == "tiered":

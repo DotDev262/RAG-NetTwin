@@ -129,6 +129,13 @@ class VectorStore:
             embedding_function=sentence_transformer_ef,
         )
 
+        # Get or create collection for Intent Parsing Cache (Efficiency Phase 1)
+        self.intent_parsing_cache_collection = self.client.get_or_create_collection(
+            name="intent_parsing_cache",
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=sentence_transformer_ef,
+        )
+
         # Hybrid Search: BM25 components
         self.bm25: Optional[BM25Okapi] = None
         self.corpus_map: Dict[str, Dict[str, Any]] = {}  # chunk_id -> chunk_data
@@ -502,6 +509,43 @@ class VectorStore:
                 }
             )
         return formatted
+
+    def check_intent_parsing_cache(
+        self, intent_text: str, threshold: float = 0.05
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Efficiency Phase 1: Semantic Intent Cache.
+        Checks if a similar intent has already been parsed.
+        """
+        results = self.intent_parsing_cache_collection.query(
+            query_texts=[intent_text], n_results=1
+        )
+
+        if (
+            results["ids"]
+            and results["ids"][0]
+            and results["distances"]
+            and results["distances"][0]
+            and results["distances"][0][0] <= threshold
+        ):
+            metadata = results["metadatas"][0][0]
+            if metadata and "structured_intent" in metadata:
+                return json.loads(str(metadata["structured_intent"]))
+        return None
+
+    def update_intent_parsing_cache(
+        self, intent_text: str, structured_intent: Dict[str, Any]
+    ) -> None:
+        """
+        Efficiency Phase 1: Semantic Intent Cache.
+        Adds a parsed intent to the semantic cache.
+        """
+        cache_id = hashlib.md5(intent_text.encode()).hexdigest()
+        self.intent_parsing_cache_collection.add(
+            ids=[cache_id],
+            documents=[intent_text],
+            metadatas=[{"structured_intent": json.dumps(structured_intent)}],
+        )
 
     def check_cache(
         self,

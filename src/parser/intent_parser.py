@@ -234,11 +234,20 @@ RULES:
 
     def parse(self, text: str) -> StructuredIntent:
         """Translates NL text to StructuredIntent object using DSPy."""
-        # 1. Check Cache first
+        # 1. Check Local Cache (Hash-based)
         text_hash = hashlib.sha256(text.encode()).hexdigest()
         if text_hash in self.cache:
-            logger.info(f"Intent cache hit: {text[:30]}...")
+            logger.info(f"Intent local cache hit: {text[:30]}...")
             return StructuredIntent(**self.cache[text_hash])
+
+        # Efficiency Phase 1: Check Semantic Cache
+        cached_intent_dict = self.vector_store.check_intent_parsing_cache(text)
+        if cached_intent_dict:
+            logger.info(f"Intent semantic cache hit: {text[:30]}...")
+            intent = StructuredIntent(**cached_intent_dict)
+            # Ensure the hash is updated in the local cache too
+            self.cache[text_hash] = intent.model_dump()
+            return intent
 
         # 2. Dynamic Few-Shot Retrieval
         few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
@@ -259,8 +268,12 @@ RULES:
             result.intent_id = text_hash[:12]
 
         # 4. Save to Cache
-        self.cache[text_hash] = result.model_dump()
+        intent_dump = result.model_dump()
+        self.cache[text_hash] = intent_dump
         self._save_cache()
+
+        # Efficiency Phase 1: Update Semantic Cache
+        self.vector_store.update_intent_parsing_cache(text, intent_dump)
 
         return result
 
