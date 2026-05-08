@@ -471,21 +471,14 @@ class ConfigGenerator:
             [
                 (
                     "system",
-                    "You are an expert {vendor} {os_version} CLI configuration specialist. "
-                    "CRITICAL RULES:\n"
-                    "1. If vendor is Cisco: Use ONLY Cisco IOS-XE syntax.\n"
-                    "2. If vendor is Juniper: Use ONLY Juniper JunOS syntax.\n"
-                    "3. NEVER mix syntax between vendors.\n"
-                    "4. RESPECT all shared constraints provided in the task.\n\n"
-                    "### NETWORK PREREQUISITES (Functional Integrity) ###\n"
-                    "- Ensure all modified physical interfaces are explicitly enabled (e.g., 'no shutdown' for Cisco).\n"
-                    "- Ensure dependent configurations (like IP addresses) are defined before they are used by protocols.\n"
-                    "- If configuring OSPF/BGP, ensure a valid router-id is set if not already present.\n\n"
-                    "### NEGATIVE CONSTRAINTS (Hallucination Control) ###\n"
-                    "1. DO NOT use placeholder patterns like '<YOUR_IP>', 'ENTER_ASN', or '[REPLACE_ME]'.\n"
-                    "2. DO NOT invent arbitrary AS numbers, IP addresses, or VLAN IDs. Use ONLY what is provided in the TASK or GLOBAL MASTER PLAN.\n"
-                    "3. DO NOT include any command that is not justified by an ID in the ### DOCUMENTATION ### block.\n"
-                    "4. CRITICAL: We prefer an INCOMPLETE configuration over a HALLUCINATED one. If you cannot find the syntax for a specific requirement, omit it and note why in your reasoning.\n\n"
+                    "Expert {vendor} {os_version} CLI specialist. "
+                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints.\n\n"
+                    "### PREREQUISITES ###\n"
+                    "- Enable modified physical interfaces ('no shutdown').\n"
+                    "- Set IPs before protocols. - Set router-id for OSPF/BGP if missing.\n\n"
+                    "### NEGATIVE CONSTRAINTS ###\n"
+                    "1. NO placeholders ('<YOUR_IP>', etc). 2. NO invented ASNs/IPs/VLANs. 3. NO ungrounded commands (must have ID).\n"
+                    "4. PREFER incomplete configs over hallucinations.\n\n"
                     "{coordination_prompt}",
                 ),
                 (
@@ -517,8 +510,12 @@ class ConfigGenerator:
             )
 
             # Deep Trace: Capture the full prompts
+            # Token Efficiency: Only send parameters if master_plan is empty or if they aren't redundant
+            # (In this version, we still send all but minify them to save whitespace tokens)
             llm_input = {
-                "intent_params": json.dumps(structured_intent.parameters),
+                "intent_params": json.dumps(
+                    structured_intent.parameters, separators=(",", ":")
+                ),
                 "intent_text": structured_intent.original_text,
                 "device_context": lite_context,
                 "device_name": device.name,
@@ -581,16 +578,21 @@ class ConfigGenerator:
             logger.error(f"Generation failed for {device.name}: {e}")
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
-    def distill_context(self, raw_chunks: List[Dict[str, Any]]) -> str:
+    def distill_context(
+        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 2000
+    ) -> str:
         """
         Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.
         Extracts ONLY CLI blocks and key configuration context.
         Also applies 'Lost-in-the-Middle' reordering (Phase 3).
+        Enforces a hard token limit (Estimated) to prevent prompt bloat.
         """
         # Phase 3: Reorder chunks to put most relevant at edges
         raw_chunks = self.vector_store.reorder_lost_in_the_middle(raw_chunks)
 
         distilled: str = ""
+        current_token_est = 0
+
         # Regex to find CLI blocks (lines starting with common network keywords or 'set')
         cli_pattern = re.compile(
             r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$",
@@ -598,6 +600,14 @@ class ConfigGenerator:
         )
 
         for res in raw_chunks:
+            # Token limit check: Stop adding chunks if we exceed the limit
+            # (Heuristic: 1 token ~= 4 chars)
+            if current_token_est > token_limit:
+                logger.info(
+                    f"Token limit reached for context ({current_token_est} est tokens). Truncating."
+                )
+                break
+
             text: str = str(res.get("text", ""))
             # 1. Extract CLI lines
             cli_lines: List[str] = cli_pattern.findall(text)
@@ -612,12 +622,15 @@ class ConfigGenerator:
                     prose_context.append(line.strip())
 
             if cli_lines or prose_context:
-                distilled += f"ID: {res.get('id')}\n"
+                chunk_str = f"ID: {res.get('id')}\n"
                 if cli_lines:
-                    distilled += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
+                    chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
                 if prose_context:
-                    distilled += "RULES:\n" + "\n".join(prose_context[:3]) + "\n"
-                distilled += "---\n"
+                    chunk_str += "RULES:\n" + "\n".join(prose_context[:3]) + "\n"
+                chunk_str += "---\n"
+
+                distilled += chunk_str
+                current_token_est += len(chunk_str) // 4
 
         return distilled
 
