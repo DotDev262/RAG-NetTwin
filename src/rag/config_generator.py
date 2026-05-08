@@ -39,7 +39,7 @@ from src.schemas.intent import StructuredIntent
 from src.llm import LLMProvider
 from src.utils import clean_cli_prose, setup_logger
 
-CONFIG_GENERATOR_VERSION = "2.2.0"  # Incremented for Citation Gating
+CONFIG_GENERATOR_VERSION = "2.4.0"  # Incremented for Hierarchical Anchoring
 logger = setup_logger("ConfigGenerator")
 
 
@@ -492,7 +492,7 @@ class ConfigGenerator:
                     "### DOCUMENTATION ###\n"
                     "{device_context}\n\n"
                     "### INSTRUCTIONS ###\n"
-                    "1. Use provided documentation for vendor-specific syntax.\n"
+                    "1. Use provided documentation for vendor-specific syntax. Pay attention to the 'CONTEXT' breadcrumbs for hierarchical nesting.\n"
                     "2. For citations, use the EXACT 'ID: <source_id>' values provided in the documentation block.\n"
                     "3. Output strictly in the requested structured format.\n"
                     "4. CRITICAL: Generate ONLY commands matching the specified vendor.",
@@ -638,7 +638,20 @@ class ConfigGenerator:
                     prose_context.append(line.strip())
 
             if cli_lines or prose_context:
+                # Hierarchical Anchoring (Recommendation 1)
+                hierarchy_str = ""
+                raw_h = res.get("metadata", {}).get("command_hierarchy")
+                if raw_h:
+                    try:
+                        h_list = json.loads(str(raw_h))
+                        if h_list:
+                            hierarchy_str = "CONTEXT: " + " > ".join(h_list) + "\n"
+                    except Exception:
+                        pass
+
                 chunk_str = f"ID: {chunk_id}\n"
+                if hierarchy_str:
+                    chunk_str += hierarchy_str
                 if cli_lines:
                     chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
                 if prose_context:
