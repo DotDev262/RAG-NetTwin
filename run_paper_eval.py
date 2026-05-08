@@ -508,7 +508,7 @@ if __name__ == "__main__":
         print("--- CACHE PURGE COMPLETE ---")
 
     if args.ablation:
-        for mode in ["none", "flat", "tiered"]:
+        for mode in ["none", "flat", "tiered", "graph"]:
             print(f"\n--- Running Mode: {mode.upper()} ---")
             evaluator = PaperQualityEvaluator(
                 run_vanilla=False, cache_only=args.cache_only, run_gns3=args.run_gns3

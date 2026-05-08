@@ -35,6 +35,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
 import hashlib
+import networkx as nx
+from networkx.readwrite import json_graph
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
 from src.config import settings
@@ -140,8 +142,63 @@ class VectorStore:
         except Exception as e:
             print(f"Failed to initialize Reranker: {e}")
 
+        # Knowledge Graph: GraphRAG components (Recommendation 4)
+        self.graph: Optional[nx.Graph] = None
+        self._load_knowledge_graph()
+
         print(f"Connected to ChromaDB at {self.persist_dir}")
         print(f"Collection '{settings.collection_name}' ready")
+
+    def _load_knowledge_graph(self) -> None:
+        """
+        Loads the pre-built knowledge graph from disk.
+        """
+        graph_path = Path("graphify-out/graph.json")
+        if not graph_path.exists():
+            logger.warning(
+                "Knowledge graph not found at graphify-out/graph.json. GraphRAG will be disabled."
+            )
+            return
+
+        try:
+            with open(graph_path, "r") as f:
+                data = json.load(f)
+            # networkx format used by graphify
+            self.graph = json_graph.node_link_graph(data, edges="links")
+            logger.info(f"Knowledge Graph loaded: {self.graph.number_of_nodes()} nodes")
+        except Exception as e:
+            logger.error(f"Failed to load knowledge graph: {e}")
+
+    def retrieve_from_graph(
+        self, seed_chunks: List[Dict[str, Any]], depth: int = 1
+    ) -> List[Dict[str, Any]]:
+        """
+        GraphRAG Expansion (Recommendation 4):
+        Takes semantic chunks and expands the context by pulling neighbors from the graph.
+        """
+        if not self.graph:
+            return seed_chunks
+
+        expanded_ids = set()
+        for chunk in seed_chunks:
+            chunk_id = str(chunk.get("id"))
+            if chunk_id in self.graph:
+                expanded_ids.add(chunk_id)
+                # Add neighbors (Parents, Siblings, and related concepts)
+                for neighbor in self.graph.neighbors(chunk_id):
+                    expanded_ids.add(str(neighbor))
+
+        # Fetch the actual chunk data for the new IDs
+        final_results = []
+        for cid in expanded_ids:
+            if cid in self.corpus_map:
+                final_results.append(self.corpus_map[cid])
+            elif cid in self.graph.nodes:
+                # If it's a concept node not in Chroma, we skip it for CLI generation
+                # but in real GraphRAG we might want to include its description.
+                pass
+
+        return final_results
 
     def _initialize_bm25(self) -> None:
         """

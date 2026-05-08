@@ -242,6 +242,22 @@ class ConfigGenerator:
                         all_candidates.extend(syntax_candidates)
                         all_candidates.extend(concept_candidates)
 
+                    elif retrieval_mode == "graph":
+                        # Phase 3: GraphRAG Retrieval (Recommendation 4)
+                        # 1. Start with high-quality syntax candidates
+                        seed_chunks = self.vector_store.hybrid_retrieve(
+                            query=q,
+                            vendor=vendor,
+                            os_version=search_version,
+                            tier=1,
+                            n_results=3,
+                        )
+                        # 2. Expand using Knowledge Graph neighbors
+                        graph_chunks = self.vector_store.retrieve_from_graph(
+                            seed_chunks
+                        )
+                        all_candidates.extend(graph_chunks)
+
                     elif retrieval_mode == "flat":
                         flat_candidates = self.vector_store.hybrid_retrieve(
                             query=q,

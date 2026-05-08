@@ -11,6 +11,9 @@
         .status-pass { color: #198754; font-weight: bold; }
         .status-fail { color: #dc3545; font-weight: bold; }
         .status-warning { color: #ffc107; font-weight: bold; }
+        .config-block { background-color: #2b3035; color: #ced4da; font-family: monospace; border-radius: 2px; transition: 0.2s; }
+        .config-block:hover { background-color: #343a40; color: #fff; }
+        .config-text { white-space: pre-wrap; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -164,19 +167,56 @@
                 t2Results.appendChild(li);
             }
 
-            // 4. Display Configs
+            // 4. Display Configs with Audit-Ready Grounding (Recommendation 3)
             const configArea = document.getElementById('configArea');
             configArea.innerHTML = '';
             for (const [deviceName, deviceData] of Object.entries(data.generated_configs)) {
-                const div = document.createElement('div');
-                div.className = 'mb-4';
-                div.innerHTML = `
-                    <h6>Device: ${deviceName}</h6>
-                    <div class="config-box">${deviceData.config}</div>
-                    <p class="mt-2"><small class="text-muted">Sources: ${deviceData.retrieved_sources.join(', ')}</small></p>
+                const devDiv = document.createElement('div');
+                devDiv.className = 'mb-5';
+                
+                let blocksHtml = '';
+                if (deviceData.blocks) {
+                    deviceData.blocks.forEach((block, idx) => {
+                        const citationText = block.source_ids.length > 0 
+                            ? `Grounded in: ${block.source_ids.join(', ')}` 
+                            : 'Generic/Prerequisite';
+                        
+                        blocksHtml += `
+                            <div class="config-block p-2 border-start border-4 mb-1" 
+                                 style="border-color: ${block.source_ids.length > 0 ? '#198754' : '#6c757d'} !important; cursor: help;"
+                                 onclick="showAudit('${block.source_ids.join('|')}', '${block.commands.join('\\n').replace(/'/g, "\\'")}')"
+                                 title="${citationText}">
+                                <div class="config-text">${block.commands.join('\n')}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    blocksHtml = `<div class="config-box">${deviceData.config}</div>`;
+                }
+
+                devDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Device: ${deviceName}</h6>
+                        <span class="badge bg-success">Confidence: ${(deviceData.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="bg-dark p-3 rounded">
+                        ${blocksHtml}
+                    </div>
+                    <div class="mt-2">
+                        <h6>Reasoning Path</h6>
+                        <p class="small text-muted">${deviceData.reasoning}</p>
+                    </div>
                 `;
-                configArea.appendChild(div);
+                configArea.appendChild(devDiv);
             }
+        }
+
+        function showAudit(ids, commands) {
+            if (!ids) {
+                alert("This block contains generic prerequisites or inferred commands not directly found in documentation.");
+                return;
+            }
+            alert(`AUDIT TRAIL\n\nCommands:\n${commands}\n\nDocumentation Sources:\n${ids.split('|').join('\n')}`);
         }
     </script>
 </body>
