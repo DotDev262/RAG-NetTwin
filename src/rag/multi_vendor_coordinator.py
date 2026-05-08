@@ -26,6 +26,9 @@ class NetworkMasterPlan(BaseModel):
     proposed_parameters: Dict[str, Dict[str, Any]] = Field(
         description="Map of device name -> parameter dictionary"
     )
+    deployment_sequence: List[str] = Field(
+        description="Logical order of operations for the entire topology (e.g. 1. Interfaces, 2. Routing)"
+    )
     rationale: str = Field(description="Explanation of the planning decisions")
 
 
@@ -95,7 +98,14 @@ class MultiVendorCoordinator:
             )
             prompt += "You MUST follow these assignments to ensure peer adjacencies form correctly:\n"
             prompt += json.dumps(master_plan.proposed_parameters, indent=2) + "\n"
-            prompt += f"PLANNING RATIONALE: {master_plan.rationale}\n"
+
+            if master_plan.deployment_sequence:
+                prompt += "\n### DEPLOYMENT SEQUENCE ###\n"
+                prompt += "Follow this logical order of operations in your generated commands:\n"
+                for i, step in enumerate(master_plan.deployment_sequence):
+                    prompt += f"{i+1}. {step}\n"
+
+            prompt += f"\nPLANNING RATIONALE: {master_plan.rationale}\n"
 
         if prompt:
             prompt += "\nFailure to follow these constraints will result in a Tier 3 Functional Error.\n"
@@ -116,8 +126,10 @@ class MultiVendorCoordinator:
 
         prompt = ChatPromptTemplate.from_template(
             "You are a Senior Network Architect planning a multi-device configuration.\n"
-            "Task: Given the intent, propose consistent IP addresses, AS numbers, and IDs for ALL involved devices.\n"
+            "Task 1: Given the intent, propose consistent IP addresses, AS numbers, and IDs for ALL involved devices.\n"
             "Ensure that peer interfaces on the same link are in the same subnet (e.g. .1 and .2).\n\n"
+            "Task 2: Define a logical DEPLOYMENT SEQUENCE (step-by-step) to ensure functional correctness "
+            "(e.g. 1. Enable interfaces, 2. Configure IPs, 3. Routing protocols).\n\n"
             "INTENT: {intent_text}\n"
             "PARAMETERS: {params}\n"
             "DEVICES: {devices}\n\n"
@@ -141,7 +153,9 @@ class MultiVendorCoordinator:
                 raise e
             logger.error(f"Failed to generate interop plan: {e}")
             return NetworkMasterPlan(
-                proposed_parameters={}, rationale="Fallback: Plan generation failed."
+                proposed_parameters={},
+                deployment_sequence=[],
+                rationale="Fallback: Plan generation failed.",
             )
 
     def verify_alignment(

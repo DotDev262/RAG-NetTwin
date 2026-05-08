@@ -472,7 +472,7 @@ class ConfigGenerator:
                 (
                     "system",
                     "Expert {vendor} {os_version} CLI specialist. "
-                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints.\n\n"
+                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints. 4. Follow DEPLOYMENT SEQUENCE.\n\n"
                     "### PREREQUISITES ###\n"
                     "- Enable modified physical interfaces ('no shutdown').\n"
                     "- Set IPs before protocols. - Set router-id for OSPF/BGP if missing.\n\n"
@@ -586,35 +586,51 @@ class ConfigGenerator:
         Extracts ONLY CLI blocks and key configuration context.
         Also applies 'Lost-in-the-Middle' reordering (Phase 3).
         Enforces a hard token limit (Estimated) to prevent prompt bloat.
+        Identifies and prioritizes CRITICAL VENDOR RESTRICTIONS (Negative Grounding).
         """
         # Phase 3: Reorder chunks to put most relevant at edges
         raw_chunks = self.vector_store.reorder_lost_in_the_middle(raw_chunks)
 
+        restrictions: List[str] = []
         distilled: str = ""
         current_token_est = 0
 
-        # Regex to find CLI blocks (lines starting with common network keywords or 'set')
+        # Regex to find CLI blocks
         cli_pattern = re.compile(
             r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$",
             re.IGNORECASE,
         )
 
-        for res in raw_chunks:
-            # Token limit check: Stop adding chunks if we exceed the limit
-            # (Heuristic: 1 token ~= 4 chars)
-            if current_token_est > token_limit:
-                logger.info(
-                    f"Token limit reached for context ({current_token_est} est tokens). Truncating."
-                )
-                break
+        # Phase 3: Negative Grounding keywords
+        restriction_keywords = [
+            "caution",
+            "warning",
+            "restriction",
+            "important",
+            "must not",
+            "not supported",
+        ]
 
+        for res in raw_chunks:
             text: str = str(res.get("text", ""))
-            # 1. Extract CLI lines
+            chunk_id: str = str(res.get("id"))
+            lines = text.splitlines()
+
+            # 1. Extract Restrictions (Negative Grounding)
+            for line in lines:
+                if any(k in line.lower() for k in restriction_keywords):
+                    restrictions.append(f"[Ref: {chunk_id}] {line.strip()}")
+
+            # Token limit check for main content
+            if current_token_est > token_limit:
+                continue
+
+            # 2. Extract CLI lines
             cli_lines: List[str] = cli_pattern.findall(text)
 
-            # 2. Extract prose that looks like a definition (contains 'is used to' or 'specifies')
+            # 3. Extract prose that looks like a definition (contains 'is used to' or 'specifies')
             prose_context: List[str] = []
-            for line in text.splitlines():
+            for line in lines:
                 if any(
                     k in line.lower()
                     for k in ["is used to", "specifies", "defines", "mandatory"]
@@ -622,7 +638,7 @@ class ConfigGenerator:
                     prose_context.append(line.strip())
 
             if cli_lines or prose_context:
-                chunk_str = f"ID: {res.get('id')}\n"
+                chunk_str = f"ID: {chunk_id}\n"
                 if cli_lines:
                     chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
                 if prose_context:
@@ -632,7 +648,14 @@ class ConfigGenerator:
                 distilled += chunk_str
                 current_token_est += len(chunk_str) // 4
 
-        return distilled
+        # Combine: Restrictions go FIRST
+        final_output = ""
+        if restrictions:
+            final_output += "!!! CRITICAL VENDOR RESTRICTIONS !!!\n"
+            final_output += "\n".join(restrictions[:5]) + "\n\n"
+
+        final_output += distilled
+        return final_output
 
     def _check_lite_intent(self, intent: StructuredIntent) -> bool:
         """
