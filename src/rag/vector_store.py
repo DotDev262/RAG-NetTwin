@@ -278,19 +278,41 @@ class VectorStore:
 
             # Extract text and metadata from each chunk
             for chunk in batch:
-                documents.append(chunk.text)
+                # Support both dict and object access
+                if isinstance(chunk, dict):
+                    text = chunk.get("text", "")
+                    tier = chunk.get("tier", 1)
+                    vendor = chunk.get("vendor", "unknown")
+                    os_version = chunk.get("os_version", "unknown")
+                    cmd_h = chunk.get("command_hierarchy", [])
+                    tags = chunk.get("context_tags", [])
+                    src = chunk.get("source_file", "unknown")
+                    page = chunk.get("page_range", [0, 0])
+                    cid = chunk.get("id", hashlib.md5(text.encode()).hexdigest())
+                else:
+                    text = chunk.text
+                    tier = chunk.tier
+                    vendor = chunk.vendor
+                    os_version = chunk.os_version
+                    cmd_h = chunk.command_hierarchy
+                    tags = chunk.context_tags
+                    src = chunk.source_file
+                    page = chunk.page_range
+                    cid = chunk.id
+
+                documents.append(text)
                 metadatas.append(
                     {
-                        "tier": chunk.tier,
-                        "vendor": chunk.vendor,
-                        "os_version": chunk.os_version,
-                        "command_hierarchy": json.dumps(chunk.command_hierarchy),
-                        "context_tags": json.dumps(chunk.context_tags),
-                        "source_file": chunk.source_file,
-                        "page_range": json.dumps(chunk.page_range),
+                        "tier": tier,
+                        "vendor": vendor,
+                        "os_version": os_version,
+                        "command_hierarchy": json.dumps(cmd_h),
+                        "context_tags": json.dumps(tags),
+                        "source_file": src,
+                        "page_range": json.dumps(page),
                     }
                 )
-                ids.append(chunk.id)
+                ids.append(cid)
 
             # Add batch to collection
             self.collection.add(documents=documents, metadatas=metadatas, ids=ids)

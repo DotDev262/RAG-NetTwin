@@ -25,7 +25,7 @@ Typical Usage:
 """
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from src.utils import setup_logger
 
@@ -52,6 +52,10 @@ class HallucinationReport(BaseModel):
     suspicious_commands: List[str] = Field(default_factory=list)
     invalid_citations: List[str] = Field(default_factory=list)
     ungrounded_commands: List[str] = Field(default_factory=list)
+    unauthorized_parameters: List[str] = Field(
+        description="Parameters (IPs, ASNs, VLANs) found in config but not in intent/plan",
+        default_factory=list,
+    )
 
 
 class HallucinationDetector:
@@ -86,6 +90,8 @@ class HallucinationDetector:
         valid_source_ids: List[str],
         retrieved_texts: Optional[List[str]] = None,
         intent_context: str = "",
+        intent_params: Optional[Dict[str, Any]] = None,
+        master_plan: Optional[Dict[str, Any]] = None,
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
@@ -93,6 +99,7 @@ class HallucinationDetector:
         suspicious = []
         invalid_cites = []
         ungrounded = []
+        unauthorized = []
 
         # Step 1: Remove citation references from config
         config_clean = re.sub(r"\[Ref: [^\]]+\]", "", config)
@@ -135,9 +142,18 @@ class HallucinationDetector:
                 config_clean, all_docs, intent_context
             )
 
+        # Step 5: Parameter Binding Check (Recommendation 3)
+        if intent_params or master_plan:
+            unauthorized = self._check_parameter_binding(
+                config_clean, intent_params or {}, master_plan or {}
+            )
+
         # Determine overall hallucination status
         is_hallucinated = (
-            len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0
+            len(suspicious) > 0
+            or len(invalid_cites) > 0
+            or len(ungrounded) > 0
+            or len(unauthorized) > 0
         )
 
         # Build reason string
@@ -150,6 +166,8 @@ class HallucinationDetector:
                 reasons.append(f"Invalid citations: {invalid_cites}")
             if ungrounded:
                 reasons.append(f"Ungrounded commands: {ungrounded}")
+            if unauthorized:
+                reasons.append(f"Unauthorized parameters: {unauthorized}")
             reason = "; ".join(reasons)
 
         return HallucinationReport(
@@ -158,7 +176,62 @@ class HallucinationDetector:
             suspicious_commands=suspicious,
             invalid_citations=invalid_cites,
             ungrounded_commands=ungrounded,
+            unauthorized_parameters=unauthorized,
         )
+
+    def _check_parameter_binding(
+        self, config: str, intent_params: Dict[str, Any], master_plan: Dict[str, Any]
+    ) -> List[str]:
+        """
+        Verifies that all numeric identifiers in the config were authorized.
+        Targets 'Invented Parameters' hallucination.
+        """
+        unauthorized = []
+
+        # 1. Collect all authorized values from intent and plan
+        authorized_values = set()
+
+        def collect_values(d):
+            if isinstance(d, dict):
+                for v in d.values():
+                    collect_values(v)
+            elif isinstance(d, list):
+                for v in d:
+                    collect_values(v)
+            elif d:
+                # Store normalized string representation
+                val_str = str(d).lower().strip()
+                # If it's a CIDR, also store the IP part
+                if "/" in val_str and "." in val_str:
+                    authorized_values.add(val_str.split("/")[0])
+                authorized_values.add(val_str)
+
+        collect_values(intent_params)
+        collect_values(master_plan)
+
+        # Add common safe values (standard defaults)
+        authorized_values.update(["0", "1", "100", "any", "log"])
+
+        # 2. Extract potential identifiers from config
+        # IP Addresses
+        ips = re.findall(r"(\d+\.\d+\.\d+\.\d+)", config)
+        # Numbers (ASNs, VLANs, Areas) - 2+ digits to avoid common small counters
+        numbers = re.findall(r"(?<![.\w])(\d{2,})(?![.\w])", config)
+
+        for val in set(ips + numbers):
+            if val not in authorized_values:
+                # Check if it's a substring of an authorized CIDR (e.g. 10.1.1.1 in 10.1.1.0/24)
+                # (Simple heuristic)
+                is_authorized = False
+                for auth in authorized_values:
+                    if val in auth:
+                        is_authorized = True
+                        break
+
+                if not is_authorized:
+                    unauthorized.append(val)
+
+        return unauthorized
 
     def _check_command_grounding(
         self, config: str, docs: List[str], intent_context: str = ""

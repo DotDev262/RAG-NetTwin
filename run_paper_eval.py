@@ -232,6 +232,8 @@ class PaperQualityEvaluator:
                     [],
                     retrieved_texts=all_texts,
                     intent_context=intent.original_text,
+                    intent_params=intent.parameters,
+                    master_plan=cached_rag.get("master_plan"),
                 )
                 all_hal_reports.append(hal_report.model_dump())
             results["rag_nettwin"]["hallucinations"] = all_hal_reports
@@ -262,6 +264,10 @@ class PaperQualityEvaluator:
                     raise ValueError("No device configurations generated.")
 
                 val_report = self.validator.validate(device_configs, intent)
+                # Deep Trace: Aggregate RAG and Functional logs
+                deep_trace = rag_output.pop("_trace", {})
+                master_plan = deep_trace.get("master_plan")
+
                 all_hal_reports = []
                 for dev_name, dev_data in rag_output.items():
                     if dev_name and dev_name.startswith("_"):
@@ -272,6 +278,8 @@ class PaperQualityEvaluator:
                         dev_data.get("valid_source_ids", []),
                         retrieved_texts=[dev_data.get("grounding_context", "")],
                         intent_context=intent.original_text,
+                        intent_params=intent.parameters,
+                        master_plan=master_plan,
                     )
                     all_hal_reports.append(hal_report.model_dump())
 
@@ -332,8 +340,6 @@ class PaperQualityEvaluator:
                         logger.error(f"GNS3 validation failed: {ge}")
                         functional_status = "ERROR"
 
-                # Deep Trace: Aggregate RAG and Functional logs
-                deep_trace = rag_output.pop("_trace", {})
                 if self.run_gns3 and self.gns3 and "g_res" in locals():
                     deep_trace["telnet_logs"] = g_res.get("telnet_logs", {})
 
@@ -344,6 +350,7 @@ class PaperQualityEvaluator:
                     "functional_status": functional_status,
                     "car": gns3_car,
                     "is_multi_vendor": is_multi_vendor,
+                    "master_plan": master_plan,
                     "latency": latency,
                     "hallucinations": all_hal_reports,
                     "cfr_failure": cfr_failure,

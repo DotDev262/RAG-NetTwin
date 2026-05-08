@@ -457,7 +457,12 @@ class ConfigGenerator:
                     "### NETWORK PREREQUISITES (Functional Integrity) ###\n"
                     "- Ensure all modified physical interfaces are explicitly enabled (e.g., 'no shutdown' for Cisco).\n"
                     "- Ensure dependent configurations (like IP addresses) are defined before they are used by protocols.\n"
-                    "- If configuring OSPF/BGP, ensure a valid router-id is set if not already present.\n"
+                    "- If configuring OSPF/BGP, ensure a valid router-id is set if not already present.\n\n"
+                    "### NEGATIVE CONSTRAINTS (Hallucination Control) ###\n"
+                    "1. DO NOT use placeholder patterns like '<YOUR_IP>', 'ENTER_ASN', or '[REPLACE_ME]'.\n"
+                    "2. DO NOT invent arbitrary AS numbers, IP addresses, or VLAN IDs. Use ONLY what is provided in the TASK or GLOBAL MASTER PLAN.\n"
+                    "3. DO NOT include any command that is not justified by an ID in the ### DOCUMENTATION ### block.\n"
+                    "4. CRITICAL: We prefer an INCOMPLETE configuration over a HALLUCINATED one. If you cannot find the syntax for a specific requirement, omit it and note why in your reasoning.\n\n"
                     "{coordination_prompt}",
                 ),
                 (
