@@ -1,0 +1,121 @@
+{
+  "communities": {
+    "0": [
+      "doc_junos_ospf",
+      "net_ospf",
+      "net_ospf_neighbor"
+    ],
+    "1": [
+      "net_ospf_area",
+      "net_ospf_dr",
+      "net_ospf_interface"
+    ],
+    "2": [
+      "cli_junos_traceoptions",
+      "net_ospf_lsa",
+      "net_ospf_spf"
+    ],
+    "3": [
+      "cli_cisco_config_mode",
+      "cli_junos_commit",
+      "cli_junos_config_mode"
+    ],
+    "4": [
+      "doc_catalyst_9300_guide"
+    ],
+    "5": [
+      "doc_junos_cli"
+    ]
+  },
+  "cohesion": {
+    "0": 0.67,
+    "1": 0.67,
+    "2": 0.67,
+    "3": 0.67,
+    "4": 1.0,
+    "5": 1.0
+  },
+  "gods": [
+    {
+      "id": "net_ospf",
+      "label": "Open Shortest Path First (OSPF)",
+      "degree": 2
+    },
+    {
+      "id": "net_ospf_interface",
+      "label": "OSPF Interface",
+      "degree": 2
+    },
+    {
+      "id": "net_ospf_lsa",
+      "label": "Link-State Advertisement (LSA)",
+      "degree": 2
+    },
+    {
+      "id": "cli_junos_config_mode",
+      "label": "Junos Configuration Mode",
+      "degree": 2
+    },
+    {
+      "id": "doc_junos_ospf",
+      "label": "Verifying and Monitoring OSPF",
+      "degree": 1
+    },
+    {
+      "id": "net_ospf_neighbor",
+      "label": "OSPF Neighbor",
+      "degree": 1
+    },
+    {
+      "id": "net_ospf_area",
+      "label": "OSPF Area",
+      "degree": 1
+    },
+    {
+      "id": "net_ospf_dr",
+      "label": "Designated Router (DR)",
+      "degree": 1
+    },
+    {
+      "id": "net_ospf_spf",
+      "label": "Shortest Path First (SPF) Algorithm",
+      "degree": 1
+    },
+    {
+      "id": "cli_cisco_config_mode",
+      "label": "Cisco Global Configuration Mode",
+      "degree": 1
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Cisco Global Configuration Mode",
+      "target": "Junos Configuration Mode",
+      "source_files": [
+        "temp_graph_src/catalyst_9300_config_guide_17_6.txt",
+        "temp_graph_src/junos-cli.txt"
+      ],
+      "confidence": "INFERRED",
+      "relation": "related_to",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Junos Traceoptions",
+      "target": "Link-State Advertisement (LSA)",
+      "source_files": [
+        "temp_graph_src/junos-cli.txt",
+        "temp_graph_src/junos-ospf.txt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "related_to",
+      "why": "cross-file semantic connection"
+    }
+  ],
+  "questions": [
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Cisco Catalyst 9300 Configuration Guide`, `Junos CLI Reference`, `Verifying and Monitoring OSPF` to the rest of the system?",
+      "why": "10 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}

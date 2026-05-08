@@ -1,0 +1,163 @@
+{
+  "nodes": [
+    {
+      "id": "doc_catalyst_9300_guide",
+      "label": "Cisco Catalyst 9300 Configuration Guide",
+      "file_type": "document",
+      "source_file": "temp_graph_src/catalyst_9300_config_guide_17_6.txt"
+    },
+    {
+      "id": "doc_junos_cli",
+      "label": "Junos CLI Reference",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-cli.txt"
+    },
+    {
+      "id": "doc_junos_ospf",
+      "label": "Verifying and Monitoring OSPF",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf",
+      "label": "Open Shortest Path First (OSPF)",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_neighbor",
+      "label": "OSPF Neighbor",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_interface",
+      "label": "OSPF Interface",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_area",
+      "label": "OSPF Area",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_dr",
+      "label": "Designated Router (DR)",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_lsa",
+      "label": "Link-State Advertisement (LSA)",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "net_ospf_spf",
+      "label": "Shortest Path First (SPF) Algorithm",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-ospf.txt"
+    },
+    {
+      "id": "cli_junos_config_mode",
+      "label": "Junos Configuration Mode",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-cli.txt"
+    },
+    {
+      "id": "cli_cisco_config_mode",
+      "label": "Cisco Global Configuration Mode",
+      "file_type": "document",
+      "source_file": "temp_graph_src/catalyst_9300_config_guide_17_6.txt"
+    },
+    {
+      "id": "cli_junos_traceoptions",
+      "label": "Junos Traceoptions",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-cli.txt"
+    },
+    {
+      "id": "cli_junos_commit",
+      "label": "Junos Commit Command",
+      "file_type": "document",
+      "source_file": "temp_graph_src/junos-cli.txt"
+    }
+  ],
+  "edges": [
+    {
+      "source": "doc_junos_ospf",
+      "target": "net_ospf",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "net_ospf_neighbor",
+      "target": "net_ospf",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "net_ospf_interface",
+      "target": "net_ospf_area",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "net_ospf_dr",
+      "target": "net_ospf_interface",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cli_junos_traceoptions",
+      "target": "net_ospf_lsa",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "net_ospf_spf",
+      "target": "net_ospf_lsa",
+      "relation": "logic_successor_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9
+    },
+    {
+      "source": "cli_cisco_config_mode",
+      "target": "cli_junos_config_mode",
+      "relation": "related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85
+    },
+    {
+      "source": "cli_junos_commit",
+      "target": "cli_junos_config_mode",
+      "relation": "related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "he_ospf_monitoring",
+      "label": "OSPF Verification and Monitoring",
+      "nodes": [
+        "net_ospf_neighbor",
+        "net_ospf_interface",
+        "net_ospf_dr",
+        "net_ospf_lsa"
+      ],
+      "relation": "implement",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

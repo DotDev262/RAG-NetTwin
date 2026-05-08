@@ -158,53 +158,88 @@ class VectorStore:
 
     def _load_knowledge_graph(self) -> None:
         """
-        Loads the pre-built knowledge graph from disk.
+        Loads the specialized documentation knowledge graph.
         """
-        graph_path = Path("graphify-out/graph.json")
+        graph_path = Path("data/graph_db/graph.json")
+        mapping_path = Path("data/graph_db/chunk_to_node.json")
+
         if not graph_path.exists():
             logger.warning(
-                "Knowledge graph not found at graphify-out/graph.json. GraphRAG will be disabled."
+                f"Knowledge graph not found at {graph_path}. GraphRAG will be disabled."
             )
             return
 
         try:
+            # 1. Load Graph
             with open(graph_path, "r") as f:
                 data = json.load(f)
-            # networkx format used by graphify
             self.graph = json_graph.node_link_graph(data, edges="links")
-            logger.info(f"Knowledge Graph loaded: {self.graph.number_of_nodes()} nodes")
-        except Exception as e:
-            logger.error(f"Failed to load knowledge graph: {e}")
+            logger.info(
+                f"Documentation Knowledge Graph loaded: {self.graph.number_of_nodes()} nodes"
+            )
 
-    def retrieve_from_graph(
-        self, seed_chunks: List[Dict[str, Any]], depth: int = 1
+            # 2. Load Mapping (Efficiency Bridge)
+            self.chunk_to_node = {}
+            if mapping_path.exists():
+                with open(mapping_path, "r") as f:
+                    self.chunk_to_node = json.load(f)
+                logger.info(
+                    f"Loaded {len(self.chunk_to_node)} semantic anchors for GraphRAG."
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to load documentation knowledge graph: {e}")
+
+    def retrieve_community_context(
+        self, seed_chunks: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        GraphRAG Expansion (Recommendation 4):
-        Takes semantic chunks and expands the context by pulling neighbors from the graph.
+        Community-Aware Retrieval (SOTA GraphRAG):
+        Identifies the community clusters of the seed chunks and retrieves the entire cluster.
+        This ensures holistic context (e.g., all OSPF related docs) is present.
         """
         if not self.graph:
             return seed_chunks
 
-        expanded_ids = set()
+        community_ids = set()
         for chunk in seed_chunks:
             chunk_id = str(chunk.get("id"))
-            if chunk_id in self.graph:
-                expanded_ids.add(chunk_id)
-                # Add neighbors (Parents, Siblings, and related concepts)
-                for neighbor in self.graph.neighbors(chunk_id):
-                    expanded_ids.add(str(neighbor))
 
-        # Fetch the actual chunk data for the new IDs
-        final_results = []
-        for cid in expanded_ids:
-            if cid in self.corpus_map:
-                final_results.append(self.corpus_map[cid])
-            elif cid in self.graph.nodes:
-                # If it's a concept node not in Chroma, we skip it for CLI generation
-                # but in real GraphRAG we might want to include its description.
-                pass
+            # Find the graph node corresponding to this chunk
+            node_id = self.chunk_to_node.get(chunk_id)
+            if not node_id:
+                # If no direct mapping, try using the chunk ID directly as a fallback
+                node_id = chunk_id if chunk_id in self.graph else None
 
+            if node_id and node_id in self.graph:
+                community = self.graph.nodes[node_id].get("community")
+                if community is not None:
+                    community_ids.add(community)
+
+        # Retrieve all nodes belonging to these communities
+        expanded_ids = set()
+        for node_id, data in self.graph.nodes(data=True):
+            if data.get("community") in community_ids:
+                # In GraphRAG, the nodes themselves often contain the summarized context.
+                # Here, we try to map back to the original documentation chunks.
+                expanded_ids.add(str(node_id))
+
+        final_results = list(seed_chunks)
+        # Add all chunks from the discovered communities
+        # (This is the 'Context Reach' boost)
+        reverse_mapping = {v: k for k, v in self.chunk_to_node.items()}
+
+        for nid in expanded_ids:
+            # Map graph node back to Chroma ID
+            cid = reverse_mapping.get(nid)
+            if cid and cid in self.corpus_map:
+                # Avoid duplicates
+                if not any(c.get("id") == cid for c in final_results):
+                    final_results.append(self.corpus_map[cid])
+
+        logger.info(
+            f"Community-Aware Expansion: {len(seed_chunks)} seeds -> {len(final_results)} chunks (Communities: {list(community_ids)})"
+        )
         return final_results
 
     def _initialize_bm25(self) -> None:

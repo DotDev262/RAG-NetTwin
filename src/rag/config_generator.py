@@ -267,7 +267,7 @@ class ConfigGenerator:
 
                     elif retrieval_mode == "graph":
                         # Phase 3: GraphRAG Retrieval (Recommendation 4)
-                        # 1. Start with high-quality syntax candidates
+                        # 1. Start with high-quality syntax seeds
                         seed_chunks = self.vector_store.hybrid_retrieve(
                             query=q,
                             vendor=vendor,
@@ -275,8 +275,8 @@ class ConfigGenerator:
                             tier=1,
                             n_results=3,
                         )
-                        # 2. Expand using Knowledge Graph neighbors
-                        graph_chunks = self.vector_store.retrieve_from_graph(
+                        # 2. Expand using Knowledge Graph Communities (SOTA)
+                        graph_chunks = self.vector_store.retrieve_community_context(
                             seed_chunks
                         )
                         all_candidates.extend(graph_chunks)

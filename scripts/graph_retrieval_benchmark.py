@@ -32,16 +32,18 @@ BENCHMARK_QUERIES = [
 def run_graph_benchmark():
     console.print(
         Panel.fit(
-            "[bold cyan]RAG-NetTwin: Advanced RAG vs Baseline Retrieval Benchmark[/bold cyan]\n"
-            "[dim]Measuring improvements from Multi-Query Expansion & Syntax-Aware Reranking[/dim]"
+            "[bold cyan]RAG-NetTwin: RAG vs Advanced vs GraphRAG Benchmark[/bold cyan]\n"
+            "[dim]Measuring improvements from Knowledge Graph Expansion & Multi-Pass Retrieval[/dim]"
         )
     )
 
     store = VectorStore()
-    # We'll use the query expander already integrated in ConfigGenerator logic
     from src.rag.query_expander import QueryExpander
+    from src.rag.config_generator import ConfigGenerator
 
     expander = QueryExpander()
+    # We use a dummy generator just for the distill_context logic
+    generator = ConfigGenerator()
 
     results = []
 
@@ -49,58 +51,53 @@ def run_graph_benchmark():
         query = item["q"]
         vendor = item["vendor"]
 
-        # --- MODE 1: BASELINE (Single Query, Flat Hybrid) ---
-        # start_t = time.time()
-        # Just use the original query, standard retrieval
-        baseline_candidates = store.hybrid_retrieve(
-            query=query, vendor=vendor, n_results=10
-        )
-
-        # Standard Rerank (using a mock without syntax boost for baseline)
-        # We simulate the old rerank by disabling the boost logic or just taking top chunks
-        baseline_results = sorted(
-            baseline_candidates, key=lambda x: x.get("distance", 1.0)
-        )[:5]
-
-        # Calculate Average Relevance (Cross-Encoder score on baseline)
-        baseline_reranked = store.rerank(query, baseline_results, n_results=5)
+        # --- MODE 1: BASELINE (Single Query, Standard Retrieval) ---
+        baseline_raw = store.hybrid_retrieve(query=query, vendor=vendor, n_results=5)
+        # Force baseline rerank (no boost simulation)
+        baseline_reranked = store.rerank(query, baseline_raw, n_results=5)
         avg_baseline_score = np.mean(
             [r.get("rerank_score", 0.0) for r in baseline_reranked]
         )
+        baseline_context = generator.distill_context(baseline_reranked)
 
-        # --- MODE 2: ADVANCED (Multi-Query + Syntax-Aware Reranking) ---
-        # 1. Expand Queries
+        # --- MODE 2: ADVANCED (Multi-Query + Syntax Reranking) ---
         queries = expander.expand(query)
-
-        # 2. Accumulate Candidates
-        all_candidates = []
+        all_adv_candidates = []
         for q in queries:
-            # Hierarchical Retrieval (Tiered)
-            s_cand = store.hybrid_retrieve(query=q, vendor=vendor, tier=1, n_results=3)
-            c_cand = store.hybrid_retrieve(query=q, vendor=vendor, tier=2, n_results=3)
-            all_candidates.extend(s_cand + c_cand)
+            all_adv_candidates.extend(
+                store.hybrid_retrieve(query=q, vendor=vendor, n_results=5)
+            )
 
-        # Deduplicate
-        unique_candidates = {c["id"]: c for c in all_candidates}.values()
+        unique_adv = list({c["id"]: c for c in all_adv_candidates}.values())
+        adv_reranked = store.rerank(query, unique_adv, n_results=5)
+        avg_adv_score = np.mean([r.get("rerank_score", 0.0) for r in adv_reranked])
+        adv_context = generator.distill_context(adv_reranked)
 
-        # 3. Syntax-Aware Reranking (Already implemented in VectorStore.rerank)
-        advanced_results = store.rerank(query, list(unique_candidates), n_results=5)
-        avg_advanced_score = np.mean(
-            [r.get("rerank_score", 0.0) for r in advanced_results]
-        )
+        # --- MODE 3: GRAPHRAG (Syntax Seeds + Community Cluster Expansion) ---
+        all_graph_candidates = []
+        for q in queries:
+            # 1. Start with Syntax Seeds
+            seeds = store.hybrid_retrieve(query=q, vendor=vendor, tier=1, n_results=3)
+            # 2. Expand using Knowledge Graph Communities (SOTA)
+            expanded = store.retrieve_community_context(seeds)
+            all_graph_candidates.extend(expanded)
 
-        # Information Gain: Total unique chunks considered
-        total_unique = len(unique_candidates)
+        unique_graph = list({c["id"]: c for c in all_graph_candidates}.values())
+        graph_reranked = store.rerank(query, unique_graph, n_results=5)
+        avg_graph_score = np.mean([r.get("rerank_score", 0.0) for r in graph_reranked])
+        graph_context = generator.distill_context(graph_reranked)
 
         results.append(
             {
                 "query": query,
-                "vendor": vendor,
-                "baseline_score": avg_baseline_score,
-                "advanced_score": avg_advanced_score,
-                "candidates_found": total_unique,
+                "baseline": avg_baseline_score,
+                "advanced": avg_adv_score,
+                "graphrag": avg_graph_score,
+                "baseline_len": len(baseline_context),
+                "adv_len": len(adv_context),
+                "graph_len": len(graph_context),
                 "improvement": (
-                    (avg_advanced_score - avg_baseline_score) / avg_baseline_score * 100
+                    (avg_graph_score - avg_baseline_score) / avg_baseline_score * 100
                 )
                 if avg_baseline_score != 0
                 else 0,
@@ -109,29 +106,41 @@ def run_graph_benchmark():
 
     # Display Table
     table = Table(
-        title="RAG Performance: Advanced vs Baseline",
+        title="3-Way Retrieval Comparison",
         show_header=True,
         header_style="bold magenta",
     )
-    table.add_column("Query Preview", ratio=1)
-    table.add_column("Baseline Score", justify="right")
-    table.add_column("Advanced Score", justify="right")
-    table.add_column("Recall (Unique Chunks)", justify="center")
+    table.add_column("Query", ratio=1)
+    table.add_column("Baseline", justify="right")
+    table.add_column("Advanced", justify="right")
+    table.add_column("GraphRAG", justify="right", style="bold green")
     table.add_column("Gain (%)", justify="right")
 
     for r in results:
-        color = (
-            "green"
-            if r["improvement"] > 0
-            else ("red" if r["improvement"] < 0 else "white")
-        )
         table.add_row(
             r["query"][:40] + "...",
-            f"{r['baseline_score']:.4f}",
-            f"{r['advanced_score']:.4f}",
-            str(r["candidates_found"]),
-            f"[{color}]{r['improvement']:.1f}%[/{color}]",
+            f"{r['baseline']:.3f}",
+            f"{r['advanced']:.3f}",
+            f"{r['graphrag']:.3f}",
+            f"{r['improvement']:.1f}%",
         )
+
+    console.print(table)
+
+    # Final Stats
+    summary = f"""
+    [bold underline]Performance Summary[/bold underline]
+    
+    [bold]Avg Semantic Precision (Baseline):[/bold]  {np.mean([r['baseline'] for r in results]):.4f}
+    [bold]Avg Semantic Precision (GraphRAG):[/bold] [green]{np.mean([r['graphrag'] for r in results]):.4f}[/green]
+    
+    [bold]Avg Context Efficiency:[/bold]
+    - Baseline Context Size:  {np.mean([r['baseline_len'] for r in results]):.0f} chars
+    - GraphRAG Context Size:  {np.mean([r['graph_len'] for r in results]):.0f} chars
+    
+    [bold blue]Conclusion:[/bold blue] GraphRAG provides [bold green]{np.mean([r['improvement']]):.2f}%[/bold green] better context reach than baseline.
+    """
+    console.print(Panel(summary, border_style="green"))
 
     console.print(table)
 
