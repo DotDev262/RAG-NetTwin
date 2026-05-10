@@ -1,1103 +1,447 @@
 {
-  "2.1.0:tiered:Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
+  "2.4.0:tiered:Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
     "scenario": "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
     "configs": {
-      "Device": "! Based on [Ref: ID: cisco_17_6_ospf_config]\nrouter ospf 1\nnetwork 10.10.10.1 0.0.0.255 area 0\ninterface Gig1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 1 area 0"
+      "Device": "! Based on [Ref: ID: 2, ID: 3, ID: 6, ID: 1, ID: 4, ID: 5]\ninterface Gig1/0/1\nip address 10.10.10.1 0.0.0.255\nip ospf area 0.0.0.0 10.10.10.1\nip ospf hello-interval 1\nip ospf mtu 1500\ndescription Gig1/0/1 OSPF Area 0"
     },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 11.991889715194702,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: cisco_17_6_ospf_config"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:17:29.420412",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
-    "scenario": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE BGP Configuration Guide]\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000\naddress-family ipv4\nneighbor 192.168.50.1 activate"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 1.1649675369262695,
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "FAIL",
+    "car": 0.8333333333333334,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 34.29759073257446,
     "hallucinations": [
       {
         "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 192.168.50.1 activate']",
+        "reason": "Unauthorized parameters: ['1500']",
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": [
-          "neighbor 192.168.50.1 activate"
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "1500"
         ]
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco IOS-XE BGP Configuration Guide"
+        "ID: 2",
+        "ID: 3",
+        "ID: 6",
+        "ID: 1",
+        "ID: 4",
+        "ID: 5"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:17:33.138867",
+    "deep_trace_file": "results/traces/20260510_105731_tiered_e778dc20.json",
+    "timestamp": "2026-05-10T10:57:31.243225",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Configure static route to 172.16.0.0/16 via 10.0.0.1": {
-    "scenario": "Configure static route to 172.16.0.0/16 via 10.0.0.1",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_IP_Routing_Configuration_Guide]\nip route 172.16.0.0 255.255.0.0 10.0.0.1"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 2.499899387359619,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_IP_Routing_Configuration_Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:17:38.180847",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Enable OSPF process 10 on all active interfaces for Juniper": {
+  "2.4.0:tiered:Enable OSPF process 10 on all active interfaces for Juniper": {
     "scenario": "Enable OSPF process 10 on all active interfaces for Juniper",
     "configs": {
-      "Device-1": "# Based on [Ref: ID: Juniper 21.4 OSPF Configuration]\nset protocols ospf process-id 10"
+      "Device": "# Based on [Ref: ID: juniper-ospf-enable]\nset protocols ospf area 0.0.0.0 interface all enable"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.155053377151489,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.2570569515228271,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Juniper 21.4 OSPF Configuration"
+        "ID: juniper-ospf-enable"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:17:44.882732",
+    "deep_trace_file": "results/traces/20260510_105848_tiered_60aaac4d.json",
+    "timestamp": "2026-05-10T10:58:48.037036",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
+  "2.4.0:tiered:Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
+    "scenario": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
+    "configs": {
+      "Device": "! Based on [Ref: ID: bgp-neighbor-remote-as]\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 20.530247688293457,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: bgp-neighbor-remote-as"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_105910_tiered_1adb01e8.json",
+    "timestamp": "2026-05-10T10:59:10.041452",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure static route to 172.16.0.0/16 via 10.0.0.1": {
+    "scenario": "Configure static route to 172.16.0.0/16 via 10.0.0.1",
+    "configs": {
+      "Device": "! Based on [Ref: ID: ip-route]\nip route 172.16.0.0 0.0.255.255 10.0.0.1"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 23.320910453796387,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['0.0.255.255']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "0.0.255.255"
+        ]
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: ip-route"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_105911_tiered_e01a98d9.json",
+    "timestamp": "2026-05-10T10:59:11.495857",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
     "scenario": "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6",
     "configs": {
-      "Device-1": "! Based on [Ref: ID: Cisco IOS-XE 17.6 OSPF Configuration Guide]\nrouter ospf 1\nrouter-id 1.1.1.1"
+      "Device": "! Based on [Ref: ID: OSPF-CONFIG-2, ID: OSPF-CONFIG-1]\nrouter ospf 1\nrouter-id 1.1.1.1"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.153134346008301,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 4.270849704742432,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco IOS-XE 17.6 OSPF Configuration Guide"
+        "ID: OSPF-CONFIG-2",
+        "ID: OSPF-CONFIG-1"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:17:51.574925",
+    "deep_trace_file": "results/traces/20260510_105959_tiered_b7a5d38f.json",
+    "timestamp": "2026-05-10T10:59:59.803611",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
+  "2.4.0:tiered:Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
     "scenario": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source",
     "configs": {
-      "Device-1": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\nip access-list extended BLOCK_WEB\ndeny tcp any any eq 80"
+      "Device": "! Based on [Ref: ID: tcp_port, ID: acl_extended, ID: exit]\nip access-list extended BLOCK_WEB\ndeny tcp any any eq 80\nexit"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.419297218322754,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 2.308753252029419,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
+        "ID: tcp_port",
+        "ID: acl_extended",
+        "ID: exit"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:17:58.378792",
+    "deep_trace_file": "results/traces/20260510_105959_tiered_d0627600.json",
+    "timestamp": "2026-05-10T10:59:59.975061",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
-    "scenario": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8",
-    "configs": {
-      "Device": "# Based on [Ref: ID: JUNIPER-21.4-FW-FILTER]\nset firewall filter ICMP-DISCARD term 1 from protocol icmp\nset firewall filter ICMP-DISCARD term 1 from source-address 10.0.0.0/8\nset firewall filter ICMP-DISCARD term 1 then discard"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.395612478256226,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: JUNIPER-21.4-FW-FILTER"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:18:05.146947",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
+  "2.4.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
     "scenario": "Apply access-list 101 inbound on interface GigabitEthernet0/1",
     "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\ninterface GigabitEthernet0/1\nip access-group 101 in"
+      "Device": "! Based on [Ref: ID: 1]\nip access-group 101 in"
     },
-    "status": "FAIL",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "car": 1.0,
     "is_multi_vendor": false,
-    "latency": 5.579188585281372,
+    "master_plan": null,
+    "latency": 3.5217034816741943,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
+        "ID: 1"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "deep_trace_file": "results/traces/20260508_083649_tiered_ea6b1776.json",
-    "timestamp": "2026-05-08T08:36:49.402019",
+    "deep_trace_file": "results/traces/20260510_110050_tiered_ea6b1776.json",
+    "timestamp": "2026-05-10T11:00:50.668455",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
-    "scenario": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\nip access-list standard SSH-ACL\npermit 192.168.1.0 0.0.0.255\nline vty 0 15\naccess-class SSH-ACL in"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.507331609725952,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:18:19.885206",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Create a standard ACL 10 to permit only 10.1.1.0/24": {
+  "2.4.0:tiered:Create a standard ACL 10 to permit only 10.1.1.0/24": {
     "scenario": "Create a standard ACL 10 to permit only 10.1.1.0/24",
     "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\nip access-list standard 10\n10 permit 10.1.1.0 0.0.0.255"
+      "Device": "! Based on [Ref: ID: acl-standard, ID: acl-permit]\nip access-list standard 10\npermit 10.1.1.0 0.0.0.255"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.242459774017334,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 2.2354354858398438,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
+        "ID: acl-standard",
+        "ID: acl-permit"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:18:26.504867",
+    "deep_trace_file": "results/traces/20260510_110140_tiered_02398b42.json",
+    "timestamp": "2026-05-10T11:01:40.193098",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Set description 'Uplink to Core' on interface Gig0/0": {
+  "2.4.0:tiered:Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
+    "scenario": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8",
+    "configs": {
+      "Device": "# Based on [Ref: ID: juniper-21.4-firewall-filter]\nset firewall family inet filter discard-icmp from source-address 10.0.0.0/8\nset firewall family inet filter discard-icmp then discard"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 2.018784761428833,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: juniper-21.4-firewall-filter"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110230_tiered_4776275e.json",
+    "timestamp": "2026-05-10T11:02:30.014506",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set description 'Uplink to Core' on interface Gig0/0": {
     "scenario": "Set description 'Uplink to Core' on interface Gig0/0",
     "configs": {
-      "Device": "! Based on [Ref: ID: Gig0/0_syntax]\ninterface Gig0/0\ndescription Uplink to Core"
+      "Device": "! Based on [Ref: ID: interface]\ninterface Gig0/0"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 5.186186075210571,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.1478946208953857,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
-    "cfr_failure": false,
+    "cfr_failure": true,
     "retrieved_sources": [
       [
-        "ID: Gig0/0_syntax"
+        "ID: interface"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:18:34.072520",
+    "deep_trace_file": "results/traces/20260510_110230_tiered_af41623f.json",
+    "timestamp": "2026-05-10T11:02:30.395416",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Configure VLAN 100 named 'DATABASE' on Cisco switch": {
+  "2.4.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
+    "scenario": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco",
+    "configs": {
+      "Device": "! Based on [Ref: permit_ssh_to_192_168_1_0_24, end_ssh_access]\nip access-list extended SSH_ACCESS\nremark ID: permit_ssh_to_192_168_1_0_24\npermit ip 192.168.1.0 0.0.0.255\nremark ID: end_ssh_access"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 2.2974929809570312,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "permit_ssh_to_192_168_1_0_24",
+        "end_ssh_access"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110310_tiered_2afb886d.json",
+    "timestamp": "2026-05-10T11:03:10.537443",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure VLAN 100 named 'DATABASE' on Cisco switch": {
     "scenario": "Configure VLAN 100 named 'DATABASE' on Cisco switch",
     "configs": {
-      "switch": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\nvlan 100\nname DATABASE"
+      "Device": "! Based on [Ref: ID: vlan_name, ID: vlan_database, ID: vlan_100]\nvlan database\nvlan 100\nname DATABASE"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.055550813674927,
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 0.9132163524627686,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: Cisco IOS-XE Syntax Guide"
+        "ID: vlan_name",
+        "ID: vlan_database",
+        "ID: vlan_100"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "timestamp": "2026-05-06T18:18:40.510320",
+    "deep_trace_file": "results/traces/20260510_110336_tiered_fd389403.json",
+    "timestamp": "2026-05-10T11:03:36.835876",
     "mode_tag": "tiered"
   },
-  "2.1.0:tiered:Enable LLDP globally on a Juniper EX switch": {
+  "2.4.0:tiered:Enable LLDP globally on a Juniper EX switch": {
     "scenario": "Enable LLDP globally on a Juniper EX switch",
     "configs": {
-      "EX switch": "# Based on [Ref: ID: Juniper_EX_21.4_LLDP_Config]\nset protocols lldp enable"
+      "Device": "# Based on [Ref: ID: 2, ID: 1]\nset protocols lldp interface all\nset protocols lldp enable"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.395785331726074,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Juniper_EX_21.4_LLDP_Config"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:18:47.288149",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
-    "scenario": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE",
-    "configs": {
-      "IOS-XE": "! Based on [Ref: ID: IOS-XE_17.6]\ninterface GigabitEthernet0/1\nmtu 9000"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.206996202468872,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: IOS-XE_17.6"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:18:53.867454",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
-    "scenario": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30",
-    "configs": {
-      "Gig1/0/24": "! Based on [Ref: ID: Cisco_IOS_XE_Switchport_Configuration]\ninterface Gig1/0/24\nswitchport mode trunk\nswitchport trunk allowed vlan 10,20,30"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.403736352920532,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_Switchport_Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:00.650292",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
-    "scenario": "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link",
-    "configs": {
-      "Router-B": "! Based on [Ref: ID: Cisco IOS-XE Syntax]\nrouter ospf 1\nnetwork 10.0.0.0 0.0.0.255 area 0\ninterface GigabitEthernet0/1\nip ospf 1 area 0",
-      "Router-A": "! Based on [Ref: ID: Cisco IOS-XE Syntax]\nrouter ospf 1\nnetwork 10.0.0.0 0.0.0.255 area 0\ninterface GigabitEthernet0/1\nip ospf 1 area 0"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 11.658855438232422,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      },
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax"
-      ],
-      [
-        "ID: Cisco IOS-XE Syntax"
-      ]
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:14.690593",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
-    "scenario": "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002",
-    "configs": {
-      "Router-B": "! Based on [Ref: ID: Cisco IOS-XE BGP Configuration Guide]\nrouter bgp 65001\nneighbor 10.1.1.1 remote-as 65002\naddress-family ipv4\nneighbor 10.1.1.1 activate",
-      "Router-A": "! Based on [Ref: ID: BGP_Peering_Example]\nrouter bgp 65001\nneighbor 10.1.1.1 remote-as 65002\naddress-family ipv4\nneighbor 10.1.1.1 activate"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 12.787656545639038,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 10.1.1.1 activate']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "neighbor 10.1.1.1 activate"
-        ]
-      },
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 10.1.1.1 activate']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "neighbor 10.1.1.1 activate"
-        ]
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE BGP Configuration Guide"
-      ],
-      [
-        "ID: BGP_Peering_Example"
-      ]
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:29.861597",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
-    "scenario": "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers",
-    "configs": {
-      "Router-A": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\nrouter ospf 1\nip ospf hello-interval 5",
-      "Router-B": "! Based on [Ref: ID: Cisco IOS-XE OSPF configuration guide]\nrouter ospf 1\nip ospf hello-interval 5"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "SKIPPED",
-    "latency": 12.392608642578125,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      },
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax Guide"
-      ],
-      [
-        "ID: Cisco IOS-XE OSPF configuration guide"
-      ]
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:44.788988",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set system hostname to CORE-RTR-01": {
-    "scenario": "Set system hostname to CORE-RTR-01",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE]\nhostname CORE-RTR-01"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 3.0610439777374268,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:50.386051",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
-    "scenario": "Configure NTP server 10.1.1.100 on Cisco IOS-XE",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS-XE_NTP_Configuration]\nntp server 10.1.1.100"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.175765752792358,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS-XE_NTP_Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:19:56.938921",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Enable SNMP community 'public' with RO access": {
-    "scenario": "Enable SNMP community 'public' with RO access",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE SNMP Configuration]\nsnmp-server community public RO"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.412416696548462,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE SNMP Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:03.883116",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up local user 'admin' with secret 'Cisco123' and level 15": {
-    "scenario": "Set up local user 'admin' with secret 'Cisco123' and level 15",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE 17.6 User Management]\nusername admin secret Cisco123\nusername admin privilege 15"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 3.358882188796997,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE 17.6 User Management"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:09.768609",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure logging buffer size to 100000": {
-    "scenario": "Configure logging buffer size to 100000",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Logging Configuration]\nlogging buffer 100000"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.212056875228882,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Logging Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:16.355221",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
-    "scenario": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2",
-    "configs": {
-      "Device": "! Based on [Ref: ID: cisco_ios_xe_syntax]\ninterface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 5.20683741569519,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: cisco_ios_xe_syntax"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:23.941094",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE": {
-    "scenario": "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\nipv6 router ospf 1\nrouter ospf 1\nipv6 area 0 default-cost 10"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "SKIPPED",
-    "latency": 4.387828588485718,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": true,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:30.859702",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
-    "scenario": "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_NAT_Configuration]\nip nat inside source list 1 interface Gig0/1 overload\naccess-list 1 permit 192.168.10.0 0.0.0.255\ninterface Gig0/1\nip nat inside"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 5.725739479064941,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_NAT_Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:38.962441",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
-    "scenario": "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'",
-    "configs": {
-      "2.2.2.2": "# Based on [Ref: ID: Juniper_Junos_21_4_Site_to_Site_VPN_Configuration]\nset security ike proposal PSK-proposal authentication-method pre-shared-keys\nset security ike policy PSK-policy proposal-set PSK-proposal\nset security ipsec proposal PSK-proposal protocol esp authentication-algorithm hmac-sha1-96 encryption-algorithm aes-256-cbc\nset security ipsec policy PSK-policy proposal-set PSK-proposal\nset security ipsec vpn VPN-PSK bind-interface st0\nset security ipsec vpn VPN-PSK ipsec-policy PSK-policy\nset security ipsec vpn VPN-PSK ike policy PSK-policy\nset security ipsec vpn VPN-PSK establish-tunnels immediately",
-      "1.1.1.1": "! Based on [Ref: ID: Cisco_IOS_XE_Crypto_Map]\ncrypto isakmp policy 1\nencryption aes 256\nhash sha512\ngroup 14\nlifetime 3600\nexit\ncrypto ipsec transform-set TS esp-aes 256 esp-sha512-hmac\nmode transport\nexit\ncrypto map CMAP 1 ipsec-isakmp\nset peer 2.2.2.2\nset transform-set TS\nmatch address 100\nexit"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "SKIPPED",
-    "latency": 11.305063009262085,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      },
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['encryption aes 256', 'hash sha512', 'lifetime 3600', 'set transform-set TS']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "encryption aes 256",
-          "hash sha512",
-          "lifetime 3600",
-          "set transform-set TS"
-        ]
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Juniper_Junos_21_4_Site_to_Site_VPN_Configuration"
-      ],
-      [
-        "ID: Cisco_IOS_XE_Crypto_Map"
-      ]
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "timestamp": "2026-05-06T18:20:52.640293",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco": {
-    "scenario": "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: QOS_CONFIG]\nclass-map match-all OSPF-TRAFFIC\nmatch protocol ospf\npolicy-map QOS-POLICY\nclass OSPF-TRAFFIC\nset dscp cs6"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "SKIPPED",
-    "latency": 5.406622409820557,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: QOS_CONFIG"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:00.578127",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
-    "scenario": "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper",
-    "configs": {
-      "Device": "# Based on [Ref: ID: JUNIPER_VRRP_CONFIG]\nset protocols vrrp group 10 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 3.574220657348633,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: JUNIPER_VRRP_CONFIG"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:06.679654",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
-    "scenario": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",
-    "configs": {
-      "Catalyst": "! Based on [Ref: ID: Cisco IOS-XE DHCP Snooping]\nip dhcp snooping vlan 10,20\nip dhcp snooping"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.411911725997925,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE DHCP Snooping"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:13.461154",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
-    "scenario": "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper",
-    "configs": {
-      "Device": "# Based on [Ref: ID: JUNIPER_21_4_SYNTAX_GUIDE]\nset policy-options prefix-list ALLOW_SUBNETS 10.0.0.0/8 orlonger"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.532007932662964,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: JUNIPER_21_4_SYNTAX_GUIDE"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:20.363729",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
-    "scenario": "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\ninterface Gig1/0/1\nchannel-group 1 mode active\ninterface Gig1/0/2\nchannel-group 1 mode active"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 5.369532108306885,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:28.259515",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco": {
-    "scenario": "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE NetFlow Configuration Guide]\nflow record NetFlowRecord\nmatch ipv4 destination address\nmatch ipv4 source address\nmatch ipv4 protocol\nmatch ipv4 source port\nmatch ipv4 destination port\ncollect ipv4 packet length\ncollect ipv4 packet count\ncollect timestamp absolute\ncollect flow id\nflow exporter NetFlowExporter\ndestination 10.1.1.50\ntransport udp 2055\nexport protocol ipfix\nflow record NetFlowRecord\nexporter NetFlowExporter"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "SKIPPED",
-    "latency": 4.921987295150757,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['collect ipv4 packet length', 'collect ipv4 packet count', 'collect timestamp absolute']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "collect ipv4 packet length",
-          "collect ipv4 packet count",
-          "collect timestamp absolute"
-        ]
-      }
-    ],
-    "cfr_failure": true,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE NetFlow Configuration Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:35.555612",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Restrict console access with an execution timeout of 5 minutes on Juniper": {
-    "scenario": "Restrict console access with an execution timeout of 5 minutes on Juniper",
-    "configs": {
-      "Device": "# Based on [Ref: ID: juniper-21.4-syntax]\nset system login class restrict-console idle-timeout 5"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "latency": 4.119345426559448,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: juniper-21.4-syntax"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "timestamp": "2026-05-06T18:21:42.049514",
-    "mode_tag": "tiered"
-  },
-  "2.1.0:tiered:Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
-    "scenario": "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
-    "configs": {
-      "Device": "ERROR"
-    },
-    "status": "FAIL",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
+    "functional_status": "PASS",
+    "car": 1.0,
     "is_multi_vendor": false,
-    "latency": 1.1329684257507324,
+    "master_plan": null,
+    "latency": 0.5498158931732178,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": true,
-    "retrieved_sources": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_083744_tiered_0f14037b.json",
-    "timestamp": "2026-05-08T08:37:44.982955",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
-    "scenario": "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
-    "configs": {
-      "Device": "! Based on [Ref: ID: 2, ID: 1]\nrouter ospf 1\nnetwork 10.10.10.0 0.0.0.255 area 0\ninterface Gig1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 1 area 0\nno shutdown"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 10.664127349853516,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
@@ -1110,551 +454,901 @@
     "retrieved_texts": [
       ""
     ],
-    "deep_trace_file": "results/traces/20260508_090809_tiered_e778dc20.json",
-    "timestamp": "2026-05-08T09:08:09.102785",
+    "deep_trace_file": "results/traces/20260510_110445_tiered_2bd6e9e8.json",
+    "timestamp": "2026-05-10T11:04:45.143677",
     "mode_tag": "tiered"
   },
-  "2.2.0:tiered:Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
-    "scenario": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: BGP_SETUP]\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000\naddress-family ipv4\nneighbor 192.168.50.1 activate"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 1.0391132831573486,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 192.168.50.1 activate']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "neighbor 192.168.50.1 activate"
-        ]
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: BGP_SETUP"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090812_tiered_1adb01e8.json",
-    "timestamp": "2026-05-08T09:08:12.659754",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Configure static route to 172.16.0.0/16 via 10.0.0.1": {
-    "scenario": "Configure static route to 172.16.0.0/16 via 10.0.0.1",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Static Route Configuration]\nip route 172.16.0.0 255.255.0.0 10.0.0.1"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 1.0566339492797852,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Static Route Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090816_tiered_e01a98d9.json",
-    "timestamp": "2026-05-08T09:08:16.074269",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Enable OSPF process 10 on all active interfaces for Juniper": {
-    "scenario": "Enable OSPF process 10 on all active interfaces for Juniper",
-    "configs": {
-      "Device": "# Based on [Ref: ID: Juniper 21.4 Syntax]\nset protocols ospf\nset protocols ospf area 0.0.0.0 interface all"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.909543037414551,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Juniper 21.4 Syntax"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090822_tiered_60aaac4d.json",
-    "timestamp": "2026-05-08T09:08:22.340462",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
-    "scenario": "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE 17.6 OSPF configuration]\nrouter ospf 1\nrouter-id 1.1.1.1"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 2.9825830459594727,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE 17.6 OSPF configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090827_tiered_b7a5d38f.json",
-    "timestamp": "2026-05-08T09:08:27.686320",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
-    "scenario": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\nip access-list extended BLOCK_WEB\ndeny tcp any any eq 80"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.969806432723999,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090834_tiered_d0627600.json",
-    "timestamp": "2026-05-08T09:08:34.013900",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
-    "scenario": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8",
-    "configs": {
-      "Device": "# Based on [Ref: ID: JUNIPER-FW-FILTER]\nset firewall filter ICMP-DISCARD term 1 from protocol icmp\nset firewall filter ICMP-DISCARD term 1 from source-address 10.0.0.0/8\nset firewall filter ICMP-DISCARD term 1 then discard"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.3872082233428955,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: JUNIPER-FW-FILTER"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090839_tiered_4776275e.json",
-    "timestamp": "2026-05-08T09:08:39.911500",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
-    "scenario": "Apply access-list 101 inbound on interface GigabitEthernet0/1",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\nip access-list standard 101\ninterface GigabitEthernet0/1\nip access-group 101 in"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.2690935134887695,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090845_tiered_ea6b1776.json",
-    "timestamp": "2026-05-08T09:08:45.539295",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
-    "scenario": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_Security_Configuration_Guide]\nip access-list standard SSH_ACL\npermit 192.168.1.0 0.0.0.255"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.3452670574188232,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_Security_Configuration_Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090851_tiered_2afb886d.json",
-    "timestamp": "2026-05-08T09:08:51.246523",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Create a standard ACL 10 to permit only 10.1.1.0/24": {
-    "scenario": "Create a standard ACL 10 to permit only 10.1.1.0/24",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco_IOS_XE_ACL_Configuration]\nip access-list standard 10\n10 permit 10.1.1.0 0.0.0.255"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 4.074676990509033,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco_IOS_XE_ACL_Configuration"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090857_tiered_02398b42.json",
-    "timestamp": "2026-05-08T09:08:57.678086",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Set description 'Uplink to Core' on interface Gig0/0": {
-    "scenario": "Set description 'Uplink to Core' on interface Gig0/0",
-    "configs": {
-      "Device": "! Based on [Ref: ID: Cisco IOS-XE Syntax Guide]\ninterface Gig0/0\ndescription Uplink to Core\nno shutdown"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 3.1122193336486816,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Cisco IOS-XE Syntax Guide"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090903_tiered_af41623f.json",
-    "timestamp": "2026-05-08T09:09:03.306236",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Configure VLAN 100 named 'DATABASE' on Cisco switch": {
-    "scenario": "Configure VLAN 100 named 'DATABASE' on Cisco switch",
-    "configs": {
-      "Device": "! Based on [Ref: ID: GOLD_STANDARD]\nvlan 100\nname DATABASE"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 2.9789538383483887,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: GOLD_STANDARD"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090908_tiered_fd389403.json",
-    "timestamp": "2026-05-08T09:09:08.647249",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Enable LLDP globally on a Juniper EX switch": {
-    "scenario": "Enable LLDP globally on a Juniper EX switch",
-    "configs": {
-      "EX switch": "# Based on [Ref: ID: Juniper_EX_21.4_LLDPSyntax]\nset protocols lldp enable"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 2.953535318374634,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Juniper_EX_21.4_LLDPSyntax"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090914_tiered_2bd6e9e8.json",
-    "timestamp": "2026-05-08T09:09:14.112268",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
+  "2.4.0:tiered:Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
     "scenario": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE",
     "configs": {
-      "IOS-XE": "! Based on [Ref: ID: GigabitEthernet_syntax]\ninterface GigabitEthernet0/1\nmtu 9000"
+      "Device": "! Based on [Ref: ID: 12345]\ninterface GigabitEthernet0/0\nmtu 9000"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
+    "functional_status": "PASS",
+    "car": 1.0,
     "is_multi_vendor": false,
-    "latency": 3.094374656677246,
+    "master_plan": null,
+    "latency": 1.4709086418151855,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "ID: GigabitEthernet_syntax"
+        "ID: 12345"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "deep_trace_file": "results/traces/20260508_090919_tiered_c9030ee0.json",
-    "timestamp": "2026-05-08T09:09:19.722226",
+    "deep_trace_file": "results/traces/20260510_110514_tiered_c9030ee0.json",
+    "timestamp": "2026-05-10T11:05:14.287162",
     "mode_tag": "tiered"
   },
-  "2.2.0:tiered:Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
+  "2.4.0:tiered:Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
     "scenario": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30",
     "configs": {
-      "Gig1/0/24": "! Based on [Ref: ID: Cisco IOS-XE, ID: Gig1/0/24]\ninterface Gig1/0/24\nno shutdown\nswitchport mode trunk\nswitchport trunk allowed vlan 10,20,30"
+      "Device": "! Based on [Ref: ID: 3, ID: 2, ID: 1]\ninterface Gig1/0/24\nswitchport mode trunk\nswitchport trunk allowed vlan 10,20,30"
     },
     "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
+    "functional_status": "PASS",
+    "car": 1.0,
     "is_multi_vendor": false,
-    "latency": 3.3341846466064453,
+    "master_plan": null,
+    "latency": 1.5625321865081787,
     "hallucinations": [
       {
         "is_hallucinated": false,
         "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
-        "ungrounded_commands": []
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
       }
     ],
-    "cfr_failure": false,
+    "cfr_failure": true,
     "retrieved_sources": [
       [
-        "ID: Cisco IOS-XE",
-        "ID: Gig1/0/24"
+        "ID: 3",
+        "ID: 2",
+        "ID: 1"
       ]
     ],
     "retrieved_texts": [
       ""
     ],
-    "deep_trace_file": "results/traces/20260508_090925_tiered_0980fbe8.json",
-    "timestamp": "2026-05-08T09:09:25.413571",
+    "deep_trace_file": "results/traces/20260510_110601_tiered_0980fbe8.json",
+    "timestamp": "2026-05-10T11:06:01.907722",
     "mode_tag": "tiered"
   },
-  "2.2.0:tiered:Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
-    "scenario": "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link",
-    "configs": {
-      "Router-A": "! Based on [Ref: ID: Router-A]\nrouter ospf 1\nnetwork 10.1.1.0 0.0.0.255 area 0\ninterface GigabitEthernet0/0\nip address 10.1.1.1 255.255.255.252\nip ospf 1 area 0\nno shutdown",
-      "Router-B": "! Based on [Ref: ID: Router-B]\nrouter ospf 1\nnetwork 10.1.1.0 0.0.0.255 area 0\ninterface GigabitEthernet0/0\nip address 10.1.1.2 255.255.255.252\nip ospf 1 area 0\nno shutdown"
-    },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 15.014910459518433,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      },
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "ID: Router-A"
-      ],
-      [
-        "ID: Router-B"
-      ]
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260508_090942_tiered_69b63fe2.json",
-    "timestamp": "2026-05-08T09:09:42.785609",
-    "mode_tag": "tiered"
-  },
-  "2.2.0:tiered:Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
+  "2.4.0:tiered:Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
     "scenario": "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002",
     "configs": {
-      "Router-A": "! Based on [Ref: ID: bgp_peering_example]\nrouter bgp 65001\nneighbor 10.1.1.2 remote-as 65002\naddress-family ipv4\nneighbor 10.1.1.2 activate",
-      "Router-B": "! Based on [Ref: ID: Example 1]\nrouter bgp 65001\nneighbor 10.1.1.1 remote-as 65002\naddress-family ipv4\nneighbor 10.1.1.1 activate"
+      "Juniper": "# Based on [Ref: ID: bgp-peer-as, ID: bgp-group, ID: bgp-neighbor]\nset protocols bgp group Cisco peer-as 65001\nset protocols bgp group Cisco type external\nset protocols bgp group Cisco neighbor 10.1.1.2/24",
+      "Cisco": "! Based on [Ref: ID: Cisco_BGP_Neighbor, ID: Cisco_BGP_Password, ID: Cisco_BGP_Peering]\ninterface GigabitEthernet0/0\nip address 10.1.1.1 255.255.255.0\nno shutdown\nrouter bgp 65001\nneighbor 10.1.1.2 remote-as 65002\nneighbor 10.1.1.2 update-source Loopback0\nneighbor 10.1.1.2 timers 10 10 10 10\nneighbor 10.1.1.2 password <PASSWORD>"
     },
-    "status": "PASS",
-    "functional_status": "SKIPPED",
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "latency": 13.557457208633423,
+    "status": "FAIL",
+    "functional_status": "FAIL",
+    "car": 1.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Cisco": {
+          "as_number": "65001",
+          "bgp_peer_ip": "10.1.1.2/24",
+          "ip_address": "10.1.1.1/24"
+        },
+        "Juniper": {
+          "as_number": "65002",
+          "bgp_peer_ip": "10.1.1.1/24",
+          "ip_address": "10.1.1.2/24"
+        }
+      },
+      "deployment_sequence": [
+        "1. Interfaces",
+        "2. Configure IPs",
+        "3. Routing protocols"
+      ],
+      "rationale": "To ensure consistent IP addresses and AS numbers, we propose the above parameters. The deployment sequence is designed to ensure functional correctness by first enabling interfaces, then configuring IPs, and finally configuring routing protocols."
+    },
+    "latency": 5.359455823898315,
     "hallucinations": [
       {
         "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 10.1.1.2 activate']",
+        "reason": "Ungrounded commands: ['set protocols bgp group Cisco type external']",
         "suspicious_commands": [],
         "invalid_citations": [],
         "ungrounded_commands": [
-          "neighbor 10.1.1.2 activate"
-        ]
+          "set protocols bgp group Cisco type external"
+        ],
+        "unauthorized_parameters": []
       },
       {
         "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['neighbor 10.1.1.1 activate']",
+        "reason": "Ungrounded commands: ['neighbor 10.1.1.2 password <PASSWORD>']",
         "suspicious_commands": [],
         "invalid_citations": [],
         "ungrounded_commands": [
-          "neighbor 10.1.1.1 activate"
-        ]
+          "neighbor 10.1.1.2 password <PASSWORD>"
+        ],
+        "unauthorized_parameters": []
       }
     ],
-    "cfr_failure": false,
+    "cfr_failure": true,
     "retrieved_sources": [
       [
-        "ID: bgp_peering_example"
+        "ID: bgp-peer-as",
+        "ID: bgp-group",
+        "ID: bgp-neighbor"
       ],
       [
-        "ID: Example 1"
+        "ID: Cisco_BGP_Neighbor",
+        "ID: Cisco_BGP_Password",
+        "ID: Cisco_BGP_Peering"
       ]
     ],
     "retrieved_texts": [
       "",
       ""
     ],
-    "deep_trace_file": "results/traces/20260508_090958_tiered_34ce8c23.json",
-    "timestamp": "2026-05-08T09:09:58.697443",
+    "deep_trace_file": "results/traces/20260510_110704_tiered_34ce8c23.json",
+    "timestamp": "2026-05-10T11:07:04.939883",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
+    "scenario": "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link",
+    "configs": {
+      "Juniper": "# Based on [Ref: ID: 4, ID: 3, ID: 2, ID: 1]\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0 hello-interval 10\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0 mtu 1492\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0 description Shared Link to Cisco",
+      "Cisco": "! Based on [Ref: ID: Cisco-OSPF-Config, ID: Cisco-OSPF-Process, ID: Cisco-OSPF-Network, ID: Cisco-Interface-Config, ID: Cisco-IP-Config, ID: Cisco-Interface-Enable]\ninterface GigabitEthernet0/0\nno shutdown\nip address 10.1.1.1 255.255.255.0\nip ospf 1 area 0\nrouter ospf 1\nnetwork 10.1.1.0 0.0.0.255 area 0"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Cisco": {
+          "as_number": "65001",
+          "device_id": "CISCO-01",
+          "ip_address": "10.1.1.1/24",
+          "subnet_mask": "255.255.255.0"
+        },
+        "Juniper": {
+          "as_number": "65002",
+          "device_id": "JUNIPER-01",
+          "ip_address": "10.1.1.2/24",
+          "subnet_mask": "255.255.255.0"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Configure OSPF area 0"
+      ],
+      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IPs, and finally configure OSPF area 0 between Cisco and Juniper on their shared link."
+    },
+    "latency": 8.0555579662323,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['1492']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "1492"
+        ]
+      },
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['10.1.1.0']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "10.1.1.0"
+        ]
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: 4",
+        "ID: 3",
+        "ID: 2",
+        "ID: 1"
+      ],
+      [
+        "ID: Cisco-OSPF-Config",
+        "ID: Cisco-OSPF-Process",
+        "ID: Cisco-OSPF-Network",
+        "ID: Cisco-Interface-Config",
+        "ID: Cisco-IP-Config",
+        "ID: Cisco-Interface-Enable"
+      ]
+    ],
+    "retrieved_texts": [
+      "",
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110804_tiered_69b63fe2.json",
+    "timestamp": "2026-05-10T11:08:04.724374",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set system hostname to CORE-RTR-01": {
+    "scenario": "Set system hostname to CORE-RTR-01",
+    "configs": {
+      "CORE-RTR-01": "! Based on [Ref: ID: 1]\nhostname CORE-RTR-01"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.2331149578094482,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: 1"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110813_tiered_753231f2.json",
+    "timestamp": "2026-05-10T11:08:13.398380",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
+    "scenario": "Configure NTP server 10.1.1.100 on Cisco IOS-XE",
+    "configs": {
+      "Cisco": "! Based on [Ref: ID: cisco-ntp-server]\nntp server 10.1.1.100"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 0.4983658790588379,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: cisco-ntp-server"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110901_tiered_df3e47df.json",
+    "timestamp": "2026-05-10T11:09:01.384518",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
+    "scenario": "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers",
+    "configs": {
+      "Cisco": "! Based on [Ref: ID: 1]\ninterface GigabitEthernet0/0\nip ospf hello-interval 5",
+      "Juniper": "# Based on [Ref: ID: juniper-ospf-hello-interval]\nset protocols ospf hello-interval 5"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Cisco": {
+          "as_number": "65001",
+          "ip_address": "10.0.0.1/24",
+          "ospf_id": "1",
+          "subnet_mask": "255.255.255.0"
+        },
+        "Juniper": {
+          "as_number": "65002",
+          "ip_address": "10.0.0.2/24",
+          "ospf_id": "2",
+          "subnet_mask": "255.255.255.0"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Configure OSPF",
+        "4. Routing protocols"
+      ],
+      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IPs, followed by OSPF configuration, and finally routing protocols. We use consistent IP addresses, AS numbers, and IDs for all devices, and peer interfaces on the same link are in the same subnet."
+    },
+    "latency": 4.170139312744141,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      },
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: 1"
+      ],
+      [
+        "ID: juniper-ospf-hello-interval"
+      ]
+    ],
+    "retrieved_texts": [
+      "",
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_110909_tiered_62a9d1a3.json",
+    "timestamp": "2026-05-10T11:09:09.369244",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable SNMP community 'public' with RO access": {
+    "scenario": "Enable SNMP community 'public' with RO access",
+    "configs": {
+      "Device": "! Based on [Ref: ID: 12345]\nsnmp-server community public RO"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 0.4343833923339844,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: 12345"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111012_tiered_ed0c14c9.json",
+    "timestamp": "2026-05-10T11:10:12.927431",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up local user 'admin' with secret 'Cisco123' and level 15": {
+    "scenario": "Set up local user 'admin' with secret 'Cisco123' and level 15",
+    "configs": {
+      "Device": "! Based on [Ref: cisco_description_cf8e8303349a8c48]\nusername admin secret Cisco123 level 15"
+    },
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.4852850437164307,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_description_cf8e8303349a8c48"
+      ]
+    ],
+    "retrieved_texts": [
+      "ID: cisco_description_cf8e8303349a8c48\nRULES/EXAMPLES:\nCommand: Description Specifies a remote locator-set, which is a set of IP addresses of remote devices, that connect to an external network or to networks across sites or to Data Center through remote or local sites.\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260510_111045_tiered_acdd699e.json",
+    "timestamp": "2026-05-10T11:10:45.953265",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
+    "scenario": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2",
+    "configs": {
+      "Device": "! Based on [Ref: ID: 1]\ninterface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.218773365020752,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: 1"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111144_tiered_fa593c9e.json",
+    "timestamp": "2026-05-10T11:11:44.677207",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE": {
+    "scenario": "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE",
+    "configs": {
+      "Device": "! Based on [Ref: ID: OSPFv3-Router-1, ID: OSPFv3-Area-1]\nrouter ospfv3 1\narea 0.0.0.0 0.0.0.0"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.7641220092773438,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      [
+        "ID: OSPFv3-Router-1",
+        "ID: OSPFv3-Area-1"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111234_tiered_4d4892c4.json",
+    "timestamp": "2026-05-10T11:12:34.895926",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure logging buffer size to 100000": {
+    "scenario": "Configure logging buffer size to 100000",
+    "configs": {
+      "Device": "! Based on [Ref: ID: logging-buffer-size]\nlogging buffer-size 100000"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 0.4860513210296631,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: logging-buffer-size"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111314_tiered_a24953e0.json",
+    "timestamp": "2026-05-10T11:13:14.501630",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco": {
+    "scenario": "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco",
+    "configs": {
+      "Device": "! Based on [Ref: cisco_description_a25d121e350388b9]\nipv6 spd queue max-threshold"
+    },
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.5770206451416016,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      [
+        "cisco_description_a25d121e350388b9"
+      ]
+    ],
+    "retrieved_texts": [
+      "ID: cisco_description_a25d121e350388b9\nCOMMANDS:\nipv6 spd queue max-threshold\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260510_111404_tiered_aa3ebf5d.json",
+    "timestamp": "2026-05-10T11:14:04.892950",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
+    "scenario": "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1",
+    "configs": {
+      "Device": "! Based on [Ref: ID: 12345]\nip nat inside source list 1 interface Gig0/1 overload"
+    },
+    "status": "FAIL",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.1303470134735107,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      [
+        "ID: 12345"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111438_tiered_0cd5d15b.json",
+    "timestamp": "2026-05-10T11:14:38.847746",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
+    "scenario": "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'",
+    "configs": {
+      "Device": "ERROR"
+    },
+    "status": "FAIL",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Device": {
+          "asn": "65001",
+          "id": "Device-2",
+          "ip": "10.0.0.2/24"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Routing protocols"
+      ],
+      "rationale": "Consistent IP addresses, AS numbers, and IDs for all devices. Peer interfaces on the same link are in the same subnet."
+    },
+    "latency": 3.996058225631714,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111509_tiered_bd501a26.json",
+    "timestamp": "2026-05-10T11:15:09.102855",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
+    "scenario": "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper",
+    "configs": {
+      "Device": "# Based on [Ref: ID: juniper-21.4-vrrp-interface, ID: juniper-21.4-vrrp-preempt, ID: juniper-21.4-vrrp-group-10]\nset protocols vrrp group 10 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0\nset protocols vrrp group 10 preempt"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.9935846328735352,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: juniper-21.4-vrrp-interface",
+        "ID: juniper-21.4-vrrp-preempt",
+        "ID: juniper-21.4-vrrp-group-10"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111634_tiered_82e0d3f6.json",
+    "timestamp": "2026-05-10T11:16:34.851391",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
+    "scenario": "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper",
+    "configs": {
+      "Juniper": "# Based on [Ref: ID: juniper-21.4-prefix-list-permit]\nset policy-options prefix-list PL-10.0.0.0/8 permit 10.0.0.0/8"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 5.421045780181885,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: juniper-21.4-prefix-list-permit"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111638_tiered_1e2c1123.json",
+    "timestamp": "2026-05-10T11:16:38.466130",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
+    "scenario": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",
+    "configs": {
+      "Device": "! Based on [Ref: ID: 3, ID: 2, ID: 1]\nip dhcp snooping\nip dhcp snooping vlan 10\nip dhcp snooping vlan 20"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.2984528541564941,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      [
+        "ID: 3",
+        "ID: 2",
+        "ID: 1"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111709_tiered_d0ddaadc.json",
+    "timestamp": "2026-05-10T11:17:09.467612",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
+    "scenario": "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco",
+    "configs": {
+      "Cisco": "! Based on [Ref: ID: lacp-etherchannel-1, ID: lacp-etherchannel-2]\ninterface Gig1/0/1\nchannel-group 1 mode active\ninterface Gig1/0/2\nchannel-group 1 mode active"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.26823353767395,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: lacp-etherchannel-1",
+        "ID: lacp-etherchannel-2"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111735_tiered_b50ba2ef.json",
+    "timestamp": "2026-05-10T11:17:35.260648",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Restrict console access with an execution timeout of 5 minutes on Juniper": {
+    "scenario": "Restrict console access with an execution timeout of 5 minutes on Juniper",
+    "configs": {
+      "Juniper": "# Based on [Ref: ID: juniper-21.4-console-access]\nset system login user * authentication timeout 5 minutes"
+    },
+    "status": "PASS",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 2.3309717178344727,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Ungrounded commands: ['set system login user * authentication timeout 5 minutes']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [
+          "set system login user * authentication timeout 5 minutes"
+        ],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: juniper-21.4-console-access"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111854_tiered_b1c1b623.json",
+    "timestamp": "2026-05-10T11:18:54.823244",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
+    "scenario": "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
+    "configs": {
+      "Cisco": "! Based on [Ref: ID: bgp-neighbor-reflect-client]\nrouter bgp 65535\nneighbor 172.16.1.1 remote-as 65535\nneighbor 172.16.1.1 reflect-client"
+    },
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 3.6015474796295166,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['65535']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "65535"
+        ]
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "ID: bgp-neighbor-reflect-client"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260510_111921_tiered_0f14037b.json",
+    "timestamp": "2026-05-10T11:19:21.155539",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco": {
+    "scenario": "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco",
+    "configs": {
+      "Cisco": "! Based on [Ref: cisco_description_b28fd9d1a373742d]\nip flow-export destination 10.1.1.50 2055"
+    },
+    "status": "PASS",
+    "functional_status": "FAIL",
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.8053088188171387,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": true,
+    "retrieved_sources": [
+      [
+        "cisco_description_b28fd9d1a373742d"
+      ]
+    ],
+    "retrieved_texts": [
+      "ID: cisco_description_b28fd9d1a373742d\nRULES/EXAMPLES:\nCommand: Description server Specifies the authentication server. ipv4_address IP address of the authentication server. udp_port UPD port of the authentication server. a-id hex_string Specifies the identification string of the ACS server. key Specifies the RADIUS key to be used for provisioning.\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260510_111939_tiered_feed493c.json",
+    "timestamp": "2026-05-10T11:19:39.711375",
     "mode_tag": "tiered"
   }
 }

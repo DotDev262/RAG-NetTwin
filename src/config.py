@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     groq_model: str = "moonshotai/kimi-k2-instruct-0905"
     gemini_model: str = "gemini-2.0-flash-lite-preview-02-05"
     temperature: float = 0.0
+    llm_max_retries: int = 3
 
     # GNS3 Settings (Tier 3 validation)
     gns3_host: str = "localhost"

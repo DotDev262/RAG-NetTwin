@@ -210,7 +210,12 @@ class HallucinationDetector:
         collect_values(master_plan)
 
         # Add common safe values (standard defaults)
-        authorized_values.update(["0", "1", "100", "any", "log"])
+        authorized_values.update([
+            "0", "1", "100", "any", "log",
+            "255.255.255.0", "255.255.255.255", "255.255.255.128", "255.255.255.192", 
+            "255.255.255.224", "255.255.255.240", "255.255.255.248", "255.255.255.252",
+            "0.0.0.255", "0.0.0.0", "0.0.0.127", "0.0.0.63", "0.0.0.31", "0.0.0.15", "0.0.0.7", "0.0.0.3"
+        ])
 
         # 2. Extract potential identifiers from config
         # IP Addresses
@@ -288,6 +293,10 @@ class HallucinationDetector:
             "bgp",
             "switchport",
             "neighbor",
+            "activate",
+            "address-family",
+            "unicast",
+            "multicast",
             "snmp-server",
             "username",
             "hostname",
@@ -300,6 +309,12 @@ class HallucinationDetector:
             "deny",
             "tcp",
             "any",
+            "vlan",
+            "name",
+            "mode",
+            "access",
+            "trunk",
+            "spanning-tree",
             "timers",
             "hello-interval",
             "network",
@@ -362,6 +377,12 @@ class HallucinationDetector:
             "lacp",
             "active",
             "passive",
+            "passive-interface",
+            "redistribute",
+            "metric-type",
+            "subnets",
+            "vrf",
+            "static",
             "priority",
             "class",
             "class-map",
@@ -475,9 +496,67 @@ class HallucinationDetector:
             "trust",
             "untrust",
             "permit",
+            "lacp",
+            "period",
+            "rate",
+            "fast",
+            "slow",
+            "encr",
+            "encryption",
+            "authentication",
+            "authentication-method",
+            "pre-share",
+            "pre-shared",
+            "transform-set",
+            "isakmp",
+            "ikev2",
+            "ipsec",
+            "esp-aes",
+            "esp-sha-hmac",
+            "esp-sha256-hmac",
+            "aes-256",
+            "aes-128",
+            "sha256",
+            "sha1",
+            "md5",
+            "hash",
+            "lifetime",
+            "minutes",
+            "seconds",
+            "hours",
+            "kilobytes",
+            "diffie-hellman",
+            "pfs",
+            "ipsec-isakmp",
+            "proposal",
+            "policy",
+            "id",
+            "peer",
+            "local-address",
+            "ike",
+            "security-association",
+            "mode",
+            "tunnel",
+            "transport",
+            "ssh",
+            "server",
+            "services",
+            "protocol-version",
+            "encryption-algorithm",
+            "key-exchange-group",
+            "authentication-retries",
+            "idle-timeout",
+            "source-address",
+            "access-class",
+            "v2",
+            "aes128-cbc",
+            "dh-group14-sha1",
+            "soft-reconfiguration",
+            "inbound",
+            "outbound",
         ]
 
-        # Verbs that take arbitrary user input (leaf nodes)
+        # Verbs that take arbitrary user input (leaf nodes) or user-defined names
         LEAF_VERBS = [
             "description",
             "name",
@@ -487,6 +566,19 @@ class HallucinationDetector:
             "alias",
             "remark",
             "community",
+            "profile",
+            "policy",
+            "proposal",
+            "transform-set",
+            "map",
+            "group",
+            "class",
+            "pool",
+            "access-list",
+            "prefix-list",
+            "route-map",
+            "key-exchange-group",
+            "vrf",
         ]
 
         for line in config.splitlines():
@@ -510,19 +602,17 @@ class HallucinationDetector:
             if not parts:
                 continue
 
-            # Skip lines starting with "leaf" verbs that take arbitrary strings
-            # Or if the second token is a leaf verb (e.g., "snmp-server community")
-            if parts[0].lower().rstrip(":") in LEAF_VERBS or (
-                len(parts) > 1 and parts[1].lower().rstrip(":") in LEAF_VERBS
-            ):
-                continue
-
-            # Heuristic: Check if the command structural keywords are grounded.
-            # We skip tokens that look like parameters (digits, IPs, or in intent).
             structural_tokens = []
 
             for word in parts:
                 w_lower = word.lower().rstrip(":")
+                
+                # If we encounter a leaf verb, stop processing this line.
+                # All subsequent tokens are likely user-defined strings.
+                if w_lower in LEAF_VERBS:
+                    break
+
+                # Robust parameter detection:
 
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters

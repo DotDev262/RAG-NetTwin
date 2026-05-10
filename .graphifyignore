@@ -24,3 +24,4 @@ __pycache__/
 *.log
 *.gns3
 iourc
+graph_tmp/

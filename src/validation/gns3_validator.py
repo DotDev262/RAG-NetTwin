@@ -385,30 +385,54 @@ class GNS3Validator(NetworkValidator):
         if not self.project_id:
             return
 
-        # GNS3 automatically deletes links when nodes are deleted
-        nodes_resp = requests.get(
-            f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth
-        )
-        if nodes_resp.status_code == 200:
-            for node in nodes_resp.json():
+        # 1. Stop all nodes first (can't delete running nodes easily in some versions)
+        logger.info("Stopping all nodes for cleanup...")
+        try:
+            requests.post(
+                f"{self.base_url}/projects/{self.project_id}/nodes/stop",
+                json={},
+                auth=self.auth,
+            )
+            time.sleep(2)  # Give them a moment to stop
+        except Exception:
+            pass
+
+        # 2. Delete nodes with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            nodes_resp = requests.get(
+                f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth
+            )
+            if nodes_resp.status_code != 200:
+                break
+                
+            nodes = nodes_resp.json()
+            if not nodes:
+                break
+                
+            for node in nodes:
                 try:
                     requests.delete(
                         f"{self.base_url}/projects/{self.project_id}/nodes/{node['node_id']}",
                         auth=self.auth,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to delete node {node['node_id']}: {e}")
+                    logger.debug(f"Retry {attempt+1}: Failed to delete node {node['node_id']}: {e}")
+            
+            if attempt < max_retries - 1:
+                time.sleep(1 * (attempt + 1))  # Exponential-ish backoff
 
-        # Verify cleanup complete (Flaw 4)
+        # 3. Final verification
         verify = requests.get(
             f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth
         )
         if verify.status_code == 200 and verify.json():
             logger.error(
-                f"Cleanup incomplete for project {self.project_id} - stale nodes remain: {verify.json()}"
+                f"Cleanup incomplete for project {self.project_id} - stale nodes remain: {len(verify.json())}"
             )
             raise RuntimeError(
-                f"GNS3 state not clean for validation in project {self.project_id}"
+                f"GNS3 state not clean for validation in project {self.project_id}. "
+                "Please manually clear the project or restart the GNS3 server if this persists."
             )
 
         logger.info("Project workspace cleared.")

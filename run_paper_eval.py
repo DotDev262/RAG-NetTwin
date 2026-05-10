@@ -4,10 +4,12 @@ import os
 import argparse
 import random
 import hashlib
+import threading
 import numpy as np
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add src to path for imports
 
@@ -58,6 +60,7 @@ class PaperQualityEvaluator:
         self.cache_manager = CacheManager()
         self.cfr_checker = CFRChecker()
         self.stats_reporter = StatsReporter()
+        self.evaluation_lock = threading.Lock()
 
         self.gns3 = None
         if self.run_gns3 and not self.cache_only:
@@ -146,38 +149,60 @@ class PaperQualityEvaluator:
         logger.info(f"Phase 1: Batch parsing {len(scenarios)} intents...")
         parsed_intents = self.parser.parse_batch(scenarios)
 
-        logger.info(f"Phase 2: Evaluating... (Retrieval Mode: {retrieval_mode})")
-        for i, intent in enumerate(
-            tqdm(parsed_intents, desc=f"Evaluating ({retrieval_mode})")
-        ):
-            try:
-                res = self.evaluate_intent(intent, retrieval_mode=retrieval_mode)
-                if res:
-                    # Check for rate limit errors embedded in results
-                    if (
-                        "rag_nettwin" in res
-                        and res["rag_nettwin"].get("status") == "ERROR"
-                    ):
-                        err_msg = str(res["rag_nettwin"].get("error", ""))
-                        if "429" in err_msg or "rate_limit" in err_msg.lower():
-                            logger.error(
-                                f"\n🛑 RATE LIMIT EXCEEDED at Intent #{i+1}: {intent.original_text[:50]}..."
-                            )
-                            logger.error(f"Error Details: {err_msg}")
-                            break
+        logger.info(
+            f"Phase 2: Evaluating in parallel... (Retrieval Mode: {retrieval_mode})"
+        )
+        all_results_map = {}
 
-                    all_results.append(res)
-                time.sleep(2.0)
-            except Exception as e:
-                err_str = str(e)
-                if "429" in err_str or "rate_limit" in err_str.lower():
-                    logger.error(
-                        f"\n🛑 RATE LIMIT EXCEEDED at Intent #{i+1}: {intent.original_text[:50]}..."
-                    )
-                    logger.error(f"Error Details: {err_str}")
-                    break
-                logger.error(f"Unexpected error at Intent #{i+1}: {e}")
-                continue
+        # Parallelize the evaluation loop
+        # We use a small number of workers to avoid hitting rate limits too aggressively
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_to_intent = {
+                executor.submit(
+                    self.evaluate_intent, intent, retrieval_mode=retrieval_mode
+                ): (i, intent)
+                for i, intent in enumerate(parsed_intents)
+            }
+
+            for future in tqdm(
+                as_completed(future_to_intent),
+                total=len(parsed_intents),
+                desc=f"Evaluating ({retrieval_mode})",
+            ):
+                idx, intent = future_to_intent[future]
+                try:
+                    res = future.result()
+                    if res:
+                        # Check for rate limit errors embedded in results
+                        if (
+                            "rag_nettwin" in res
+                            and res["rag_nettwin"].get("status") == "ERROR"
+                        ):
+                            err_msg = str(res["rag_nettwin"].get("error", ""))
+                            if "429" in err_msg or "rate_limit" in err_msg.lower():
+                                logger.error(
+                                    f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {intent.original_text[:50]}..."
+                                )
+                                logger.error(f"Error Details: {err_msg}")
+
+                        all_results_map[idx] = res
+                except Exception as e:
+                    err_str = str(e)
+                    if "429" in err_str or "rate_limit" in err_str.lower():
+                        logger.error(
+                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {intent.original_text[:50]}..."
+                        )
+                        logger.error(f"Error Details: {err_str}")
+                    else:
+                        logger.error(f"Unexpected error at Intent #{idx+1}: {e}")
+                    continue
+
+        # Sort results back into original order
+        all_results = [
+            all_results_map[i]
+            for i in range(len(parsed_intents))
+            if i in all_results_map
+        ]
 
         os.makedirs("results/history", exist_ok=True)
         report = {"metadata": metadata, "results": all_results}
@@ -204,7 +229,8 @@ class PaperQualityEvaluator:
 
         # --- RAG Mode ---
         cache_key = f"{CONFIG_GENERATOR_VERSION}:{retrieval_mode}:{intent_key}"
-        cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
+        with self.evaluation_lock:
+            cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
 
         if cached_rag and cached_rag.get("status") not in [
             "PASS",
@@ -371,16 +397,18 @@ class PaperQualityEvaluator:
                 eval_res["deep_trace_file"] = trace_path
 
                 results["rag_nettwin"] = eval_res
-                self.cache_manager.set(
-                    self.rag_cache, cache_key, eval_res, mode=retrieval_mode
-                )
+                with self.evaluation_lock:
+                    self.cache_manager.set(
+                        self.rag_cache, cache_key, eval_res, mode=retrieval_mode
+                    )
             except Exception as e:
                 logger.error(f"RAG Evaluation failed: {e}")
                 results["rag_nettwin"] = {"status": "ERROR", "error": str(e)}
 
         # --- Vanilla LLM ---
         if self.run_vanilla:
-            cached_vanilla = self.cache_manager.get(self.vanilla_cache, intent_key)
+            with self.evaluation_lock:
+                cached_vanilla = self.cache_manager.get(self.vanilla_cache, intent_key)
             if cached_vanilla:
                 results["vanilla"] = cached_vanilla
                 logger.info(f"Vanilla cache hit: {intent_key[:20]}...")
@@ -433,9 +461,13 @@ class PaperQualityEvaluator:
                         ).model_dump(),
                     }
                     results["vanilla"] = vanilla_result
-                    self.cache_manager.set(
-                        self.vanilla_cache, intent_key, vanilla_result, mode="vanilla"
-                    )
+                    with self.evaluation_lock:
+                        self.cache_manager.set(
+                            self.vanilla_cache,
+                            intent_key,
+                            vanilla_result,
+                            mode="vanilla",
+                        )
                 except Exception as e:
                     results["vanilla"] = {"status": "ERROR", "error": str(e)}
         return results
@@ -443,11 +475,22 @@ class PaperQualityEvaluator:
     def _generate_vanilla(self, scenario: str) -> str:
         from langchain_core.prompts import ChatPromptTemplate
 
+        # Try to extract vendor from scenario to help the baseline
+        vendor_hint = ""
+        if "cisco" in scenario.lower():
+            vendor_hint = "Cisco IOS"
+        elif "juniper" in scenario.lower() or "junos" in scenario.lower():
+            vendor_hint = "Juniper Junos"
+
         prompt = ChatPromptTemplate.from_template(
-            "Task: Generate Cisco/Juniper CLI for {request}. Output ONLY the raw commands. NO prose. CLI:"
+            "Task: Generate {vendor_hint} CLI for {request}. "
+            "Output ONLY the raw commands. NO prose. "
+            "If no vendor is specified, provide Cisco IOS. CLI:"
         )
         chain = prompt | self.vanilla_llm
-        return chain.invoke({"request": scenario}).content
+        return chain.invoke(
+            {"request": scenario, "vendor_hint": vendor_hint or "Cisco/Juniper"}
+        ).content
 
     def _save_deep_trace(self, intent, mode: str, trace_data: Dict[str, Any]) -> str:
         """
@@ -493,8 +536,8 @@ if __name__ == "__main__":
         import glob
 
         artifacts = [
-            VANILLA_CACHE_FILE,
-            RAG_CACHE_FILE,
+            f"data/cache/{VANILLA_CACHE_FILE}",
+            f"data/cache/{RAG_CACHE_FILE}",
             "data/processed/intent_cache.json",
         ]
         artifacts.extend(glob.glob("results/paper_evaluation_*.json"))
@@ -505,13 +548,22 @@ if __name__ == "__main__":
                     print(f"DELETED: {file_path}")
                 except Exception as e:
                     print(f"FAILED TO DELETE {file_path}: {e}")
+
+        print("Clearing Vector Database caches...")
         try:
+            # Ensure we can import from src
+            import sys
+
+            if os.getcwd() not in sys.path:
+                sys.path.append(os.getcwd())
+
             from src.rag.vector_store import VectorStore
 
             vs = VectorStore()
             vs.clear_cache()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"FAILED TO CLEAR VECTOR CACHE: {e}")
+
         print("--- CACHE PURGE COMPLETE ---")
 
     if args.ablation:

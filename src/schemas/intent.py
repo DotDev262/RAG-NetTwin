@@ -26,9 +26,13 @@ class ActionType(str, Enum):
     ENABLE = "enable"
     DISABLE = "disable"
     CONFIGURE = "configure"
+    SET = "set"
     SHOW = "show"
     VERIFY = "verify"
     MONITOR = "monitor"
+    APPLY = "apply"
+    ADD = "add"
+    REMOVE = "remove"
 
 
 class StructuredIntent(BaseModel):
@@ -40,7 +44,7 @@ class StructuredIntent(BaseModel):
         default="Unknown",
     )
     action: ActionType = Field(
-        description="Specific operation: create, update, delete, enable, disable, configure, show, verify, monitor",
+        description="Specific operation: create, update, delete, enable, disable, configure, apply, add, remove, show, verify, monitor",
         default=ActionType.CONFIGURE,
     )
     devices: List[DeviceIntent] = Field(

@@ -37,7 +37,7 @@ from src.validation.referential_integrity import ReferentialIntegrityValidator
 from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
 from src.schemas.intent import StructuredIntent
 from src.llm import LLMProvider
-from src.utils import clean_cli_prose, setup_logger
+from src.utils import clean_cli_prose, setup_logger, with_retry
 
 CONFIG_GENERATOR_VERSION = "2.4.0"  # Incremented for Hierarchical Anchoring
 logger = setup_logger("ConfigGenerator")
@@ -51,7 +51,8 @@ class CommandBlock(BaseModel):
     commands: List[str] = Field(description="List of raw CLI configuration commands")
     source_ids: List[str] = Field(
         description="IDs from the DOCUMENTATION block that justify these specific commands. "
-        "Leave empty ONLY if the command is a generic prerequisite (like 'configure terminal')."
+        "Leave empty ONLY if the command is a generic prerequisite (like 'configure terminal').",
+        default_factory=list,
     )
 
 
@@ -229,8 +230,8 @@ class ConfigGenerator:
                         os_version=search_version,
                         n_results=1,
                     )
-                    # If distance > 0.4, documentation match is weak, trigger LLM expansion
-                    if not pilot or pilot[0].get("distance", 1.0) > 0.4:
+                    # If distance > 0.55, documentation match is weak, trigger LLM expansion (Recommendation 4)
+                    if not pilot or pilot[0].get("distance", 1.0) > 0.55:
                         logger.info(
                             f"Low confidence pilot search for {vendor}. Triggering Multi-Query Expansion..."
                         )
@@ -301,7 +302,7 @@ class ConfigGenerator:
                 # Use Reranker
                 if unique_candidates:
                     results = self.vector_store.rerank(
-                        base_query, unique_candidates, n_results=3
+                        base_query, unique_candidates, n_results=6
                     )
 
                 # Trace retrieval details
@@ -321,7 +322,12 @@ class ConfigGenerator:
 
                 if results:
                     avg_distance: float = sum(
-                        res.get("distance", 0.0) for res in results
+                        (
+                            res.get("distance")
+                            if res.get("distance") is not None
+                            else 1.0
+                        )
+                        for res in results
                     ) / len(results)
                     if avg_distance > 1.2:
                         warning: str = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
@@ -337,13 +343,32 @@ class ConfigGenerator:
                 if results:
                     results = self.vector_store.retrieve_with_parents(results)
 
-                # 3. Dynamic Few-Shot Selection
+                # 3. Dynamic Few-Shot Selection (Efficiency Recommendation 2)
                 vendor_str = vendor if vendor else "unknown"
-                gold_examples: List[Dict[str, Any]] = (
-                    self.vector_store.retrieve_gold_configs(
-                        query=base_query, vendor=vendor_str, n_results=2
+
+                # Determine few-shot count based on pilot confidence
+                # If distance < 0.2, documentation is authoritative, no few-shot needed.
+                # If distance < 0.4, 1 few-shot is enough.
+                # Otherwise, use full 2 few-shots.
+                pilot_dist = pilot[0].get("distance", 1.0) if pilot else 1.0
+                n_few_shot = 2
+                if pilot_dist < 0.2:
+                    n_few_shot = 0
+                elif pilot_dist < 0.4:
+                    n_few_shot = 1
+
+                gold_examples: List[Dict[str, Any]] = []
+                if n_few_shot > 0:
+                    gold_examples = self.vector_store.retrieve_gold_configs(
+                        query=base_query, vendor=vendor_str, n_results=n_few_shot
                     )
-                )
+                    logger.info(
+                        f"Dynamic Few-Shot: Selected {len(gold_examples)} examples (pilot dist: {pilot_dist:.2f})"
+                    )
+                else:
+                    logger.info(
+                        f"Dynamic Few-Shot: Bypassing examples (pilot dist: {pilot_dist:.2f})"
+                    )
 
                 for dev in devices:
                     full_context_map[dev.name] = {
@@ -442,6 +467,7 @@ class ConfigGenerator:
 
         return configs
 
+    @with_retry(max_retries=5)
     def _generate_single_device(
         self,
         device: Any,
@@ -475,10 +501,22 @@ class ConfigGenerator:
                     "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints. 4. Follow DEPLOYMENT SEQUENCE.\n\n"
                     "### PREREQUISITES ###\n"
                     "- Enable modified physical interfaces ('no shutdown').\n"
-                    "- Set IPs before protocols. - Set router-id for OSPF/BGP if missing.\n\n"
+                    "- Set IPs before protocols. - Set router-id for OSPF/BGP if missing.\n"
+                    "- TIP: Cisco BGP route-reflector uses 'neighbor <IP> route-reflector-client' (NOT 'reflect-client').\n"
+                    "- CRITICAL: Cisco OSPF interface commands MUST include a process ID (e.g., 'ip ospf 1 area 0').\n"
+                    "- CRITICAL: Interface-specific commands (hello-interval, mtu, description, ip ospf) MUST be placed under 'interface <name>'.\n"
+                    "### VENDOR-SPECIFIC ANCHORS ###\n"
+                    "- CISCO OSPF: USE 'ip ospf <PID> area <AREA>' (e.g., 'ip ospf 1 area 0'). NEVER use 'ip ospf area <AREA> <IP>'.\n"
+                    "- CISCO OSPF: USE 'ip ospf mtu-ignore' (NOT 'ip ospf mtu').\n"
+                    "### CRITICAL SYNTAX ANCHORS ###\n"
+                    "- CISCO: USE 'crypto isakmp', 'crypto ipsec', 'crypto map'. NEVER use 'set' for VPN/IPsec.\n"
+                    "- JUNIPER: USE 'set' commands (e.g., 'set protocols ospf'). NEVER use hierarchical curly braces '{}'.\n"
+                    "- JUNIPER: USE 'set security ike', 'set security ipsec'. NEVER use standalone 'isakmp' or legacy 'set policy id' (ScreenOS).\n"
+                    "### CITATIONS ###\n"
+                    "- ALWAYS include 'source_ids' for each command block. Use 'ID: <source_id>' from the documentation.\n"
                     "### NEGATIVE CONSTRAINTS ###\n"
-                    "1. NO placeholders ('<YOUR_IP>', etc). 2. NO invented ASNs/IPs/VLANs. 3. NO ungrounded commands (must have ID).\n"
-                    "4. PREFER incomplete configs over hallucinations.\n\n"
+                    "1. NO placeholders ('<YOUR_IP>', etc). 2. NO invented ASNs/IPs/VLANs. 3. NO ungrounded complex features (must have ID). Basic commands (description, interface, name) are allowed if required.\n"
+                    "4. PREFER incomplete configs over hallucinations. 5. DO NOT generate 'best practice' or default commands not explicitly requested (e.g., no spanning-tree if not asked).\n\n"
                     "{coordination_prompt}",
                 ),
                 (
@@ -494,8 +532,9 @@ class ConfigGenerator:
                     "### INSTRUCTIONS ###\n"
                     "1. Use provided documentation for vendor-specific syntax. Pay attention to the 'CONTEXT' breadcrumbs for hierarchical nesting.\n"
                     "2. For citations, use the EXACT 'ID: <source_id>' values provided in the documentation block.\n"
-                    "3. Output strictly in the requested structured format.\n"
-                    "4. CRITICAL: Generate ONLY commands matching the specified vendor.",
+                    "3. Ensure ALL provided 'Parameters' are accurately translated into the config.\n"
+                    "4. Output strictly in the requested structured format.\n"
+                    "5. CRITICAL: Generate ONLY commands matching the specified vendor.",
                 ),
             ]
         )
@@ -595,9 +634,9 @@ class ConfigGenerator:
         distilled: str = ""
         current_token_est = 0
 
-        # Regex to find CLI blocks
+        # Regex to find CLI blocks (Improved: Allow leading symbols/numeric starts/more keywords)
         cli_pattern = re.compile(
-            r"(?m)^(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system)\b.*$",
+            r"(?m)^[\s\t•*-]*(?:no\s+)?(?:interface|router|ip|ipv6|switchport|vlan|access-list|ntp|logging|snmp|set|firewall|protocols|routing-options|system|neighbor|description|hostname|address-family|peer-group|permit|deny|area|network|route-reflector-client|neighbor|server|peer|policy-options|autonomous-system|as-path|community-list|prefix-list|bgp|ospf|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|[0-9]{1,5})\b.*$",
             re.IGNORECASE,
         )
 
@@ -609,6 +648,7 @@ class ConfigGenerator:
             "important",
             "must not",
             "not supported",
+            "limitation",
         ]
 
         for res in raw_chunks:
@@ -628,12 +668,20 @@ class ConfigGenerator:
             # 2. Extract CLI lines
             cli_lines: List[str] = cli_pattern.findall(text)
 
-            # 3. Extract prose that looks like a definition (contains 'is used to' or 'specifies')
+            # 3. Extract prose that looks like a definition or example
             prose_context: List[str] = []
             for line in lines:
                 if any(
                     k in line.lower()
-                    for k in ["is used to", "specifies", "defines", "mandatory"]
+                    for k in [
+                        "is used to",
+                        "specifies",
+                        "defines",
+                        "mandatory",
+                        "for example",
+                        "example:",
+                        "syntax:",
+                    ]
                 ):
                     prose_context.append(line.strip())
 
@@ -649,13 +697,23 @@ class ConfigGenerator:
                     except Exception:
                         pass
 
+                # Community Anchoring (GraphRAG Optimization)
+                community_str = ""
+                comm_label = res.get("metadata", {}).get("graph_community")
+                if comm_label:
+                    community_str = f"COMMUNITY: {comm_label}\n"
+
                 chunk_str = f"ID: {chunk_id}\n"
+                if community_str:
+                    chunk_str += community_str
                 if hierarchy_str:
                     chunk_str += hierarchy_str
                 if cli_lines:
-                    chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:10]) + "\n"
+                    chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:15]) + "\n"
                 if prose_context:
-                    chunk_str += "RULES:\n" + "\n".join(prose_context[:3]) + "\n"
+                    chunk_str += (
+                        "RULES/EXAMPLES:\n" + "\n".join(prose_context[:5]) + "\n"
+                    )
                 chunk_str += "---\n"
 
                 distilled += chunk_str
@@ -677,7 +735,9 @@ class ConfigGenerator:
         Lite intents are simple operations that use standard, well-known commands
         and don't require documentation lookup. These include:
         - Show/verify commands (display-only, no config changes)
-        - Simple hostname/description tasks
+        - Simple hostname/description/banner tasks
+        - Basic interface enabling (no complex params)
+        - NTP/Logging basics
 
         Args:
             intent: StructuredIntent to check.
@@ -685,21 +745,34 @@ class ConfigGenerator:
         Returns:
             True if the intent is simple enough to skip RAG retrieval,
             False otherwise.
-
-        Note:
-            This is a heuristic - it may occasionally misclassify intents,
-            but the fallback in generate() will still work correctly.
         """
-        lite_actions = ["show", "verify"]
+        lite_actions = ["show", "verify", "enable", "disable"]
         if intent.action.value in lite_actions:
-            return True
+            # For enable/disable, only skip RAG if no complex protocol is involved
+            if not intent.protocol or intent.protocol.lower() in [
+                "interface",
+                "lldp",
+                "snmp",
+            ]:
+                return True
 
-        # Simple hostname or description tasks
-        if intent.protocol and intent.protocol.lower() in ["hostname", "description"]:
+        # Simple administrative tasks (Efficiency Recommendation 4)
+        boilerplate_protocols = [
+            "hostname",
+            "description",
+            "banner",
+            "ntp",
+            "logging",
+            "timezone",
+            "clock",
+            "alias",
+        ]
+        if intent.protocol and intent.protocol.lower() in boilerplate_protocols:
             return True
 
         return False
 
+    @with_retry(max_retries=5)
     def refine(
         self,
         device_name: str,

@@ -3,6 +3,7 @@
 {
   # https://devenv.sh/basics/
   env.GREET = "devenv";
+  env.PYTHONPATH = "./";
 
   # https://devenv.sh/packages/
   packages = [ 
@@ -53,7 +54,7 @@
     export UV_PYTHON_DOWNLOADS=auto
     export UV_PYTHON_PREFERENCE=managed
     export LD_LIBRARY_PATH="${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib pkgs.zlib pkgs.libffi pkgs.openssl ]}:$LD_LIBRARY_PATH"
-    echo "Python environment with uv enabled."
+    echo "Python environment with uv enabled. PYTHONPATH is set to: $PYTHONPATH"
     uv --version
     batfish-start
     pre-commit install

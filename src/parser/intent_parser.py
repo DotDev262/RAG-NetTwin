@@ -2,7 +2,9 @@ import os
 import json
 import time
 import hashlib
+import threading
 from typing import List, Optional, Dict, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
 from src.llm import LLMProvider
 import dspy
@@ -10,40 +12,12 @@ from src.schemas.intent import StructuredIntent, BatchStructuredIntent, ActionTy
 from src.parser.inventory_resolver import InventoryResolver
 from src.rag.vector_store import VectorStore
 from src.utils import setup_logger
+from src.utils.helpers import with_retry
 
 logger = setup_logger("IntentParser")
 
 # Cache for parsed intents to avoid redundant API calls
 INTENT_CACHE_FILE = "data/processed/intent_cache.json"
-
-
-def with_retry(max_retries=5, initial_sleep=2):
-    """
-    Decorator for exponential backoff on RateLimitErrors.
-    """
-
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            retries = 0
-            while retries < max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    e_str = str(e).lower()
-                    if "rate_limit" in e_str or "429" in e_str:
-                        retries += 1
-                        sleep_time = initial_sleep * (2 ** (retries - 1))
-                        logger.warning(
-                            f"Rate limit hit. Retrying in {sleep_time}s... ({retries}/{max_retries})"
-                        )
-                        time.sleep(sleep_time)
-                    else:
-                        raise e
-            return func(*args, **kwargs)  # Last try
-
-        return wrapper
-
-    return decorator
 
 
 class IntentSignature(dspy.Signature):
@@ -57,7 +31,7 @@ class IntentSignature(dspy.Signature):
 
     protocol = dspy.OutputField(desc="Primary network protocol (e.g., OSPF, BGP).")
     action = dspy.OutputField(
-        desc="Allowed values: 'create', 'update', 'delete', 'verify', etc."
+        desc="Allowed values: 'create', 'update', 'delete', 'apply', 'add', 'remove', 'verify', etc."
     )
     devices = dspy.OutputField(
         desc="List of devices with 'name', 'vendor', and 'os_type'."
@@ -83,10 +57,11 @@ class IntentParser:
     # Shared vendor detection instructions for consistency
     VENDOR_DETECTION_INSTRUCTIONS = """
 IMPORTANT VENDOR DETECTION:
-- If the text mentions "Cisco" or "cisco" anywhere, set vendor to "cisco"
-- If the text mentions "Juniper" or "juniper" or "MX" or "EX", set vendor to "juniper"
-- If no vendor is mentioned, default to "cisco"
-- CRITICAL: Pay close attention to vendor mentions like "on Cisco", "for Juniper", "between Cisco and Juniper"
+- If the text mentions multiple vendors (e.g. "between Cisco and Juniper"), you MUST create separate device objects for each vendor.
+- If a device name is mentioned (e.g. Router-A), try to infer its vendor from the surrounding text or the inventory context.
+- Default to "cisco" only if NO other vendor is mentioned in the entire intent.
+- Use "cisco" for IOS, IOS-XE, NX-OS.
+- Use "juniper" for JunOS, MX, EX, QFX.
 """
 
     def __init__(self, model_name: Optional[str] = None):
@@ -106,6 +81,7 @@ IMPORTANT VENDOR DETECTION:
         self.dspy_parser = DSPyIntentParser()
 
         # Load cache
+        self.cache_lock = threading.Lock()
         self.cache = self._load_cache()
 
     def _load_cache(self) -> Dict[str, Any]:
@@ -120,35 +96,50 @@ IMPORTANT VENDOR DETECTION:
 
     def _save_cache(self):
         """Saves processed intents to disk."""
-        os.makedirs(os.path.dirname(INTENT_CACHE_FILE), exist_ok=True)
-        try:
-            with open(INTENT_CACHE_FILE, "w") as f:
-                json.dump(self.cache, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to save intent cache: {e}")
+        with self.cache_lock:
+            os.makedirs(os.path.dirname(INTENT_CACHE_FILE), exist_ok=True)
+            try:
+                with open(INTENT_CACHE_FILE, "w") as f:
+                    json.dump(self.cache, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Failed to save intent cache: {e}")
 
     def parse_batch(
-        self, texts: List[str], chunk_size: int = 3
+        self, texts: List[str], chunk_size: int = 5
     ) -> List[StructuredIntent]:
-        """Translates a batch of NL texts into StructuredIntent objects in chunks."""
-        all_intents = []
+        """Translates a batch of NL texts into StructuredIntent objects in parallel chunks."""
+        all_intents_map = {}  # original index -> intent
 
+        chunks = []
         for i in range(0, len(texts), chunk_size):
-            chunk = texts[i : i + chunk_size]
-            try:
-                intents = self._parse_chunk(chunk)
-                all_intents.extend(intents)
-            except Exception as e:
-                logger.warning(
-                    f"Chunk {i // chunk_size + 1} failed ({e}), falling back to sequential for chunk..."
-                )
-                # Fallback to sequential for this chunk only
-                for text in chunk:
-                    all_intents.append(self.parse(text))
+            chunks.append((i, texts[i : i + chunk_size]))
 
-        return all_intents
+        # Limit concurrency to avoid overwhelming the LLM and hitting rate limits too fast
+        max_workers = min(len(chunks), 4)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_chunk = {
+                executor.submit(self._parse_chunk, chunk_texts): (idx, chunk_texts)
+                for idx, chunk_texts in chunks
+            }
 
-    @with_retry(max_retries=3)
+            for future in as_completed(future_to_chunk):
+                start_idx, chunk_texts = future_to_chunk[future]
+                try:
+                    intents = future.result()
+                    for j, intent in enumerate(intents):
+                        all_intents_map[start_idx + j] = intent
+                except Exception as e:
+                    logger.warning(
+                        f"Chunk starting at index {start_idx} failed ({e}), falling back to sequential for chunk..."
+                    )
+                    # Fallback to sequential for this chunk only
+                    for j, text in enumerate(chunk_texts):
+                        time.sleep(1.0)  # Add delay to avoid rate limiting during fallback
+                        all_intents_map[start_idx + j] = self.parse(text)
+
+        return [all_intents_map[i] for i in range(len(texts))]
+
+    @with_retry(max_retries=5)
     def _parse_chunk(self, texts: List[str]) -> List[StructuredIntent]:
         """Parse a single chunk of intents with retry logic and caching."""
         # 1. Separate texts into cached and non-cached
@@ -156,13 +147,14 @@ IMPORTANT VENDOR DETECTION:
         to_parse_texts = []
         to_parse_indices = []
 
-        for idx, text in enumerate(texts):
-            text_hash = hashlib.sha256(text.encode()).hexdigest()
-            if text_hash in self.cache:
-                results[idx] = StructuredIntent(**self.cache[text_hash])
-            else:
-                to_parse_texts.append(text)
-                to_parse_indices.append(idx)
+        with self.cache_lock:
+            for idx, text in enumerate(texts):
+                text_hash = hashlib.sha256(text.encode()).hexdigest()
+                if text_hash in self.cache:
+                    results[idx] = StructuredIntent(**self.cache[text_hash])
+                else:
+                    to_parse_texts.append(text)
+                    to_parse_indices.append(idx)
 
         if not to_parse_texts:
             return [results[i] for i in range(len(texts))]
@@ -213,21 +205,22 @@ RULES:
             )
 
         # 3. Merge results and save to cache
-        for i, intent in enumerate(batch_result.intents):
-            intent.original_text = to_parse_texts[i]
-            # Assign a unique ID if missing
-            if not intent.intent_id:
-                intent.intent_id = hashlib.sha256(
-                    intent.original_text.encode()
-                ).hexdigest()[:12]
+        with self.cache_lock:
+            for i, intent in enumerate(batch_result.intents):
+                intent.original_text = to_parse_texts[i]
+                # Assign a unique ID if missing
+                if not intent.intent_id:
+                    intent.intent_id = hashlib.sha256(
+                        intent.original_text.encode()
+                    ).hexdigest()[:12]
 
-            self._resolve_device_metadata(intent)
+                self._resolve_device_metadata(intent)
 
-            # Save to cache
-            text_hash = hashlib.sha256(intent.original_text.encode()).hexdigest()
-            self.cache[text_hash] = intent.model_dump()
+                # Save to cache
+                text_hash = hashlib.sha256(intent.original_text.encode()).hexdigest()
+                self.cache[text_hash] = intent.model_dump()
 
-            results[to_parse_indices[i]] = intent
+                results[to_parse_indices[i]] = intent
 
         self._save_cache()
         return [results[i] for i in range(len(texts))]
@@ -236,9 +229,10 @@ RULES:
         """Translates NL text to StructuredIntent object using DSPy."""
         # 1. Check Local Cache (Hash-based)
         text_hash = hashlib.sha256(text.encode()).hexdigest()
-        if text_hash in self.cache:
-            logger.info(f"Intent local cache hit: {text[:30]}...")
-            return StructuredIntent(**self.cache[text_hash])
+        with self.cache_lock:
+            if text_hash in self.cache:
+                logger.info(f"Intent local cache hit: {text[:30]}...")
+                return StructuredIntent(**self.cache[text_hash])
 
         # Efficiency Phase 1: Check Semantic Cache
         cached_intent_dict = self.vector_store.check_intent_parsing_cache(text)
@@ -246,7 +240,8 @@ RULES:
             logger.info(f"Intent semantic cache hit: {text[:30]}...")
             intent = StructuredIntent(**cached_intent_dict)
             # Ensure the hash is updated in the local cache too
-            self.cache[text_hash] = intent.model_dump()
+            with self.cache_lock:
+                self.cache[text_hash] = intent.model_dump()
             return intent
 
         # 2. Dynamic Few-Shot Retrieval
@@ -269,7 +264,8 @@ RULES:
 
         # 4. Save to Cache
         intent_dump = result.model_dump()
-        self.cache[text_hash] = intent_dump
+        with self.cache_lock:
+            self.cache[text_hash] = intent_dump
         self._save_cache()
 
         # Efficiency Phase 1: Update Semantic Cache
@@ -299,8 +295,20 @@ RULES:
                     parsed = val
 
             # If we expect a list but got a single item (dict or string)
-            if isinstance(default_type, list) and not isinstance(parsed, list):
-                return [parsed] if parsed else []
+            if isinstance(default_type, list):
+                if not isinstance(parsed, list):
+                    parsed = [parsed] if parsed else []
+                
+                # Robust conversion of items to strings if required
+                if default_type and isinstance(default_type[0], str):
+                    stringified = []
+                    for item in parsed:
+                        if isinstance(item, dict):
+                            for k, v in item.items():
+                                stringified.append(f"{k}: {v}")
+                        else:
+                            stringified.append(str(item))
+                    return stringified
 
             return parsed
 
@@ -308,9 +316,9 @@ RULES:
             original_text=text,
             protocol=response.protocol,
             action=response.action,
-            devices=safe_eval(response.devices, []),
+            devices=safe_eval(response.devices, [{}]),
             parameters=safe_eval(response.parameters, {}),
-            requirements=safe_eval(response.requirements, []),
+            requirements=safe_eval(response.requirements, [""]),
         )
         self._resolve_device_metadata(intent)
         return intent

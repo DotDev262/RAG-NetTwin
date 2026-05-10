@@ -2,6 +2,7 @@ from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import CommaSeparatedListOutputParser
 from src.llm import LLMProvider
+from src.utils import with_retry
 
 
 class QueryExpander:
@@ -15,6 +16,7 @@ class QueryExpander:
         self.llm = LLMProvider.get_llm(model=model_name, temperature=0.2)
         self.output_parser = CommaSeparatedListOutputParser()
 
+    @with_retry(max_retries=3)
     def expand(self, query: str) -> List[str]:
         """
         Generates 3 variations of the input query.

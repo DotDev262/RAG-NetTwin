@@ -1,8 +1,42 @@
 import os
 import re
 import json
+import time
+import logging
 from datetime import datetime
 from typing import Dict, Any
+
+logger = logging.getLogger("RAG-NetTwin.Helpers")
+
+
+def with_retry(max_retries=5, initial_sleep=5):
+    """
+    Decorator for exponential backoff on RateLimitErrors.
+    """
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    e_str = str(e).lower()
+                    if "rate_limit" in e_str or "429" in e_str:
+                        retries += 1
+                        # Groq 429 often needs a bit more time
+                        sleep_time = initial_sleep * (2 ** (retries - 1))
+                        logger.warning(
+                            f"Rate limit hit in {func.__name__}. Retrying in {sleep_time}s... ({retries}/{max_retries})"
+                        )
+                        time.sleep(sleep_time)
+                    else:
+                        raise e
+            return func(*args, **kwargs)  # Last try
+
+        return wrapper
+
+    return decorator
 
 
 def generate_audit_report(

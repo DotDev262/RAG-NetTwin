@@ -46,8 +46,9 @@ class CFRChecker:
 
         for key, val in intent.parameters.items():
             key_lower = key.lower()
+            # Use word boundaries to avoid 'description' matching 'ip'
             is_critical = any(
-                k in key_lower
+                re.search(rf"\b{re.escape(k)}\b", key_lower)
                 for k in [
                     "ip",
                     "address",
@@ -63,6 +64,10 @@ class CFRChecker:
                     "subnet",
                 ]
             )
+            # Special case for 'vlan' which often appears in keys like 'vlan_list'
+            if not is_critical and "vlan" in key_lower:
+                is_critical = True
+
             if not is_critical:
                 continue
 
@@ -227,7 +232,8 @@ class CFRChecker:
         key_lower = param_key.lower()
         for kw, pattern in keyword_patterns.items():
             if kw in key_lower:
-                combined_pattern = f"{pattern}{re.escape(value)}(\\s|$)"
+                # Allow comma or space as delimiter after the value, and allow other chars after keyword (for lists)
+                combined_pattern = f"{pattern}(?:[^\\n]*?){re.escape(value)}(?:\\s|,|$)"
                 return bool(re.search(combined_pattern, config, re.IGNORECASE))
         standalone_pattern = f"(?<![\\w/]){re.escape(value)}(?![\\w/])"
         return bool(re.search(standalone_pattern, config))

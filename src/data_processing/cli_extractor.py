@@ -64,36 +64,48 @@ class CLIExtractor:
     CISCO_PATTERNS = [
         # Interface config patterns
         (
-            r"(?:interface\s+(?:GigabitEthernet|FastEthernet|Serial|Ethernet|Vlan)\S+)",
+            r"(?:interface\s+(?:GigabitEthernet|FastEthernet|Serial|Ethernet|Vlan|Port-channel|Loopback|Tunnel)\S+)",
             "interface",
         ),
         (r"(?:ip\s+address\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+)", "ip-address"),
         (r"(?:ip\s+address\s+\d+\.\d+\.\d+\.\d+\s+\d+)", "ip-address"),
+        (r"(?:description\s+.*)", "description"),
+        (r"(?:no\s+shutdown)", "no-shutdown"),
+        (r"(?:mtu\s+\d+)", "mtu"),
         # OSPF patterns
         (r"(?:router\s+ospf\s+\d+)", "router-ospf"),
+        (r"(?:router-id\s+\d+\.\d+\.\d+\.\d+)", "router-id"),
         (
             r"(?:network\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+\s+area\s+\d+)",
             "ospf-network",
         ),
-        (r"(?:area\s+\d+\.\d+\.\d+\.\d+)", "ospf-area"),
+        (r"(?:area\s+\d+\s+.*)", "ospf-area"),
+        (r"(?:ip\s+ospf\s+\d+\s+area\s+\d+)", "ip-ospf-area"),
+        (r"(?:ip\s+ospf\s+hello-interval\s+\d+)", "ospf-hello"),
+        (r"(?:ip\s+ospf\s+dead-interval\s+\d+)", "ospf-dead"),
+        (r"(?:ip\s+ospf\s+priority\s+\d+)", "ospf-priority"),
         # BGP patterns
         (r"(?:router\s+bgp\s+\d+)", "router-bgp"),
         (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+remote-as\s+\d+)", "bgp-neighbor"),
         (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+peer-group)", "bgp-peer-group"),
+        (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+activate)", "bgp-activate"),
+        (r"(?:neighbor\s+\d+\.\d+\.\d+\.\d+\s+next-hop-self)", "bgp-next-hop"),
         # ACL patterns
         (r"(?:ip\s+access-list\s+(?:extended|standard)\s+\S+)", "acl-named"),
-        (r"(?:access-list\s+\d+\s+(?:permit|deny))", "acl-numbered"),
+        (r"(?:access-list\s+\d+\s+(?:permit|deny)\s+.*)", "acl-numbered"),
         # Static route
-        (r"(?:ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+)", "static-route"),
+        (r"(?:ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+\s+.*)", "static-route"),
         # VLAN patterns
         (r"(?:vlan\s+\d+)", "vlan"),
+        (r"(?:name\s+\S+)", "vlan-name"),
         (r"(?:switchport\s+mode\s+(?:trunk|access))", "switchport"),
+        (r"(?:switchport\s+access\s+vlan\s+\d+)", "switchport-vlan"),
         # System patterns
         (r"(?:hostname\s+\S+)", "hostname"),
         (r"(?:ntp\s+server\s+\d+\.\d+\.\d+\.\d+)", "ntp"),
         (r"(?:snmp-server\s+community\s+\S+)", "snmp"),
         (r"(?:logging\s+host\s+\d+\.\d+\.\d+\.\d+)", "logging"),
-        (r"(?:username\s+\S+\s+privilege\s+\d+)", "aaa-user"),
+        (r"(?:username\s+\S+\s+privilege\s+\d+\s+password\s+\S+)", "aaa-user"),
         # Routing
         (r"(?:router\s+eigrp\s+\d+)", "router-eigrp"),
     ]
@@ -103,14 +115,19 @@ class CLIExtractor:
         # Interface patterns
         (r"(?:set\s+interfaces\s+\S+)", "interface"),
         (
-            r"(?:set\s+interfaces\s+\S+\s+unit\s+\d+\s+family\s+inet\s+address)",
+            r"(?:set\s+interfaces\s+\S+\s+unit\s+\d+\s+family\s+inet\s+address\s+\d+\.\d+\.\d+\.\d+/\d+)",
             "interface-ip",
         ),
+        (r"(?:set\s+interfaces\s+\S+\s+description\s+.*)", "description"),
         # OSPF patterns
         (r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+)", "ospf-area"),
         (
-            r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+\s+interface)",
+            r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+\s+interface\s+\S+)",
             "ospf-interface",
+        ),
+        (
+            r"(?:set\s+protocols\s+ospf\s+area\s+\d+\.\d+\.\d+\.\d+\s+interface\s+\S+\s+hello-interval\s+\d+)",
+            "ospf-hello",
         ),
         # BGP patterns
         (r"(?:set\s+protocols\s+bgp\s+group\s+\S+)", "bgp-group"),
@@ -118,10 +135,18 @@ class CLIExtractor:
             r"(?:set\s+protocols\s+bgp\s+group\s+\S+\s+neighbor\s+\d+\.\d+\.\d+\.\d+)",
             "bgp-neighbor",
         ),
+        (
+            r"(?:set\s+protocols\s+bgp\s+group\s+\S+\s+peer-as\s+\d+)",
+            "bgp-peer-as",
+        ),
         # Static route
         (
-            r"(?:set\s+routing-options\s+static\s+route\s+\d+\.\d+\.\d+\.\d+/)",
+            r"(?:set\s+routing-options\s+static\s+route\s+\d+\.\d+\.\d+\.\d+/\d+\s+next-hop\s+\d+\.\d+\.\d+\.\d+)",
             "static-route",
+        ),
+        (
+            r"(?:set\s+routing-options\s+autonomous-system\s+\d+)",
+            "bgp-as",
         ),
         # Firewall filter
         (r"(?:set\s+firewall\s+family\s+inet\s+filter\s+\S+)", "firewall-filter"),
@@ -242,6 +267,8 @@ def reindex_cli_chunks():
     cisco_pdfs = [
         "data/raw_docs/catalyst_9300_cmdref_17_6.pdf",
         "data/raw_docs/catalyst_9500_cmdref_17_6.pdf",
+        "data/raw_docs/cisco_routing_17_15.pdf",
+        "data/raw_docs/catalyst_9300_config_guide_17_6.pdf"
     ]
 
     for pdf in cisco_pdfs:
@@ -252,6 +279,10 @@ def reindex_cli_chunks():
     # Process Juniper PDFs
     juniper_pdfs = [
         "data/raw_docs/junos-cli.pdf",
+        "data/raw_docs/junos-ospf.pdf",
+        "data/raw_docs/junos_bgp_config.pdf",
+        "data/raw_docs/junos_routing_policy.pdf",
+        "data/raw_docs/junos_ethernet_switching.pdf"
     ]
 
     for pdf in juniper_pdfs:

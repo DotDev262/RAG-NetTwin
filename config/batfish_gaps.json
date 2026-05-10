@@ -14,10 +14,23 @@
     "set security ike policy",
     "set security ipsec vpn",
     "set system syslog",
+    "set system login",
     "set protocols vrrp group",
     "set protocols lldp",
     "set policy-options policy-statement",
     "set routing-options static route",
-    "set security nat source"
+    "set security nat source",
+    "ip nat inside source static",
+    "ip nat outside source static",
+    "priority ",
+    "ipv6 spd ",
+    "username ",
+    "snmp-server ",
+    "set snmp ",
+    "ip ssh ",
+    "set system services ssh",
+    "access-list ",
+    "ip access-group ",
+    "ip access-list "
   ]
 }

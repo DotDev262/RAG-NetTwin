@@ -161,6 +161,7 @@ class LLMProvider:
             model=model,
             temperature=temperature,
             api_key=api_key,
+            max_retries=settings.llm_max_retries,
             model_kwargs={"seed": seed},
         )
 
@@ -195,6 +196,7 @@ class LLMProvider:
             model=model,
             temperature=temperature,
             api_key=api_key,
+            max_retries=settings.llm_max_retries,
             model_kwargs={"seed": seed},
         )
 

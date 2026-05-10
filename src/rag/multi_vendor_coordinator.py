@@ -42,10 +42,10 @@ class MultiVendorCoordinator:
         # Maps intent parameters to their interoperability equivalents
         # Example: Cisco 'area' == Juniper 'area'
         self.interop_map = {
-            "ospf": ["area", "process_id", "hello_interval", "dead_interval"],
+            "ospf": ["area", "process_id", "hello_interval", "dead_interval", "wildcard_mask"],
             "bgp": ["local_as", "remote_as", "peer_group", "hold_time"],
             "vlan": ["vlan_id", "vlan_name"],
-            "interface": ["mtu", "speed", "duplex"],
+            "interface": ["mtu", "speed", "duplex", "subnet_mask"],
         }
 
     def extract_shared_constraints(
@@ -127,7 +127,8 @@ class MultiVendorCoordinator:
         prompt = ChatPromptTemplate.from_template(
             "You are a Senior Network Architect planning a multi-device configuration.\n"
             "Task 1: Given the intent, propose consistent IP addresses, AS numbers, and IDs for ALL involved devices.\n"
-            "Ensure that peer interfaces on the same link are in the same subnet (e.g. .1 and .2).\n\n"
+            "Ensure that peer interfaces on the same link are in the same subnet (e.g. .1 and .2).\n"
+            "CRITICAL: Always provide a subnet mask or prefix (e.g. /24 or 255.255.255.0) for EVERY proposed IP address.\n\n"
             "Task 2: Define a logical DEPLOYMENT SEQUENCE (step-by-step) to ensure functional correctness "
             "(e.g. 1. Enable interfaces, 2. Configure IPs, 3. Routing protocols).\n\n"
             "INTENT: {intent_text}\n"

@@ -30,6 +30,7 @@ import tempfile
 import shutil
 import json
 import time
+import re
 from pathlib import Path
 from pybatfish.client.session import Session
 from typing import Dict, Any
@@ -179,20 +180,22 @@ class BatfishValidator(NetworkValidator):
                 safe_hostname = hostname.replace("/", "_").replace("\\", "_")
 
                 # Detect vendor from src.config content
-                # Juniper configs use "set" commands at the start
+                # Juniper configs use "set" commands at the start of lines
                 # Cisco configs use Cisco IOS syntax
-                is_juniper = (
-                    any(
-                        config_text.strip().startswith(prefix)
-                        for prefix in [
-                            "set ",
-                            "firewall",
-                            "protocols ",
-                            "interfaces ",
-                            "routing-options",
-                        ]
-                    )
-                    or "set " in config_text[:500]
+                # Robust detection: check for 'set ' at the start of any line
+                is_juniper = any(
+                    re.match(rf"^\s*{prefix}", line)
+                    for line in config_text.splitlines()
+                    for prefix in [
+                        "set ",
+                        "firewall",
+                        "protocols ",
+                        "interfaces ",
+                        "routing-options",
+                        "security ",
+                    ]
+                ) or any(
+                    line.strip().endswith("{") for line in config_text.splitlines()[:10]
                 )
 
                 # Set appropriate extension:
@@ -248,7 +251,8 @@ class BatfishValidator(NetworkValidator):
 
                     # Filter out known Batfish parser gaps
                     # These are valid commands that Batfish doesn't support yet
-                    if any(cmd in line_text for cmd in self.known_gaps):
+                    combined_text = (details + " " + line_text).lower()
+                    if any(cmd.lower() in combined_text for cmd in self.known_gaps):
                         continue
 
                     # Handle specific known warnings
@@ -275,13 +279,46 @@ class BatfishValidator(NetworkValidator):
             undefined = self.session.q.undefinedReferences().answer().frame()
             if not undefined.empty:
                 for _, row in undefined.iterrows():
-                    struct_type = row.get("Structure_Type", "Unknown")
-                    struct_name = row.get("Structure_Name", "Unknown")
+                    struct_type = str(row.get("Structure_Type", "Unknown"))
+                    struct_name = str(row.get("Structure_Name", "Unknown"))
+                    context = str(row.get("Context", ""))
+                    line = str(row.get("Line", "unknown"))
+                    filename = str(row.get("File_Name", "unknown"))
+
+                    # Filter out useless 'Unknown' references that provide no signal
+                    is_unknown = struct_type.lower() in [
+                        "unknown",
+                        "none",
+                        "null",
+                    ] and struct_name.lower() in ["unknown", "none", "null"]
+
+                    has_no_context = not context or context.lower() in [
+                        "unknown",
+                        "none",
+                        "null",
+                    ]
+
+                    if is_unknown and has_no_context:
+                        continue
+
+                    # Filter known noise (e.g., standard communities or defaults)
+                    if (
+                        struct_name in ["public", "private"]
+                        and struct_type == "Community_List"
+                    ):
+                        continue
+
+                    details = f"File {filename}: {struct_type} '{struct_name}' is referenced but not defined."
+                    if context:
+                        details += f" Context: {context}"
+                    if line != "unknown":
+                        details += f" at line: {line}"
+
                     issues.append(
                         {
                             "type": "UNDEFINED_REFERENCE",
                             "severity": "HIGH",
-                            "details": f"File {row.get('File_Name', 'unknown')}: {struct_type} '{struct_name}' is referenced but not defined.",
+                            "details": details,
                         }
                     )
 

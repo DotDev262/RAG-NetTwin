@@ -1,0 +1,1 @@
+{"nodes": [{"id": "gns3_exporter_gns3exporter", "label": "GNS3Exporter", "file_type": "code", "source_file": "src/exporter/gns3_exporter.py"}], "edges": [{"source": "gns3_exporter_gns3exporter", "target": "intent_structuredintent", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "src/exporter/gns3_exporter.py"}], "hyperedges": []}

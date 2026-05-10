@@ -3,7 +3,7 @@
 **Project Name**: Hallucination-Mitigated Intent-Based Networking (RAG-NetTwin)  
 **Type**: B.Tech Final Year Project with Journal Publication Goal  
 **Timeline**: 10 Months (5 months implementation + 5 months paper)  
-**Last Updated**: May 8, 2026  
+**Last Updated**: May 9, 2026  
 
 ---
 
@@ -25,33 +25,37 @@
 
 ## 📋 CURRENT STATUS
 
-**Phase**: Evaluation & Research Optimization - Entering Final Paper Draft Phase
-**Last Updated**: May 8, 2026
+**Phase**: Final Paper Drafting & Graph-Driven Analysis  
+**Last Updated**: May 9, 2026
 
 **Recent Milestones**:
-- ✅ **Full Codebase Refactor**: Modularized into `src/schemas`, `src/utils`, `src/evaluation`.
-- ✅ **Infrastructure Hardening**: Integrated Mypy (Static Analysis) and Ruff (Linting) into pre-commit hooks.
-- ✅ **Deep Trace System**: Implemented full audit trail capturing prompts, search scores, and Telnet logs.
-- ✅ **GNS3 Functional Metrics**: Implemented Config Acceptance Rate (CAR) and Interoperability Success Rate (ISR).
-- ✅ **Advanced RAG**: Implemented Multi-Query, Syntax reranking, and Lost-in-the-Middle mitigation.
+- ✅ **16.4x Token Reduction**: Achieved massive efficiency gain via God Node pruning and community budgeting.
+- ✅ **Dynamic Few-Shot Gating**: Implemented confidence-based gating (0, 1, or 2 examples) based on pilot search distance.
+- ✅ **Hardened Lite-RAG Path**: Expanded heuristic to bypass RAG for boilerplate tasks (NTP, Logging, Hostname, Interface Enable).
+- ✅ **Knowledge Graph Finalized**: Constructed 863-node graphify KG across 189 functional communities.
+- ✅ **Adaptive Retrieval**: Implemented distance-based expansion gating (threshold 0.55) to bypass expensive LLM steps.
+- ✅ **Semantic Tagging**: Integrated KG community labels directamente into RAG context for better grounding.
 
-**Next Action**: Detailed ablation study using the new `graph` mode vs `tiered` mode.
+**Next Action**: Perform final paper-scale benchmark runs with the ultra-efficient 16.4x+ GraphRAG pipeline.
 
 ---
 
 ## 🔧 KEY ARCHITECTURAL DECISIONS
 
 ### 1. **Modular "Source-of-Truth" Architecture**
-- All data models are isolated in `src/schemas/` to prevent circular dependencies.
-- Logic is partitioned into specialized packages: `parser`, `rag`, `validation`, `evaluation`.
+- All data models isolated in `src/schemas/` (e.g., `StructuredIntent`, `DeviceIntent`).
+- Validation logic split into `src/validation/` (Batfish, Containerlab, GNS3) and `src/evaluation/` (HallucinationDetector).
 
 ### 2. **"Strict Grounding" Policy**
 - **Incompleteness over Fabrication**: Instruct model to omit commands rather than invent syntax.
-- **Parameter Binding**: Post-generation check ensures all IPs/ASNs were authorized by the Intent or Master Plan.
+- **Citation Gating**: Every generated block must map back to a verified `source_file` in the KG.
 
-### 3. **Hierarchical Precision**
-- **Hierarchical Anchoring**: Injects `CONTEXT: A > B > C` breadcrumbs into prompts.
-- **Syntax-Aware Reranking**: Boosts relevance for documentation containing actual CLI markers.
+### 3. **Graph-Driven Token Efficiency**
+- **God Node Pruning**: Filter high-degree hubs (e.g., `VectorStore`) to prevent context explosion.
+- **Community Budgeting**: Strict limit of 15 additional chunks per community expansion.
+- **Adaptive Thresholding**: Pilot search distance > 0.55 triggers Multi-Query; otherwise, direct match is used.
+- **Dynamic Few-Shot Selection**: If `pilot_dist < 0.2`, skip few-shot. If `< 0.4`, include only 1 example.
+- **Lite-Path Heuristic**: Zero-RAG path for common administrative/boilerplate CLI tasks.
 
 ### 4. **Fail-Fast Configuration**
 - Uses `pydantic-settings` to validate environment variables and API keys immediately at startup.
@@ -62,15 +66,16 @@
 
 ### **Core**:
 - **Vector DB**: ChromaDB (local)
-- **Knowledge Graph**: networkx (exported from `graphify`)
-- **LLM**: Llama 3.3 70B & Gemini 2.0 Flash via LangChain
+- **Knowledge Graph**: networkx (via `graphify`)
+- **LLM**: Gemini 2.0 Flash (primary) & Llama 3.3 70B
 - **Static Analysis**: Mypy
 - **Linter/Formatter**: Ruff
 
 ### **Research Tools**:
-- **Tier 1**: Batfish (Docker)
-- **Tier 3**: GNS3 (Telnet-based verification)
-- **Tracing**: Standalone JSON traces in `results/traces/`
+- **Tier 1**: Batfish (Static Verification)
+- **Tier 2**: Containerlab (Lightweight Emulation)
+- **Tier 3**: GNS3 (Functional Simulation)
+- **Tracing**: Structured JSON traces in `results/traces/`
 
 ---
 
@@ -82,15 +87,15 @@ RAG-NetTwin/
 │   ├── schemas/           # Pydantic models (Intent, Device, etc.)
 │   ├── rag/               # VectorStore, QueryExpander, Normalizer, Coordinator
 │   ├── parser/            # IntentParser, InventoryResolver
-│   ├── validation/        # Batfish, GNS3, ReferentialIntegrity
+│   ├── validation/        # Batfish, Containerlab, GNS3, ReferentialIntegrity
 │   ├── evaluation/        # CacheManager, StatsReporter, HallucinationDetector
-│   └── utils/             # Modularized helpers (logger, text, system)
+│   ├── exporter/          # GNS3Exporter
+│   └── utils/             # Modularized helpers (logger, text, system, metrics)
 ├── ui/
-│   ├── frontend/          # Interactive dashboard with Visual Grounding
+│   ├── frontend/          # index.html (Visual Grounding Dashboard)
 │   └── backend/           # FastAPI app.py
 ├── scripts/               # Benchmarks and seeding scripts
-├── results/               # Eval reports and traces/
-├── graphify-out/          # Knowledge Graph assets
+├── graphify-out/          # Knowledge Graph assets (863 nodes, 189 communities)
 └── devenv.nix             # Nix-based environment config
 ```
 
@@ -105,7 +110,7 @@ RAG-NetTwin/
 | Vanilla LLM | 74.3% | 80.0% | 0.0% | 25.7% |
 | **RAG-NetTwin** | **80.0%** | **94.3%** | **100.0%** | **5.7%** |
 
-*Note: PEA (Parameter Extraction Accuracy) reached 100% in latest hardening tests.*
+*Note: PEA reached 100% in hardening tests. 16.4x token reduction achieved via GraphRAG optimizations.*
 
 ### Retrieval Benchmarks (GraphRAG vs Baseline)
 
@@ -113,15 +118,16 @@ RAG-NetTwin/
 | :--- | :--- | :--- | :--- |
 | Mean Semantic Precision | 0.2764 | **0.4856** | **+75.6%** |
 | Total Recall (Unique Chunks) | 10 | **135** | **+1250%** |
+| **Tokens Per Query** | **~57,533** | **~3,503** | **16.4x Reduction** |
 
 ---
 
 ## 💡 KEY RESEARCH INNOVATIONS
 
-1. **OS Version-Locked Retrieval**: Ensuring syntax matches the specific firmware version.
-2. **Network Master Plan**: Dynamic multi-device coordination using a two-pass generation strategy.
-3. **Chain-of-Verification (Final Phase)**: Post-generation grounding audit.
-4. **Visual Grounding UI**: Clickable command blocks linked to documentation source IDs.
+1. **OS Version-Locked Retrieval**: Ensuring syntax matches specific firmware via `InventoryResolver`.
+2. **Deterministic Syntactic Verification Gate**: Tier 1 validation before any execution attempt.
+3. **Adaptive Community Anchoring**: Using KG community labels and budgeting to mitigate retrieval noise.
+4. **Dynamic Few-Shot Selection**: Confidence-aware example injection to minimize prompt overhead.
 5. **Config Acceptance Rate (CAR)**: Quantitative measurement of hardware-level syntax acceptance.
 
 ---
@@ -138,19 +144,13 @@ uv run python run_paper_eval.py --clear-cache
 # 3. Run the retrieval benchmark
 uv run python scripts/graph_retrieval_benchmark.py
 
-# 4. Start the UI
+# 4. Generate/Update Knowledge Graph
+graphify update .
+
+# 5. Start the UI
 uv run python ui/backend/app.py
 # (Then open ui/frontend/index.html)
 ```
-
----
-
-## 📞 IF STUCK
-
-- **Rate Limits**: Evaluation now stops automatically and reports the intent index. Check `run_paper_eval.py` logs.
-- **Type Errors**: Run `uv run pre-commit run mypy --all-files`.
-- **GNS3 Connection**: Verify `GNS3_HOST` in `.env` and ensure GNS3 VM is running.
-- **Trace Debugging**: Inspect the latest JSON files in `results/traces/` to see raw prompts.
 
 ---
 

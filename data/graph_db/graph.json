@@ -1,209 +1,830 @@
 {
   "directed": false,
   "multigraph": false,
-  "graph": {
-    "hyperedges": [
-      {
-        "id": "he_ospf_monitoring",
-        "label": "OSPF Verification and Monitoring",
-        "nodes": [
-          "net_ospf_neighbor",
-          "net_ospf_interface",
-          "net_ospf_dr",
-          "net_ospf_lsa"
-        ],
-        "relation": "implement",
-        "confidence": "INFERRED",
-        "confidence_score": 0.8
-      }
-    ]
-  },
+  "graph": {},
   "nodes": [
     {
-      "label": "Cisco Catalyst 9300 Configuration Guide",
+      "label": "Junos OS OSPF User Guide",
       "file_type": "document",
-      "source_file": "temp_graph_src/catalyst_9300_config_guide_17_6.txt",
-      "id": "doc_catalyst_9300_guide",
-      "community": 4,
-      "norm_label": "cisco catalyst 9300 configuration guide"
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "author": "Juniper Networks, Inc.",
+      "captured_at": "2025-01-01",
+      "id": "junos_ospf_user_guide",
+      "community": 2,
+      "norm_label": "junos os ospf user guide"
     },
     {
-      "label": "Junos CLI Reference",
+      "label": "OSPF Overview",
       "file_type": "document",
-      "source_file": "temp_graph_src/junos-cli.txt",
-      "id": "doc_junos_cli",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_ospf_overview",
+      "community": 2,
+      "norm_label": "ospf overview"
+    },
+    {
+      "label": "Introduction to OSPF",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_introduction_to_ospf",
+      "community": 2,
+      "norm_label": "introduction to ospf"
+    },
+    {
+      "label": "OSPF Packets Overview",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_ospf_packets_overview",
+      "community": 2,
+      "norm_label": "ospf packets overview"
+    },
+    {
+      "label": "Understanding OSPF External Metrics",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_external_metrics",
+      "community": 2,
+      "norm_label": "understanding ospf external metrics"
+    },
+    {
+      "label": "Supported OSPF and OSPFv3 Standards",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_ospfv3_standards",
+      "community": 2,
+      "norm_label": "supported ospf and ospfv3 standards"
+    },
+    {
+      "label": "NTP Application",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "id": "junos_ospf_ntp_application",
+      "community": 2,
+      "norm_label": "ntp application"
+    },
+    {
+      "label": "Area Border Router",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_area_border_router",
+      "community": 0,
+      "norm_label": "area border router"
+    },
+    {
+      "label": "AS Boundary Router",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_as_boundary_router",
+      "community": 0,
+      "norm_label": "as boundary router"
+    },
+    {
+      "label": "Summary Link Advertisement",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_summary_lsa",
+      "community": 0,
+      "norm_label": "summary link advertisement"
+    },
+    {
+      "label": "AS External Link Advertisement",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_as_external_lsa",
+      "community": 0,
+      "norm_label": "as external link advertisement"
+    },
+    {
+      "label": "OSPF Routing Domain",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_routing_domain",
+      "community": 0,
+      "norm_label": "ospf routing domain"
+    },
+    {
+      "label": "Type 1 External Metric",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_external_metric_type_1",
+      "community": 0,
+      "norm_label": "type 1 external metric"
+    },
+    {
+      "label": "Type 2 External Metric",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_external_metric_type_2",
+      "community": 0,
+      "norm_label": "type 2 external metric"
+    },
+    {
+      "label": "LSA Header",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_lsa_header",
+      "community": 7,
+      "norm_label": "lsa header"
+    },
+    {
+      "label": "OSPFv2 Authentication",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_v2_authentication",
+      "community": 0,
+      "norm_label": "ospfv2 authentication"
+    },
+    {
+      "label": "OSPF Timers",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_timers",
+      "community": 0,
+      "norm_label": "ospf timers"
+    },
+    {
+      "label": "OSPF Designated Router",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "id": "junos_ospf_designated_router",
+      "community": 0,
+      "norm_label": "ospf designated router"
+    },
+    {
+      "label": "Juniper Networks, Inc.",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 2",
+      "id": "junos_bgp_juniper_networks",
+      "community": 1,
+      "norm_label": "juniper networks, inc."
+    },
+    {
+      "label": "Junos\u00ae OS BGP User Guide",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 2",
+      "id": "junos_bgp_user_guide",
+      "community": 1,
+      "norm_label": "junos\u00ae os bgp user guide"
+    },
+    {
+      "label": "Junos\u00ae OS",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 2",
+      "id": "junos_bgp_junos_os",
+      "community": 1,
+      "norm_label": "junos\u00ae os"
+    },
+    {
+      "label": "Border Gateway Protocol (BGP)",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 3",
+      "id": "junos_bgp_bgp",
+      "community": 1,
+      "norm_label": "border gateway protocol (bgp)"
+    },
+    {
+      "label": "BGP Routes",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 3",
+      "id": "junos_bgp_bgp_routes",
+      "community": 1,
+      "norm_label": "bgp routes"
+    },
+    {
+      "label": "BGP Route Resolution",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 3",
+      "id": "junos_bgp_bgp_route_resolution",
+      "community": 1,
+      "norm_label": "bgp route resolution"
+    },
+    {
+      "label": "BGP Messages",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 3",
+      "id": "junos_bgp_bgp_messages",
+      "community": 1,
+      "norm_label": "bgp messages"
+    },
+    {
+      "label": "BGP RIB sharding",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 3",
+      "id": "junos_bgp_bgp_rib_sharding",
+      "community": 1,
+      "norm_label": "bgp rib sharding"
+    },
+    {
+      "label": "NTP application",
+      "file_type": "document",
+      "source_file": "graphify-out/.graphify_chunk_2.txt",
+      "source_location": "Page 2",
+      "id": "junos_bgp_ntp",
+      "community": 1,
+      "norm_label": "ntp application"
+    },
+    {
+      "label": "Routing Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 1, 22",
+      "id": "junos_routing_policy",
+      "community": 3,
+      "norm_label": "routing policy"
+    },
+    {
+      "label": "Policy Framework",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 2",
+      "id": "junos_policy_framework",
+      "community": 3,
+      "norm_label": "policy framework"
+    },
+    {
+      "label": "Import Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 26",
+      "id": "junos_import_policy",
+      "community": 3,
+      "norm_label": "import policy"
+    },
+    {
+      "label": "Export Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 26",
+      "id": "junos_export_policy",
+      "community": 3,
+      "norm_label": "export policy"
+    },
+    {
+      "label": "Policy Term",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 54",
+      "id": "junos_term",
       "community": 5,
-      "norm_label": "junos cli reference"
+      "norm_label": "policy term"
     },
     {
-      "label": "Verifying and Monitoring OSPF",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "doc_junos_ospf",
-      "community": 0,
-      "norm_label": "verifying and monitoring ospf"
+      "label": "Match Condition",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 54",
+      "id": "junos_match_condition",
+      "community": 4,
+      "norm_label": "match condition"
     },
     {
-      "label": "Open Shortest Path First (OSPF)",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf",
-      "community": 0,
-      "norm_label": "open shortest path first (ospf)"
+      "label": "Action",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 54, 75",
+      "id": "junos_action",
+      "community": 5,
+      "norm_label": "action"
     },
     {
-      "label": "OSPF Neighbor",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_neighbor",
-      "community": 0,
-      "norm_label": "ospf neighbor"
+      "label": "Route Filter",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 72, 306",
+      "id": "junos_route_filter",
+      "community": 4,
+      "norm_label": "route filter"
     },
     {
-      "label": "OSPF Interface",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_interface",
-      "community": 1,
-      "norm_label": "ospf interface"
+      "label": "Prefix List",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 395",
+      "id": "junos_prefix_list",
+      "community": 4,
+      "norm_label": "prefix list"
     },
     {
-      "label": "OSPF Area",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_area",
-      "community": 1,
-      "norm_label": "ospf area"
-    },
-    {
-      "label": "Designated Router (DR)",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_dr",
-      "community": 1,
-      "norm_label": "designated router (dr)"
-    },
-    {
-      "label": "Link-State Advertisement (LSA)",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_lsa",
-      "community": 2,
-      "norm_label": "link-state advertisement (lsa)"
-    },
-    {
-      "label": "Shortest Path First (SPF) Algorithm",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-ospf.txt",
-      "id": "net_ospf_spf",
-      "community": 2,
-      "norm_label": "shortest path first (spf) algorithm"
-    },
-    {
-      "label": "Junos Configuration Mode",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-cli.txt",
-      "id": "cli_junos_config_mode",
+      "label": "Policy Chain",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 258",
+      "id": "junos_policy_chain",
       "community": 3,
-      "norm_label": "junos configuration mode"
+      "norm_label": "policy chain"
     },
     {
-      "label": "Cisco Global Configuration Mode",
-      "file_type": "document",
-      "source_file": "temp_graph_src/catalyst_9300_config_guide_17_6.txt",
-      "id": "cli_cisco_config_mode",
+      "label": "Policy Subroutine",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 285",
+      "id": "junos_policy_subroutine",
       "community": 3,
-      "norm_label": "cisco global configuration mode"
+      "norm_label": "policy subroutine"
     },
     {
-      "label": "Junos Traceoptions",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-cli.txt",
-      "id": "cli_junos_traceoptions",
-      "community": 2,
-      "norm_label": "junos traceoptions"
+      "label": "AS Path",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 437",
+      "id": "junos_as_path",
+      "community": 4,
+      "norm_label": "as path"
     },
     {
-      "label": "Junos Commit Command",
-      "file_type": "document",
-      "source_file": "temp_graph_src/junos-cli.txt",
-      "id": "cli_junos_commit",
+      "label": "BGP Community",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 515",
+      "id": "junos_bgp_community",
+      "community": 4,
+      "norm_label": "bgp community"
+    },
+    {
+      "label": "Route Flap Damping",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 599",
+      "id": "junos_route_flap_damping",
+      "community": 5,
+      "norm_label": "route flap damping"
+    },
+    {
+      "label": "Source Class Usage",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 640",
+      "id": "junos_scu",
+      "community": 5,
+      "norm_label": "source class usage"
+    },
+    {
+      "label": "Destination Class Usage",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 644",
+      "id": "junos_dcu",
+      "community": 5,
+      "norm_label": "destination class usage"
+    },
+    {
+      "label": "Conditional Routing Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 689",
+      "id": "junos_conditional_routing_policy",
+      "community": 8,
+      "norm_label": "conditional routing policy"
+    },
+    {
+      "label": "Dynamic Routing Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 735",
+      "id": "junos_dynamic_routing_policy",
+      "community": 9,
+      "norm_label": "dynamic routing policy"
+    },
+    {
+      "label": "Route Filter Walkup",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 333",
+      "id": "junos_walkup",
+      "community": 4,
+      "norm_label": "route filter walkup"
+    },
+    {
+      "label": "Backup Selection Policy",
+      "file_type": "txt",
+      "source_file": "graphify-out/.graphify_chunk_12.txt",
+      "source_location": "Page 212, 221",
+      "id": "junos_backup_selection_policy",
       "community": 3,
-      "norm_label": "junos commit command"
+      "norm_label": "backup selection policy"
+    },
+    {
+      "label": "Cisco IOS XE 17.15.x",
+      "file_type": "text",
+      "source_file": "graphify-out/.graphify_chunk_22.txt",
+      "source_location": "Page 1",
+      "id": "cisco_routing_ios_xe_17_15_x",
+      "community": 6,
+      "norm_label": "cisco ios xe 17.15.x"
+    },
+    {
+      "label": "Catalyst 9400 Switches",
+      "file_type": "text",
+      "source_file": "graphify-out/.graphify_chunk_22.txt",
+      "source_location": "Page 1",
+      "id": "cisco_routing_catalyst_9400",
+      "community": 6,
+      "norm_label": "catalyst 9400 switches"
+    },
+    {
+      "label": "TCP header compression",
+      "file_type": "text",
+      "source_file": "graphify-out/.graphify_chunk_22.txt",
+      "source_location": "Page 2",
+      "id": "cisco_routing_tcp_header_compression",
+      "community": 6,
+      "norm_label": "tcp header compression"
+    },
+    {
+      "label": "Cisco Systems",
+      "file_type": "text",
+      "source_file": "graphify-out/.graphify_chunk_22.txt",
+      "source_location": "Page 1",
+      "id": "cisco_routing_cisco_systems",
+      "community": 6,
+      "norm_label": "cisco systems"
+    },
+    {
+      "label": "University of California, Berkeley (UCB)",
+      "file_type": "text",
+      "source_file": "graphify-out/.graphify_chunk_22.txt",
+      "source_location": "Page 2",
+      "id": "cisco_routing_ucb",
+      "community": 6,
+      "norm_label": "university of california, berkeley (ucb)"
     }
   ],
   "links": [
     {
-      "relation": "related_to",
+      "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source": "doc_junos_ospf",
-      "target": "net_ospf"
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "source": "junos_ospf_user_guide",
+      "target": "junos_ospf_ospf_overview"
     },
     {
-      "relation": "related_to",
+      "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source": "net_ospf_neighbor",
-      "target": "net_ospf"
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "source": "junos_ospf_user_guide",
+      "target": "junos_ospf_ospf_packets_overview"
     },
     {
-      "relation": "related_to",
+      "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source": "net_ospf_interface",
-      "target": "net_ospf_area"
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "source": "junos_ospf_user_guide",
+      "target": "junos_ospf_external_metrics"
     },
     {
-      "relation": "related_to",
+      "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source": "net_ospf_dr",
-      "target": "net_ospf_interface"
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "source": "junos_ospf_user_guide",
+      "target": "junos_ospf_ospfv3_standards"
     },
     {
-      "relation": "related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source": "cli_junos_traceoptions",
-      "target": "net_ospf_lsa"
-    },
-    {
-      "relation": "logic_successor_to",
+      "relation": "rationale_for",
       "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "weight": 1.0,
+      "source": "junos_ospf_ntp_application",
+      "target": "junos_ospf_user_guide"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_0.txt",
+      "source": "junos_ospf_ospf_overview",
+      "target": "junos_ospf_introduction_to_ospf"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_area_border_router",
+      "target": "junos_ospf_summary_lsa"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_as_boundary_router",
+      "target": "junos_ospf_as_external_lsa"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_as_boundary_router",
+      "target": "junos_ospf_external_metric_type_1"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_as_boundary_router",
+      "target": "junos_ospf_external_metric_type_2"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_summary_lsa",
+      "target": "junos_ospf_routing_domain"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_as_external_lsa",
+      "target": "junos_ospf_routing_domain"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_routing_domain",
+      "target": "junos_ospf_v2_authentication"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_routing_domain",
+      "target": "junos_ospf_timers"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "graphify-out/.graphify_chunk_1.txt",
+      "source_location": 1,
+      "weight": 1.0,
+      "source": "junos_ospf_routing_domain",
+      "target": "junos_ospf_designated_router"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_juniper_networks",
+      "target": "junos_bgp_user_guide"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_junos_os"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_bgp"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_bgp_routes"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_bgp_route_resolution"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_bgp_messages"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "junos_bgp_user_guide",
+      "target": "junos_bgp_bgp_rib_sharding"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
       "confidence_score": 0.9,
-      "source": "net_ospf_spf",
-      "target": "net_ospf_lsa"
+      "source": "junos_bgp_junos_os",
+      "target": "junos_bgp_ntp"
     },
     {
-      "relation": "related_to",
+      "relation": "conceptually_related_to",
       "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source": "junos_bgp_bgp",
+      "target": "junos_bgp_bgp_routes"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source": "junos_bgp_bgp",
+      "target": "junos_bgp_bgp_messages"
+    },
+    {
+      "relation": "belongs_to",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_routing_policy",
+      "target": "junos_policy_framework"
+    },
+    {
+      "relation": "composed_of",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_routing_policy",
+      "target": "junos_term"
+    },
+    {
+      "relation": "type_of",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_routing_policy",
+      "target": "junos_import_policy"
+    },
+    {
+      "relation": "type_of",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_routing_policy",
+      "target": "junos_export_policy"
+    },
+    {
+      "relation": "links_multiple",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_policy_chain",
+      "target": "junos_routing_policy"
+    },
+    {
+      "relation": "nested_within",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_policy_subroutine",
+      "target": "junos_routing_policy"
+    },
+    {
+      "relation": "specialization_of",
+      "confidence": "high",
       "confidence_score": 0.85,
-      "source": "cli_cisco_config_mode",
-      "target": "cli_junos_config_mode"
+      "source": "junos_backup_selection_policy",
+      "target": "junos_routing_policy"
     },
     {
-      "relation": "related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source": "cli_junos_commit",
-      "target": "cli_junos_config_mode"
-    }
-  ],
-  "hyperedges": [
+      "relation": "contains",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_term",
+      "target": "junos_match_condition"
+    },
     {
-      "id": "he_ospf_monitoring",
-      "label": "OSPF Verification and Monitoring",
-      "nodes": [
-        "net_ospf_neighbor",
-        "net_ospf_interface",
-        "net_ospf_dr",
-        "net_ospf_lsa"
-      ],
-      "relation": "implement",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8
+      "relation": "contains",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_term",
+      "target": "junos_action"
+    },
+    {
+      "relation": "is_match_condition",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_route_filter",
+      "target": "junos_match_condition"
+    },
+    {
+      "relation": "is_match_condition",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_prefix_list",
+      "target": "junos_match_condition"
+    },
+    {
+      "relation": "is_match_condition",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_as_path",
+      "target": "junos_match_condition"
+    },
+    {
+      "relation": "is_match_condition",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "junos_bgp_community",
+      "target": "junos_match_condition"
+    },
+    {
+      "relation": "is_action",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_route_flap_damping",
+      "target": "junos_action"
+    },
+    {
+      "relation": "is_action",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_scu",
+      "target": "junos_action"
+    },
+    {
+      "relation": "is_action",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_dcu",
+      "target": "junos_action"
+    },
+    {
+      "relation": "enhances",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "junos_walkup",
+      "target": "junos_route_filter"
+    },
+    {
+      "relation": "RUNS_ON",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "cisco_routing_ios_xe_17_15_x",
+      "target": "cisco_routing_catalyst_9400"
+    },
+    {
+      "relation": "DEVELOPER_OF",
+      "confidence": "high",
+      "confidence_score": 0.98,
+      "source": "cisco_routing_cisco_systems",
+      "target": "cisco_routing_ios_xe_17_15_x"
+    },
+    {
+      "relation": "IMPLEMENTED_IN",
+      "confidence": "high",
+      "confidence_score": 0.9,
+      "source": "cisco_routing_tcp_header_compression",
+      "target": "cisco_routing_ios_xe_17_15_x"
+    },
+    {
+      "relation": "ORIGINAL_DEVELOPER_OF",
+      "confidence": "high",
+      "confidence_score": 0.95,
+      "source": "cisco_routing_ucb",
+      "target": "cisco_routing_tcp_header_compression"
     }
   ],
-  "built_at_commit": "9e23f6e235a57bcaefc986f75998483b9df96d53"
+  "hyperedges": [],
+  "built_at_commit": "2aa4c9437c23867d3ca383c1bbdfe63b1250183b"
 }

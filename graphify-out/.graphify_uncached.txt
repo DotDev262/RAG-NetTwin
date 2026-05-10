@@ -1,3 +1,0 @@
-/home/aryan/Projects/RAG-NetTwin/temp_graph_src/junos-ospf.txt
-/home/aryan/Projects/RAG-NetTwin/temp_graph_src/junos-cli.txt
-/home/aryan/Projects/RAG-NetTwin/temp_graph_src/catalyst_9300_config_guide_17_6.txt

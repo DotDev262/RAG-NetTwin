@@ -1,7 +1,7 @@
 {
   "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
-    "config": "Cisco:\n```\nenable\nconfigure terminal\ninterface GigabitEthernet1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 1 area 0\nexit\n```\n\nJuniper:\n```\nset protocols ospf area 0.0.0.0\nset interfaces ge-1/0/1 unit 0 family inet address 10.10.10.1/24\nset protocols ospf interface ge-1/0/1.0\ncommit\n```",
-    "status": "PASS",
+    "config": "**Cisco CLI:**\n```\nrouter ospf 1\nnetwork 10.10.10.1 0.0.0.255 area 0\ninterface GigabitEthernet1/0/1\n ip address 10.10.10.1 255.255.255.0\n ip ospf area 0\n```\n\n**Juniper CLI:**\n```\nset protocols ospf area 0.0.0.0\nset protocols ospf interface ge-1/0/1 area 0.0.0.0\nset interfaces ge-1/0/1 unit 0 family inet address 10.10.10.1/24\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
@@ -9,28 +9,14 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:22:47.167553",
-    "mode_tag": "vanilla"
-  },
-  "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
-    "config": "```\nconfigure terminal\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000\n```",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:23:09.120559",
+    "timestamp": "2026-05-10T10:57:54.271485",
     "mode_tag": "vanilla"
   },
   "Configure static route to 172.16.0.0/16 via 10.0.0.1": {
-    "config": "Cisco:\nip route 172.16.0.0 255.255.0.0 10.0.0.1\n\nJuniper:\nset routing-options static route 172.16.0.0/16 next-hop 10.0.0.1",
+    "config": "**Cisco CLI:**\n```\nip route 172.16.0.0 255.255.0.0 10.0.0.1\n```\n\n**Juniper CLI:**\n```\nset routing-options static route 172.16.0.0/16 next-hop 10.0.0.1\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -39,58 +25,68 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:23:31.107793",
+    "timestamp": "2026-05-10T10:59:33.027673",
     "mode_tag": "vanilla"
   },
-  "Enable OSPF process 10 on all active interfaces for Juniper": {
-    "config": "```\nset protocols ospf area 0.0.0.0\nset protocols ospf interface all\n```",
+  "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
+    "config": "router bgp 65001\nneighbor 192.168.50.1 remote-as 65000\nneighbor 192.168.50.1 timers 10 30\nneighbor 192.168.50.1 update-source Loopback0\nneighbor 192.168.50.1 password cisco123\nneighbor 192.168.50.1 soft-reconfiguration inbound\nneighbor 192.168.50.1 route-reflector-client",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['neighbor 192.168.50.1 password cisco123', 'neighbor 192.168.50.1 soft-reconfiguration inbound']",
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [
+        "neighbor 192.168.50.1 password cisco123",
+        "neighbor 192.168.50.1 soft-reconfiguration inbound"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:24:01.406032",
-    "mode_tag": "vanilla"
-  },
-  "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
-    "config": "router ospf 1\nrouter-id 1.1.1.1",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:24:22.686226",
+    "timestamp": "2026-05-10T10:59:33.201994",
     "mode_tag": "vanilla"
   },
   "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
-    "config": "Cisco:\nip access-list extended BLOCK_WEB\ndeny tcp any any eq 80\nexit\n\nJuniper:\nset firewall family inet filter BLOCK_WEB term 1 from protocol tcp\nset firewall family inet filter BLOCK_WEB term 1 from destination-port 80\nset firewall family inet filter BLOCK_WEB term 1 then discard\nset firewall family inet filter BLOCK_WEB term 2 then accept",
+    "config": "**Cisco CLI:**\n```\naccess-list BLOCK_WEB deny tcp any any eq 80\naccess-list BLOCK_WEB remark BLOCK_WEB\n```\n\n**Juniper CLI:**\n```\nset policy-options policy-statement BLOCK_WEB from protocol tcp\nset policy-options policy-statement BLOCK_WEB from port 80\nset policy-options policy-statement BLOCK_WEB to any\nset policy-options policy-statement BLOCK_WEB then discard\n```",
     "status": "REJECT_FOR_MANUAL_REVIEW",
     "functional_status": "PASS",
     "cfr_failure": true,
     "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['access-list BLOCK_WEB deny tcp any any eq 80', 'access-list BLOCK_WEB remark BLOCK_WEB']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "access-list BLOCK_WEB deny tcp any any eq 80",
+        "access-list BLOCK_WEB remark BLOCK_WEB"
+      ],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:00:22.649866",
+    "mode_tag": "vanilla"
+  },
+  "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
+    "config": "router ospf 1\nrouter-id 1.1.1.1",
+    "status": "ERROR",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
       "is_hallucinated": false,
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:24:45.669294",
+    "timestamp": "2026-05-10T11:00:22.824551",
     "mode_tag": "vanilla"
   },
-  "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
-    "config": "set firewall filter discard-icmp term 1 from protocol icmp\nset firewall filter discard-icmp term 1 from source-address 10.0.0.0/8\nset firewall filter discard-icmp term 1 then discard\nset firewall filter discard-icmp term 2 then accept",
+  "Enable OSPF process 10 on all active interfaces for Juniper": {
+    "config": "```\nset protocols ospf area 0.0.0.0 interface all enable\nset protocols ospf process-id 10\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -99,14 +95,15 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:25:15.704197",
+    "timestamp": "2026-05-10T11:01:03.493202",
     "mode_tag": "vanilla"
   },
   "Apply access-list 101 inbound on interface GigabitEthernet0/1": {
-    "config": "Cisco:\nip access-group 101 in\ninterface GigabitEthernet0/1\nip access-group 101 in\n\nJuniper:\nset interfaces ge-0/0/1 unit 0 family inet filter input acl_101\nset firewall filter acl_101 term 1 from protocol tcp\nset firewall filter acl_101 term 1 then accept\nset interfaces ge-0/0/1 unit 0 family inet filter input acl_101",
-    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "config": "Cisco CLI:\n- access-list 101 deny ip any any\n- access-list 101 permit ip any any\n- interface GigabitEthernet0/1\n- ip access-group 101 in\n\nJuniper CLI:\n- set policy-options policy-statement ACL-101 from protocol all\n- set policy-options policy-statement ACL-101 then discard\n- set policy-options policy-statement ACL-101 then accept\n- set interfaces ge-0/0/0 unit 0 family inet filter input ACL-101",
+    "status": "FAIL",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
@@ -114,13 +111,14 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:26:05.685000",
+    "timestamp": "2026-05-10T11:01:13.676379",
     "mode_tag": "vanilla"
   },
-  "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
-    "config": "```\nip access-list standard SSH_ACCESS\npermit 192.168.1.0 0.0.0.255\nline vty 0 15\naccess-class SSH_ACCESS in\n```",
+  "Create a standard ACL 10 to permit only 10.1.1.0/24": {
+    "config": "**Cisco CLI:**\n```\naccess-list 10 permit 10.1.1.0 0.0.0.255\n```\n\n**Juniper CLI:**\n```\nset policy-options policy-statement permit-10 from 10.1.1.0/24 to any\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -129,14 +127,15 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:26:27.212507",
+    "timestamp": "2026-05-10T11:02:03.241320",
     "mode_tag": "vanilla"
   },
-  "Create a standard ACL 10 to permit only 10.1.1.0/24": {
-    "config": "Cisco:\nip access-list standard 10\npermit 10.1.1.0 0.0.0.255\n\nJuniper:\nset firewall family inet filter 10 term 1 from protocol ip\nset firewall family inet filter 10 term 1 from destination-address 10.1.1.0/24\nset firewall family inet filter 10 term 1 then accept\nset firewall family inet filter 10 term 2 then discard",
-    "status": "REJECT_FOR_MANUAL_REVIEW",
+  "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
+    "config": "Juniper CLI:\n```\nset firewall family inet filter ICMP-Discard term ICMP from source-address 10.0.0.0/8\nset firewall family inet filter ICMP-Discard term ICMP then discard\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family inet filter ICMP-Discard term ICMP then exit\nset firewall family",
+    "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
@@ -144,13 +143,133 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:26:50.182197",
+    "timestamp": "2026-05-10T11:03:13.875571",
+    "mode_tag": "vanilla"
+  },
+  "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
+    "config": "**Cisco CLI:**\n```bash\nip ssh version 2\nip ssh source-interface Vlan1\nip ssh authentication-retries 3\nip ssh timeout 60\nip ssh encryption aes 128\nip ssh key-exchange group dh-group14-sha1\nip ssh ip-domain-lookup\nip ssh vrf default\nip ssh vrf vrf-name\nip ssh vrf vrf-name enable\nip ssh vrf vrf-name authentication-retries 3\nip ssh vrf vrf-name timeout 60\nip ssh vrf vrf-name encryption aes 128\nip ssh vrf vrf-name key-exchange group dh-group14-sha1\nip ssh vrf vrf-name ip-domain-lookup\nip ssh vrf vrf-name source-interface Vlan1\nip ssh vrf vrf-name version 2\naccess-list 101 permit ip 192.168.1.0 0.0.0.255\nip ssh server vrf vrf-name access-class 101\n```\n\n**Juniper CLI:**\n```bash\nset system services ssh protocol-version v2\nset system services ssh key-exchange-group dh-group14-sha1\nset system services ssh encryption-algorithm aes128-cbc\nset system services ssh authentication-retries 3\nset system services ssh idle-timeout 60\nset system services ssh source-address 192.168.1.1\nset system services ssh access-list 192.168.1.0/24\nset system services ssh access-list 192.168.1.0/24 permit\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.168.1.0/24 deny any\nset system services ssh access-list 192.",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['ip ssh encryption aes 128', 'ip ssh vrf vrf-name encryption aes 128', 'ip ssh server vrf vrf-name access-class 101', 'set system services ssh protocol-version v2', 'set system services ssh key-exchange-group dh-group14-sha1', 'set system services ssh encryption-algorithm aes128-cbc', 'set system services ssh authentication-retries 3', 'set system services ssh idle-timeout 60', 'set system services ssh source-address 192.168.1.1', 'set system services ssh access-list 192.168.1.0/24', 'set system services ssh access-list 192.168.1.0/24 permit', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.168.1.0/24 deny any', 'set system services ssh access-list 192.']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "ip ssh encryption aes 128",
+        "ip ssh vrf vrf-name encryption aes 128",
+        "ip ssh server vrf vrf-name access-class 101",
+        "set system services ssh protocol-version v2",
+        "set system services ssh key-exchange-group dh-group14-sha1",
+        "set system services ssh encryption-algorithm aes128-cbc",
+        "set system services ssh authentication-retries 3",
+        "set system services ssh idle-timeout 60",
+        "set system services ssh source-address 192.168.1.1",
+        "set system services ssh access-list 192.168.1.0/24",
+        "set system services ssh access-list 192.168.1.0/24 permit",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192.168.1.0/24 deny any",
+        "set system services ssh access-list 192."
+      ],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:03:35.651860",
     "mode_tag": "vanilla"
   },
   "Set description 'Uplink to Core' on interface Gig0/0": {
-    "config": "Cisco: \ninterface Gig0/0\ndescription Uplink to Core\n\nJuniper: \nset interfaces ge-0/0/0 description \"Uplink to Core\"",
+    "config": "Cisco CLI:\n```\ninterface GigabitEthernet0/0\ndescription Uplink to Core\n```\n\nJuniper CLI:\n```\nset interfaces ge-0/0/0 description \"Uplink to Core\"\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": true,
@@ -161,9 +280,26 @@
       "invalid_citations": [],
       "ungrounded_commands": [
         "set interfaces ge-0/0/0 description \"Uplink to Core\""
-      ]
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:27:11.690812",
+    "timestamp": "2026-05-10T11:04:48.796320",
+    "mode_tag": "vanilla"
+  },
+  "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
+    "config": "Cisco IOS-XE:\n```\ninterface GigabitEthernet0/0\n mtu 9000\n!\ninterface GigabitEthernet0/1\n mtu 9000\n!\n```\nJuniper:\n```\nset interfaces ge-0/0/0 mtu 9000\nset interfaces ge-0/0/1 mtu 9000\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:05:36.837361",
     "mode_tag": "vanilla"
   },
   "Configure VLAN 100 named 'DATABASE' on Cisco switch": {
@@ -176,63 +312,33 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:27:37.171551",
-    "mode_tag": "vanilla"
-  },
-  "Enable LLDP globally on a Juniper EX switch": {
-    "config": "set protocols lldp interface all\nset protocols lldp enable",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:28:07.099735",
-    "mode_tag": "vanilla"
-  },
-  "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
-    "config": "interface GigabitEthernet1\n mtu 9000\nexit",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:28:28.623342",
+    "timestamp": "2026-05-10T11:05:51.398097",
     "mode_tag": "vanilla"
   },
   "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
-    "config": "Cisco:\n```\ninterface GigabitEthernet1/0/24\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n```\n\nJuniper:\n```\nset interfaces ge-1/0/24 unit 0 family ethernet-switching port-mode trunk\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20\nset interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30\n```",
+    "config": "**Cisco CLI:**\n```\ninterface GigabitEthernet1/0/24\nswitchport mode trunk\nswitchport trunk allowed vlan add 10\nswitchport trunk allowed vlan add 20\nswitchport trunk allowed vlan add 30\n```\n\n**Juniper CLI:**\n```\nset interfaces ge-0/0/24 unit 0 family ethernet-switching vlan members [ vlan.10, vlan.20, vlan.30 ]\nset interfaces ge-0/0/24 unit 0 family ethernet-switching mode trunk\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": true,
     "hallucination": {
       "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10', 'set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20', 'set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30']",
+      "reason": "Ungrounded commands: ['set interfaces ge-0/0/24 unit 0 family ethernet-switching vlan members [ vlan.10, vlan.20, vlan.30 ]']",
       "suspicious_commands": [],
       "invalid_citations": [],
       "ungrounded_commands": [
-        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 10",
-        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 20",
-        "set interfaces ge-1/0/24 unit 0 family ethernet-switching vlan members 30"
-      ]
+        "set interfaces ge-0/0/24 unit 0 family ethernet-switching vlan members [ vlan.10, vlan.20, vlan.30 ]"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:28:50.600985",
+    "timestamp": "2026-05-10T11:06:25.664860",
     "mode_tag": "vanilla"
   },
-  "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
-    "config": "Cisco:\n```\ninterface GigabitEthernet0/0\n ip address 10.1.1.1 255.255.255.252\n ip ospf network point-to-point\n router ospf 1\n  network 10.1.1.0 0.0.0.3 area 0\n```\n\nJuniper:\n```\nset interfaces ge-0/0/0 unit 0 family inet address 10.1.1.2/30\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0\nset protocols ospf neighbor 10.1.1.1\n```",
-    "status": "REJECT_FOR_MANUAL_REVIEW",
+  "Enable LLDP globally on a Juniper EX switch": {
+    "config": "set protocols lldp global enable\nset protocols lldp global management-address 0.0.0.0\nset protocols lldp global transmit-interval 30\nset protocols lldp global receive-interval 30",
+    "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
@@ -240,45 +346,37 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:29:16.726307",
+    "timestamp": "2026-05-10T11:07:00.202866",
     "mode_tag": "vanilla"
   },
   "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
-    "config": "**Cisco:**\n```\nrouter bgp 65001\n neighbor 10.10.10.2 remote-as 65002\n neighbor 10.10.10.2 description Juniper-AS65002\n neighbor 10.10.10.2 update-source GigabitEthernet0/0\n neighbor 10.10.10.2 ebgp-multihop 2\n```\n\n**Juniper:**\n```\nset protocols bgp group external-peers type external\nset protocols bgp group external-peers peer-as 65001\nset protocols bgp group external-peers neighbor 10.10.10.1 description Cisco-AS65001\nset protocols bgp group external-peers neighbor 10.10.10.1 local-address 10.10.10.2\n```",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": true,
-    "hallucination": {
-      "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set protocols bgp group external-peers type external']",
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": [
-        "set protocols bgp group external-peers type external"
-      ]
-    },
-    "timestamp": "2026-05-07T14:29:38.340930",
-    "mode_tag": "vanilla"
-  },
-  "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
-    "config": "Cisco:\nip ospf hello-interval 5\n\nJuniper:\nset protocols ospf hello-interval 5",
+    "config": "**Cisco AS 65001:**\n\n```bash\nrouter bgp 65001\n  neighbor 10.0.0.2 remote-as 65002\n  neighbor 10.0.0.2 update-source Loopback0\n  neighbor 10.0.0.2 timers 10 30 3 10\n  neighbor 10.0.0.2 password cisco123\n  neighbor 10.0.0.2 soft-reconfiguration inbound\n  neighbor 10.0.0.2 route-reflector-client\n```\n\n**Juniper AS 65002:**\n\n```bash\nrouting-options {\n  autonomous-system 65002;\n}\nprotocols {\n  bgp {\n    group juniper {\n      type external;\n      neighbor 10.0.0.1;\n      neighbor 10.0.0.1 local-address 10.0.0.2;\n      description \"Cisco AS 65001\";\n      family inet {\n        unicast;\n      }\n      password \"$9$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV7Q$zV",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['neighbor 10.0.0.2 password cisco123', 'neighbor 10.0.0.2 soft-reconfiguration inbound', 'bgp {', 'group juniper {', 'type external;', 'unicast;']",
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [
+        "neighbor 10.0.0.2 password cisco123",
+        "neighbor 10.0.0.2 soft-reconfiguration inbound",
+        "bgp {",
+        "group juniper {",
+        "type external;",
+        "unicast;"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:29:58.925417",
+    "timestamp": "2026-05-10T11:07:46.876122",
     "mode_tag": "vanilla"
   },
   "Set system hostname to CORE-RTR-01": {
-    "config": "Cisco: \nhostname CORE-RTR-01\n\nJuniper: \nset system host-name CORE-RTR-01",
+    "config": "**Cisco CLI:**\n```\nhostname CORE-RTR-01\n```\n\n**Juniper CLI:**\n```\nset system host-name CORE-RTR-01\n```",
     "status": "REJECT_FOR_MANUAL_REVIEW",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -287,45 +385,72 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:30:21.463632",
+    "timestamp": "2026-05-10T11:08:36.787504",
     "mode_tag": "vanilla"
   },
-  "Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
-    "config": "```\nconfigure terminal\nntp server 10.1.1.100\nexit\n```",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:30:42.922690",
-    "mode_tag": "vanilla"
-  },
-  "Enable SNMP community 'public' with RO access": {
-    "config": "Cisco:\n```\nsnmp-server community public RO\n```\n\nJuniper:\n```\nset snmp community public authorization read-only\n```",
+  "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
+    "config": "**Cisco CLI:**\n```\nrouter ospf 1\n  timers hello 5\n```\n\n**Juniper CLI:**\n```\nrouting-options {\n  ospf {\n    1 {\n      hello-interval 5;\n    }\n  }\n}\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
       "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set snmp community public authorization read-only']",
+      "reason": "Ungrounded commands: ['ospf {']",
       "suspicious_commands": [],
       "invalid_citations": [],
       "ungrounded_commands": [
-        "set snmp community public authorization read-only"
-      ]
+        "ospf {"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:31:04.387329",
+    "timestamp": "2026-05-10T11:09:48.493189",
+    "mode_tag": "vanilla"
+  },
+  "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
+    "config": "**Cisco (17.6)**\n```bash\nrouter ospf 1\nnetwork 192.168.1.0 0.0.0.255 area 0\n```\n\n**Juniper (21.4)**\n```bash\nrouting-options {\n    ospf {\n        area 0.0.0.0 {\n            interface ge-0/0/0.0 {\n                hello-interval 10;\n                dead-interval 40;\n                retransmit-interval 5;\n            }\n        }\n    }\n}\nprotocols {\n    ospf {\n        area 0.0.0.0 {\n            interface ge-0/0/0.0 {\n                metric 10;\n            }\n        }\n    }\n}\n```\n\n**Shared Link Configuration**\n```bash\ninterface ge-0/0/0.0\nip address 192.168.1.1/24\n```\n\n```bash\ninterface GigabitEthernet0/0\nip address 192.168.1.2/24\n```\n\n**Verify OSPF Neighbors**\n```bash\nshow ospf neighbor\n```\n\n```bash\nshow ospf neighbor detail\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['ospf {', 'area 0.0.0.0 {', 'interface ge-0/0/0.0 {', 'ospf {', 'area 0.0.0.0 {', 'interface ge-0/0/0.0 {', 'show ospf neighbor detail']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "ospf {",
+        "area 0.0.0.0 {",
+        "interface ge-0/0/0.0 {",
+        "ospf {",
+        "area 0.0.0.0 {",
+        "interface ge-0/0/0.0 {",
+        "show ospf neighbor detail"
+      ],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:10:20.725888",
     "mode_tag": "vanilla"
   },
   "Set up local user 'admin' with secret 'Cisco123' and level 15": {
-    "config": "Cisco:\nusername admin privilege 15 secret Cisco123\n\nJuniper:\nset system login user admin class super-user\nset system login user admin authentication plain-text-password\nset system login user admin authentication plain-text-password Cisco123",
+    "config": "**Cisco CLI:**\n```\nenable\nconfigure terminal\nusername admin privilege 15 secret Cisco123\nexit\n```\n\n**Juniper CLI:**\n```\nset system login user admin class super-user authentication plaintext-password Cisco123\ncommit\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:11:09.064315",
+    "mode_tag": "vanilla"
+  },
+  "Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
+    "config": "```\nntp server 10.1.1.100\nntp authentication-key 1 md5 0\nntp trusted-key 1\nntp update-calendar\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -334,30 +459,14 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:31:26.404377",
-    "mode_tag": "vanilla"
-  },
-  "Configure logging buffer size to 100000": {
-    "config": "Cisco: \nlogging buffer 100000\n\nJuniper: \nset system syslog file messages size 100000",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set system syslog file messages size 100000']",
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": [
-        "set system syslog file messages size 100000"
-      ]
-    },
-    "timestamp": "2026-05-07T14:31:48.868743",
+    "timestamp": "2026-05-10T11:11:17.300780",
     "mode_tag": "vanilla"
   },
   "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
-    "config": "Cisco:\ninterface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64\n\nJuniper:\nset interfaces ge-0/0/2 unit 0 family inet6 address 2001:db8:acad::1/64",
+    "config": "**Cisco CLI:**\n```\ninterface GigabitEthernet0/2\n ipv6 address 2001:db8:acad::1/64\n```\n\n**Juniper CLI:**\n```\nset interfaces ge-0/0/2 unit 0 family inet6 address 2001:db8:acad::1/64\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": true,
@@ -366,13 +475,30 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:32:10.346839",
+    "timestamp": "2026-05-10T11:12:07.735784",
+    "mode_tag": "vanilla"
+  },
+  "Enable SNMP community 'public' with RO access": {
+    "config": "**Cisco CLI:**\n```\nenable\nconfigure terminal\nsnmp-server community public RO\nend\n```\n\n**Juniper CLI:**\n```\nset snmp community public read-only\ncommit\n```\n\n**Juniper CLI (ScreenOS):**\n```\nset snmp community public read-only\ncommit\n```",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:12:29.874402",
     "mode_tag": "vanilla"
   },
   "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE": {
-    "config": "```\nipv6 router ospf 1\nrouter-id 10.10.10.10\narea 0 authentication null\nexit\ninterface GigabitEthernet1\nipv6 ospf 1 area 0\nipv6 ospf priority 10\nno shutdown\nexit\ninterface GigabitEthernet2\nipv6 ospf 1 area 0\nipv6 ospf priority 10\nno shutdown\nexit\n```",
+    "config": "```bash\nrouter ospfv3 1\nipv6 unicast-routing\nipv6 router ospf 1 area 0.0.0.0 0.0.0.0\nnetwork ipv6 2001:db8::/32 area 0.0.0.0 0.0.0.0\n```\n\n```bash\nset protocols ospf6 area 0.0.0.0\nset protocols ospf6 area 0.0.0.0 interface all\nset protocols ospf6 area 0.0.0.0 interface all passive\nset protocols ospf6 area 0.0.0.0 interface all passive all\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset protocols ospf6 area 0.0.0.0 interface all passive all ipv6 all 2001:db8::/32\nset",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": true,
@@ -381,65 +507,49 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:32:31.885539",
+    "timestamp": "2026-05-10T11:12:59.962903",
     "mode_tag": "vanilla"
   },
-  "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
-    "config": "Cisco:\n```\nconfigure terminal\nip nat inside source list 1 interface Gig0/1 overload\nip access-list standard 1\npermit 192.168.10.0 0.0.0.255\ninterface Gig0/1\nip nat outside\nexit\ninterface Gig0/0\nip nat inside\nexit\n```\n\nJuniper:\n```\nset interfaces ge-0/0/1 unit 0 family inet nat source rule-set rs1 from interface ge-0/0/1\nset interfaces ge-0/0/1 unit 0 family inet nat source rule-set rs1 to interface ge-0/0/1\nset interfaces ge-0/0/1 unit 0 family inet address 0.0.0.0/0\nset security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24\nset security nat source rule-set rs1 rule r1 then source-nat interface\nset interfaces ge-0/0/0 unit 0 family inet\nset security zone security-zones trust interfaces ge-0/0/0\nset security zone security-zones untrust interfaces ge-0/0/1\n```",
-    "status": "REJECT_FOR_MANUAL_REVIEW",
+  "Configure logging buffer size to 100000": {
+    "config": "**Cisco CLI:**\n```\nlogging buffered 100000\n```\n\n**Juniper CLI:**\n```\nset system log file size 100000\n```",
+    "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
       "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24', 'set security nat source rule-set rs1 rule r1 then source-nat interface']",
+      "reason": "Ungrounded commands: ['logging buffered 100000', 'set system log file size 100000']",
       "suspicious_commands": [],
       "invalid_citations": [],
       "ungrounded_commands": [
-        "set security nat source rule-set rs1 rule r1 match source-address 192.168.10.0/24",
-        "set security nat source rule-set rs1 rule r1 then source-nat interface"
-      ]
+        "logging buffered 100000",
+        "set system log file size 100000"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:32:54.381488",
-    "mode_tag": "vanilla"
-  },
-  "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
-    "config": "**Cisco:**\n```\ncrypto isakmp policy 1\n encryption aes 256\n authentication pre-share\n group 2\ncrypto isakmp key SecretKey address 2.2.2.2\ncrypto ipsec transform-set TS esp-aes 256 esp-sha-hmac\n mode transport\ncrypto map CM 1 ipsec-isakmp\n set peer 2.2.2.2\n set transform-set TS\n match address 101\ncrypto map CM interface outside\naccess-list 101 permit ip 10.10.10.0 0.0.0.255 10.10.20.0 0.0.0.255\n```\n\n**Juniper:**\n```\nset security ike proposal PSK-proposal authentication-method pre-shared-keys\nset security ike proposal PSK-proposal dh-group group2\nset security ike policy PSK-policy mode main\nset security ike policy PSK-policy proposals PSK-proposal\nset security ike policy PSK-policy pre-shared-key ascii-text SecretKey\nset security ipsec proposal PSK-proposal protocol esp\nset security ipsec proposal PSK-proposal authentication-algorithm hmac-sha1-96\nset security ipsec proposal PSK-proposal encryption-algorithm aes-256-cbc\nset security ipsec policy PSK-policy proposals PSK-proposal\nset security ipsec vpn VPN-1-2 term 10.10.10.0/24 10.10.20.0/24\nset security ipsec vpn VPN-1-2 ike gateway 1.1.1.1\nset security ipsec vpn VPN-1-2 ike ipsec-policy PSK-policy\nset security ipsec vpn VPN-1-2 establish-tunnels immediately\nset interfaces st0 unit 1 description VPN-1-2\nset interfaces st0 unit 1 family inet address 0.0.0.0/0\nset security zone security-zones trust interfaces st0.1\nset security ipsec vpn VPN-1-2 bind-interface st0.1\n```",
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['encryption aes 256', 'set transform-set TS', 'set security ike policy PSK-policy mode main']",
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": [
-        "encryption aes 256",
-        "set transform-set TS",
-        "set security ike policy PSK-policy mode main"
-      ]
-    },
-    "timestamp": "2026-05-07T14:33:27.982636",
+    "timestamp": "2026-05-10T11:13:37.214708",
     "mode_tag": "vanilla"
   },
   "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco": {
-    "config": "```\nclass-map match-all OSPF\n match ip precedence 6\nclass-map match-all OTHER\n match ip precedence 0 1 2 3 4 5 7\npolicy-map QOS_POLICY\n class OSPF\n  priority percent 30\n class OTHER\n  bandwidth percent 70\ninterface GigabitEthernet0/0\n service-policy output QOS_POLICY\n```",
+    "config": "```cisco\nclass-map match-all OSPF\n match ip dscp cs6\n\npolicy-map OSPF-POLICY\n class OSPF\n  priority 100\n\ninterface FastEthernet0/0\n service-policy input OSPF-POLICY\n```",
     "status": "REJECT_FOR_MANUAL_REVIEW",
     "functional_status": "PASS",
-    "cfr_failure": false,
+    "cfr_failure": true,
     "hallucination": {
       "is_hallucinated": false,
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:33:50.973685",
+    "timestamp": "2026-05-10T11:14:27.973096",
     "mode_tag": "vanilla"
   },
-  "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
-    "config": "set protocols vrrp group 10 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0\nset protocols vrrp group 10 track interface ge-0/0/0\ncommit",
+  "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
+    "config": "**Cisco CLI:**\n```\nip nat inside source list 1 interface Gig0/1 overload\nip nat inside source static tcp 192.168.10.1 80 interface Gig0/1 80\nip nat inside source static udp 192.168.10.1 53 interface Gig0/1 53\nip nat inside source static icmp 192.168.10.1 interface Gig0/1\naccess-list 1 permit 192.168.10.0 0.0.0.255\n```\n\n**Juniper CLI:**\n```\nset policy-options policy-statement nat-pat from protocol all\nset policy-options policy-statement nat-pat to protocol all\nset policy-options policy-statement nat-pat from address 192.168.10.0/24\nset policy-options policy-statement nat-pat then nat prefix 192.168.10.1/32 interface ge-0/0/1.0 overload\nset policy-options policy-statement nat-pat then next-policy\nset interfaces ge-0/0/1 unit 0 family inet address 192.168.10.1/24\n```",
     "status": "REJECT_FOR_MANUAL_REVIEW",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -448,31 +558,255 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:34:21.461820",
+    "timestamp": "2026-05-10T11:15:02.542325",
+    "mode_tag": "vanilla"
+  },
+  "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
+    "config": "**Cisco CLI:**\n```bash\ncrypto isakmp policy 10\n encr aes 256\n authentication pre-share\n group 2\n crypto isakmp key SecretKey address 2.2.2.2\n crypto ipsec transform-set myset esp-aes 256 esp-sha-hmac\n crypto map mymap 10 ipsec-isakmp\n set peer 2.2.2.2\n set transform-set myset\n match address vpn\n interface FastEthernet0/0\n ip address 1.1.1.1 255.255.255.255\n crypto map mymap\n```\n\n**Juniper CLI:**\n```bash\nset policy id 10 encryption aes-256\nset policy id 10 authentication pre-share\nset policy id 10 group 2\nset isakmp key SecretKey address 1.1.1.1\nset isakmp profile myprof authentication-method pre-share\nset isakmp profile myprof peer 1.1.1.1\nset isakmp profile myprof group 2\nset isakmp profile myprof key SecretKey\nset isakmp profile myprof proposal aes-256-sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime units minutes\nset isakmp profile myprof proposal encryption aes-256\nset isakmp profile myprof proposal hash sha\nset isakmp profile myprof proposal authentication pre-share\nset isakmp profile myprof proposal group 2\nset isakmp profile myprof proposal lifetime 28800\nset isakmp profile myprof proposal lifetime",
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['encr aes 256', 'crypto ipsec transform-set myset esp-aes 256 esp-sha-hmac', 'crypto map mymap 10 ipsec-isakmp', 'set transform-set myset', 'crypto map mymap', 'set policy id 10 encryption aes-256', 'set policy id 10 authentication pre-share', 'set policy id 10 group 2', 'set isakmp profile myprof authentication-method pre-share', 'set isakmp profile myprof peer 1.1.1.1', 'set isakmp profile myprof group 2', 'set isakmp profile myprof key SecretKey', 'set isakmp profile myprof proposal aes-256-sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime units minutes', 'set isakmp profile myprof proposal encryption aes-256', 'set isakmp profile myprof proposal hash sha', 'set isakmp profile myprof proposal authentication pre-share', 'set isakmp profile myprof proposal group 2', 'set isakmp profile myprof proposal lifetime 28800', 'set isakmp profile myprof proposal lifetime']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "encr aes 256",
+        "crypto ipsec transform-set myset esp-aes 256 esp-sha-hmac",
+        "crypto map mymap 10 ipsec-isakmp",
+        "set transform-set myset",
+        "crypto map mymap",
+        "set policy id 10 encryption aes-256",
+        "set policy id 10 authentication pre-share",
+        "set policy id 10 group 2",
+        "set isakmp profile myprof authentication-method pre-share",
+        "set isakmp profile myprof peer 1.1.1.1",
+        "set isakmp profile myprof group 2",
+        "set isakmp profile myprof key SecretKey",
+        "set isakmp profile myprof proposal aes-256-sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime units minutes",
+        "set isakmp profile myprof proposal encryption aes-256",
+        "set isakmp profile myprof proposal hash sha",
+        "set isakmp profile myprof proposal authentication pre-share",
+        "set isakmp profile myprof proposal group 2",
+        "set isakmp profile myprof proposal lifetime 28800",
+        "set isakmp profile myprof proposal lifetime"
+      ],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:15:51.824710",
+    "mode_tag": "vanilla"
+  },
+  "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
+    "config": "Juniper CLI:\n```\nset policy-options prefix-list PL-ALLOWED-10.0.0.0/8 10.0.0.0/8\nset policy-options prefix-list PL-ALLOWED-10.0.0.0/8 ..10.255.255.255/32\n```\n\nCisco CLI:\n```bash\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/8\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/16\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/17\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/18\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/19\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/20\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/21\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/22\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/23\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/24\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/25\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/26\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/27\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/28\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/29\nip prefix-list PL-ALLOWED-10.0.0.0/8 permit 10.0.0.0/30\n```",
+    "status": "PASS",
+    "functional_status": "PASS",
+    "cfr_failure": false,
+    "hallucination": {
+      "is_hallucinated": false,
+      "reason": null,
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:17:18.820216",
     "mode_tag": "vanilla"
   },
   "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
-    "config": "ip dhcp snooping\nip dhcp snooping vlan 10,20\nip dhcp snooping information option\nservice dhcp",
+    "config": "```\nswitch(config)# ip dhcp snooping\nswitch(config)# ip dhcp snooping vlan 10\nswitch(config)# ip dhcp snooping vlan 20\n```",
+    "status": "FAIL",
+    "functional_status": "PASS",
+    "cfr_failure": true,
+    "hallucination": {
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['switch(config)# ip dhcp snooping', 'switch(config)# ip dhcp snooping vlan 10', 'switch(config)# ip dhcp snooping vlan 20']",
+      "suspicious_commands": [],
+      "invalid_citations": [],
+      "ungrounded_commands": [
+        "switch(config)# ip dhcp snooping",
+        "switch(config)# ip dhcp snooping vlan 10",
+        "switch(config)# ip dhcp snooping vlan 20"
+      ],
+      "unauthorized_parameters": []
+    },
+    "timestamp": "2026-05-10T11:17:32.255112",
+    "mode_tag": "vanilla"
+  },
+  "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
+    "config": "**Cisco CLI:**\n```\ninterface GigabitEthernet1/0/1\nchannel-group 1 mode active\ninterface GigabitEthernet1/0/2\nchannel-group 1 mode active\ninterface Port-channel1\nno shutdown\n```\n\n**Juniper CLI:**\n```\nset interfaces ge-0/0/1 unit 0 family ethernet-switching\nset interfaces ge-0/0/1 unit 0 lacp\nset interfaces ge-0/0/1 unit 0 lacp active\nset interfaces ge-0/0/2 unit 0 family ethernet-switching\nset interfaces ge-0/0/2 unit 0 lacp\nset interfaces ge-0/0/2 unit 0 lacp active\nset interfaces ge-0/0/1.0 unit 0 family inet\nset interfaces ge-0/0/2.0 unit 0 family inet\nset interfaces ge-0/0/1.0 unit 0 family lacp\nset interfaces ge-0/0/2.0 unit 0 family lacp\nset interfaces ge-0/0/1.0 unit 0 lacp period short\nset interfaces ge-0/0/2.0 unit 0 lacp period short\nset interfaces ge-0/0/1.0 unit 0 lacp rate fast\nset interfaces ge-0/0/2.0 unit 0 lacp rate fast\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/2.0 unit 0 lacp timeout slow-min-xmit 60\nset interfaces ge-0/0/1.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/2.0 unit 0 lacp timeout long-min-xmit 120\nset interfaces ge-0/0/1.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/2.0 unit 0 lacp timeout short-min-xmit 15\nset interfaces ge-0/0/1.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/2.0 unit 0 lacp timeout fast-min-xmit 30\nset interfaces ge-0/0/1.0",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
       "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['ip dhcp snooping information option', 'service dhcp']",
+      "reason": "Ungrounded commands: ['set interfaces ge-0/0/1.0 unit 0 lacp period short', 'set interfaces ge-0/0/2.0 unit 0 lacp period short', 'set interfaces ge-0/0/1.0 unit 0 lacp rate fast', 'set interfaces ge-0/0/2.0 unit 0 lacp rate fast', 'set interfaces ge-0/0/1.0 unit 0 lacp timeout short', 'set interfaces ge-0/0/2.0 unit 0 lacp timeout short', 'set interfaces ge-0/0/1.0 unit 0 lacp timeout fast', 'set interfaces ge-0/0/2.0 unit 0 lacp timeout fast', 'set interfaces ge-0/0/1.0 unit 0 lacp timeout slow', 'set interfaces ge-0/0/2.0 unit 0 lacp timeout slow']",
       "suspicious_commands": [],
       "invalid_citations": [],
       "ungrounded_commands": [
-        "ip dhcp snooping information option",
-        "service dhcp"
-      ]
+        "set interfaces ge-0/0/1.0 unit 0 lacp period short",
+        "set interfaces ge-0/0/2.0 unit 0 lacp period short",
+        "set interfaces ge-0/0/1.0 unit 0 lacp rate fast",
+        "set interfaces ge-0/0/2.0 unit 0 lacp rate fast",
+        "set interfaces ge-0/0/1.0 unit 0 lacp timeout short",
+        "set interfaces ge-0/0/2.0 unit 0 lacp timeout short",
+        "set interfaces ge-0/0/1.0 unit 0 lacp timeout fast",
+        "set interfaces ge-0/0/2.0 unit 0 lacp timeout fast",
+        "set interfaces ge-0/0/1.0 unit 0 lacp timeout slow",
+        "set interfaces ge-0/0/2.0 unit 0 lacp timeout slow"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:34:42.958376",
+    "timestamp": "2026-05-10T11:18:00.362324",
     "mode_tag": "vanilla"
   },
-  "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
-    "config": "set policy-options prefix-list PL-10-0-0-0/8 10.0.0.0/8\nset policy-options prefix-list PL-10-0-0-0/8 10.0.0.0/8 longer",
+  "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
+    "config": "```\nset protocols vrrp group 10 interface ge-0/0/0 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0 preempt\nset protocols vrrp group 10 interface ge-0/0/0 authentication-key \"your_password\"\nset protocols vrrp group 10 interface ge-0/0/0 priority 100\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
@@ -481,28 +815,202 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:35:12.828931",
+    "timestamp": "2026-05-10T11:18:51.125409",
     "mode_tag": "vanilla"
   },
-  "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
-    "config": "```\ninterface GigabitEthernet1/0/1\n channel-group 1 mode active\nexit\ninterface GigabitEthernet1/0/2\n channel-group 1 mode active\nexit\ninterface Port-Channel1\n switchport trunk encapsulation dot1q\n switchport mode trunk\nexit\n```",
+  "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
+    "config": "```cisco\nrouter bgp 64512\n  neighbor 172.16.1.1 remote-as 64512\n  neighbor 172.16.1.1 update-source Loopback0\n  neighbor 172.16.1.1 route-reflector-client\n  neighbor 172.16.1.1 password cisco\n  neighbor 172.16.1.1 timers 30 90\n  neighbor 172.16.1.1 timers connect 30\n  neighbor 172.16.1.1 timers refresh 120\n  neighbor 172.16.1.1 timers keepalive 30\n  neighbor 172.16.1.1 timers notification 60\n  neighbor 172.16.1.1 shutdown\n  no auto-summary\n  network 10.0.0.0 mask 255.0.0.0\n  network 172.16.0.0 mask 255.255.0.0\n  bgp log-neighbor-changes\n  bgp default ipv4-unicast\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med confed missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med missing-as-worst\n  bgp bestpath med missing-as-type worst\n  bgp bestpath med",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
+      "is_hallucinated": true,
+      "reason": "Ungrounded commands: ['neighbor 172.16.1.1 password cisco', 'neighbor 172.16.1.1 timers connect 30', 'neighbor 172.16.1.1 timers refresh 120', 'neighbor 172.16.1.1 timers keepalive 30', 'neighbor 172.16.1.1 timers notification 60', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med confed missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med missing-as-worst', 'bgp bestpath med missing-as-type worst', 'bgp bestpath med']",
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [
+        "neighbor 172.16.1.1 password cisco",
+        "neighbor 172.16.1.1 timers connect 30",
+        "neighbor 172.16.1.1 timers refresh 120",
+        "neighbor 172.16.1.1 timers keepalive 30",
+        "neighbor 172.16.1.1 timers notification 60",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med confed missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med missing-as-worst",
+        "bgp bestpath med missing-as-type worst",
+        "bgp bestpath med"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:35:39.951527",
+    "timestamp": "2026-05-10T11:19:46.274056",
     "mode_tag": "vanilla"
   },
   "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco": {
-    "config": "```\nconfigure terminal\nip flow-export version 9\nip flow-export destination 10.1.1.50 2055\nip flow-cache timeout active 1\nip flow-cache timeout inactive 15\ninterface GigabitEthernet0/0\n ip flow ingress\n ip flow egress\nexit\n```",
+    "config": "```bash\nip flow-export destination 10.1.1.50 2055\nip flow-export version 9\n```\n\n```bash\nset protocols netflow export destination 10.1.1.50 2055\nset protocols netflow export version 9\n```",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": true,
@@ -511,41 +1019,31 @@
       "reason": null,
       "suspicious_commands": [],
       "invalid_citations": [],
-      "ungrounded_commands": []
+      "ungrounded_commands": [],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:36:01.973861",
+    "timestamp": "2026-05-10T11:20:02.338405",
     "mode_tag": "vanilla"
   },
   "Restrict console access with an execution timeout of 5 minutes on Juniper": {
-    "config": "set system login class restrict-console-access login-timeout 5 \nset system login class restrict-console-access idle-timeout 5 \nset system login user console class restrict-console-access",
+    "config": "Juniper:\nset system login class console timeout 300\nset system login class console idle-timeout 300\nset system login class console max-logins 1\n\nCisco:\nline console 0\nexec-timeout 300\nlogin block-for 300 attempts 3\nlogin attempts 3\nlogin on-failure log\nlogin on-failure delay 3",
     "status": "PASS",
     "functional_status": "PASS",
     "cfr_failure": false,
     "hallucination": {
       "is_hallucinated": true,
-      "reason": "Ungrounded commands: ['set system login user console class restrict-console-access']",
+      "reason": "Ungrounded commands: ['login block-for 300 attempts 3', 'login attempts 3', 'login on-failure log', 'login on-failure delay 3']",
       "suspicious_commands": [],
       "invalid_citations": [],
       "ungrounded_commands": [
-        "set system login user console class restrict-console-access"
-      ]
+        "login block-for 300 attempts 3",
+        "login attempts 3",
+        "login on-failure log",
+        "login on-failure delay 3"
+      ],
+      "unauthorized_parameters": []
     },
-    "timestamp": "2026-05-07T14:36:31.903209",
-    "mode_tag": "vanilla"
-  },
-  "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
-    "config": "```\nrouter bgp 100\n bgp router-id 172.16.1.2\n bgp log-neighbor-changes\n neighbor 172.16.1.1 remote-as 100\n neighbor 172.16.1.1 description iBGP_NBR\n neighbor 172.16.1.1 update-source Loopback0\n neighbor 172.16.1.1 next-hop-self\n neighbor 172.16.1.1 route-reflector-client\n```",
-    "status": "PASS",
-    "functional_status": "PASS",
-    "cfr_failure": false,
-    "hallucination": {
-      "is_hallucinated": false,
-      "reason": null,
-      "suspicious_commands": [],
-      "invalid_citations": [],
-      "ungrounded_commands": []
-    },
-    "timestamp": "2026-05-07T14:37:15.454092",
+    "timestamp": "2026-05-10T11:21:09.569260",
     "mode_tag": "vanilla"
   }
 }

@@ -162,6 +162,7 @@ class VectorStore:
         """
         graph_path = Path("data/graph_db/graph.json")
         mapping_path = Path("data/graph_db/chunk_to_node.json")
+        labels_path = Path("graphify-out/.graphify_labels.json")
 
         if not graph_path.exists():
             logger.warning(
@@ -187,19 +188,47 @@ class VectorStore:
                     f"Loaded {len(self.chunk_to_node)} semantic anchors for GraphRAG."
                 )
 
+            # 3. Load Community Labels (Semantic Anchors)
+            self.community_labels = {}
+            if labels_path.exists():
+                with open(labels_path, "r") as f:
+                    self.community_labels = json.load(f)
+                logger.info(
+                    f"Loaded {len(self.community_labels)} community labels for GraphRAG."
+                )
+
         except Exception as e:
             logger.error(f"Failed to load documentation knowledge graph: {e}")
 
     def retrieve_community_context(
-        self, seed_chunks: List[Dict[str, Any]]
+        self, seed_chunks: List[Dict[str, Any]], max_additional_chunks: int = 15
     ) -> List[Dict[str, Any]]:
         """
         Community-Aware Retrieval (SOTA GraphRAG):
         Identifies the community clusters of the seed chunks and retrieves the entire cluster.
         This ensures holistic context (e.g., all OSPF related docs) is present.
+
+        Token Efficiency Optimizations:
+        1. God Node Pruning: Skips high-degree nodes that bridge unrelated domains.
+        2. Community Budgeting: Limits the number of additional chunks to prevent bloat.
+        3. Semantic Tagging: Adds community labels to metadata for better grounding.
         """
         if not self.graph:
             return seed_chunks
+
+        # High-degree 'God Nodes' that cause context explosion (Recommendation 4)
+        GOD_NODES = {
+            "vector_store_vectorstore",
+            "schemas_intent_structuredintent",
+            "rag_config_generator_configgenerator",
+            "validation_gns3_validator_gns3validator",
+            "parser_intent_parser_intentparser",
+            "rag_nettwin_run_paper_eval_paperqualityevaluator",
+            "full_phase_1_report_version_aware_rag",
+            "validation_base_networkvalidator",
+            "evaluation_hallucination_detector_hallucinationdetector",
+            "evaluation_cfr_checker_cfrchecker",
+        }
 
         community_ids = set()
         for chunk in seed_chunks:
@@ -211,7 +240,8 @@ class VectorStore:
                 # If no direct mapping, try using the chunk ID directly as a fallback
                 node_id = chunk_id if chunk_id in self.graph else None
 
-            if node_id and node_id in self.graph:
+            # Token Efficiency: Prune God Nodes from seed expansion
+            if node_id and node_id in self.graph and node_id not in GOD_NODES:
                 community = self.graph.nodes[node_id].get("community")
                 if community is not None:
                     community_ids.add(community)
@@ -219,9 +249,11 @@ class VectorStore:
         # Retrieve all nodes belonging to these communities
         expanded_ids = set()
         for node_id, data in self.graph.nodes(data=True):
+            # Token Efficiency: Never expand through God Nodes even if they share a community
+            if node_id in GOD_NODES:
+                continue
+
             if data.get("community") in community_ids:
-                # In GraphRAG, the nodes themselves often contain the summarized context.
-                # Here, we try to map back to the original documentation chunks.
                 expanded_ids.add(str(node_id))
 
         final_results = list(seed_chunks)
@@ -229,16 +261,32 @@ class VectorStore:
         # (This is the 'Context Reach' boost)
         reverse_mapping = {v: k for k, v in self.chunk_to_node.items()}
 
+        added_count = 0
         for nid in expanded_ids:
+            # Token Efficiency: Stop once we hit the additional chunk budget
+            if added_count >= max_additional_chunks:
+                break
+
             # Map graph node back to Chroma ID
             cid = reverse_mapping.get(nid)
             if cid and cid in self.corpus_map:
                 # Avoid duplicates
                 if not any(c.get("id") == cid for c in final_results):
-                    final_results.append(self.corpus_map[cid])
+                    chunk = self.corpus_map[cid].copy()
+                    
+                    # Tag with community label for semantic grounding
+                    node_data = self.graph.nodes.get(nid, {})
+                    comm_id = str(node_data.get("community"))
+                    comm_label = self.community_labels.get(comm_id)
+                    if comm_label:
+                        chunk["metadata"]["graph_community"] = comm_label
+                    
+                    final_results.append(chunk)
+                    added_count += 1
 
         logger.info(
-            f"Community-Aware Expansion: {len(seed_chunks)} seeds -> {len(final_results)} chunks (Communities: {list(community_ids)})"
+            f"Community-Aware Expansion: {len(seed_chunks)} seeds -> {len(final_results)} chunks "
+            f"(Communities: {list(community_ids)}, Budget: {max_additional_chunks})"
         )
         return final_results
 
@@ -646,16 +694,20 @@ class VectorStore:
 
     def clear_cache(self) -> None:
         """
-        Purges all entries from the semantic cache collection.
+        Purges all entries from the semantic and intent parsing cache collections.
         """
-        try:
-            ids_result = self.cache_collection.get()
-            ids: Optional[List[str]] = ids_result.get("ids")
-            if ids:
-                self.cache_collection.delete(ids=ids)
-                logger.info(f"Purged {len(ids)} entries from Semantic Cache.")
-        except Exception as e:
-            logger.warning(f"Failed to clear Semantic Cache: {e}")
+        for coll_name, coll in [
+            ("Semantic Cache", self.cache_collection),
+            ("Intent Parsing Cache", self.intent_parsing_cache_collection)
+        ]:
+            try:
+                ids_result = coll.get()
+                ids: Optional[List[str]] = ids_result.get("ids")
+                if ids:
+                    coll.delete(ids=ids)
+                    logger.info(f"Purged {len(ids)} entries from {coll_name}.")
+            except Exception as e:
+                logger.warning(f"Failed to clear {coll_name}: {e}")
 
     def hybrid_retrieve(
         self,
@@ -724,6 +776,7 @@ class VectorStore:
 
         # 3. Reciprocal Rank Fusion (RRF)
         rrf_scores: Dict[str, float] = {}  # id -> rrf_score
+        vector_distances: Dict[str, float] = {} # id -> distance
 
         # Add vector ranks
         for rank, res in enumerate(vector_results):
@@ -731,6 +784,7 @@ class VectorStore:
             rrf_scores[chunk_id_res] = rrf_scores.get(chunk_id_res, 0.0) + (
                 1.0 / (k + rank + 1)
             )
+            vector_distances[chunk_id_res] = res.get("distance", 1.0)
 
         # Add BM25 ranks
         for rank, chunk_id_bm25 in enumerate(bm25_ranked):
@@ -752,6 +806,7 @@ class VectorStore:
                     "text": chunk_final["text"],
                     "metadata": chunk_final["metadata"],
                     "rrf_score": rrf_scores[chunk_id_final],
+                    "distance": vector_distances.get(chunk_id_final)
                 }
             )
 
