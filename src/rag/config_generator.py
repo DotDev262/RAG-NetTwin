@@ -510,7 +510,7 @@ class ConfigGenerator:
                     "- CISCO OSPF: USE 'ip ospf mtu-ignore' (NOT 'ip ospf mtu').\n"
                     "### CRITICAL SYNTAX ANCHORS ###\n"
                     "- CISCO: USE 'crypto isakmp', 'crypto ipsec', 'crypto map'. NEVER use 'set' for VPN/IPsec.\n"
-                    "- JUNIPER: USE 'set' commands (e.g., 'set protocols ospf'). NEVER use hierarchical curly braces '{}'.\n"
+                    "- JUNIPER: USE 'set' commands (e.g., 'set protocols ospf'). NEVER use hierarchical curly braces '{{}}'.\n"
                     "- JUNIPER: USE 'set security ike', 'set security ipsec'. NEVER use standalone 'isakmp' or legacy 'set policy id' (ScreenOS).\n"
                     "### CITATIONS ###\n"
                     "- ALWAYS include 'source_ids' for each command block. Use 'ID: <source_id>' from the documentation.\n"

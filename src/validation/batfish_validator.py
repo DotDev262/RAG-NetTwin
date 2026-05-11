@@ -30,7 +30,6 @@ import tempfile
 import shutil
 import json
 import time
-import re
 from pathlib import Path
 from pybatfish.client.session import Session
 from typing import Dict, Any
@@ -179,24 +178,36 @@ class BatfishValidator(NetworkValidator):
                 # Sanitize hostname to prevent directory traversal or path errors
                 safe_hostname = hostname.replace("/", "_").replace("\\", "_")
 
-                # Detect vendor from src.config content
-                # Juniper configs use "set" commands at the start of lines
-                # Cisco configs use Cisco IOS syntax
-                # Robust detection: check for 'set ' at the start of any line
+                # Detect vendor from src.config content (Fix 4: Robust Vendor Detection)
+                # Ignore comment lines for vendor detection
+                lines_for_detection = [
+                    l.strip()
+                    for l in config_text.splitlines()
+                    if l.strip() and not l.strip().startswith(("!", "#"))
+                ]
+
                 is_juniper = any(
-                    re.match(rf"^\s*{prefix}", line)
-                    for line in config_text.splitlines()
-                    for prefix in [
-                        "set ",
-                        "firewall",
-                        "protocols ",
-                        "interfaces ",
-                        "routing-options",
-                        "security ",
-                    ]
-                ) or any(
-                    line.strip().endswith("{") for line in config_text.splitlines()[:10]
-                )
+                    any(
+                        l.startswith(prefix)
+                        for prefix in [
+                            "set ",
+                            "firewall",
+                            "protocols ",
+                            "interfaces ",
+                            "routing-options",
+                            "policy-options",
+                            "security ",
+                            "system ",
+                            "chassis ",
+                            "forwarding-options",
+                            "groups ",
+                            "logical-systems",
+                            "bridge-domains",
+                            "routing-instances",
+                        ]
+                    )
+                    for l in lines_for_detection
+                ) or any(l.endswith("{") for l in lines_for_detection[:10])
 
                 # Set appropriate extension:
                 # - Juniper: .conf (Batfish recognizes set commands)
