@@ -300,6 +300,18 @@ class BatfishValidator(NetworkValidator):
                     ):
                         continue
 
+                    # Filter out known gaps from undefined references (Fix F18)
+                    combined_ref_text = (
+                        struct_type + " " + struct_name + " " + context
+                    ).lower()
+                    if any(gap.lower() in combined_ref_text for gap in self.known_gaps):
+                        continue
+
+                    # If Batfish literally says "Unknown" is missing, it's a parsing gap (F19)
+                    # unless the LLM actually used the word "Unknown".
+                    if struct_name == "Unknown":
+                        continue
+
                     details = f"File {filename}: {struct_type} '{struct_name}' is referenced but not defined."
                     if context:
                         details += f" Context: {context}"

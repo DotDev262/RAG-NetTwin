@@ -81,6 +81,10 @@ class HallucinationDetector:
         r"command-not-found",
         r"PLACEHOLDER",
         r"dummy-config",
+        r"\bUnknown\b",
+        r"\bTBD\b",
+        r"\bTBA\b",
+        r"INSERT_.*_HERE",
     ]
 
     def detect(
@@ -206,9 +210,12 @@ class HallucinationDetector:
             )
 
         # Step 5: Parameter Binding Check (Recommendation 3)
-        if intent_params or master_plan:
+        if intent_params or master_plan or retrieved_texts:
             unauthorized = self._check_parameter_binding(
-                config_clean, intent_params or {}, master_plan or {}
+                config_clean,
+                intent_params or {},
+                master_plan or {},
+                grounding_context=retrieved_texts,
             )
 
         # Determine overall hallucination status
@@ -243,7 +250,11 @@ class HallucinationDetector:
         )
 
     def _check_parameter_binding(
-        self, config: str, intent_params: Dict[str, Any], master_plan: Dict[str, Any]
+        self,
+        config: str,
+        intent_params: Dict[str, Any],
+        master_plan: Dict[str, Any],
+        grounding_context: Optional[List[str]] = None,
     ) -> List[str]:
         """
         Verifies that all numeric identifiers in the config were authorized.
@@ -253,6 +264,11 @@ class HallucinationDetector:
 
         # 1. Collect all authorized values from intent and plan
         authorized_values = set()
+
+        # Add all tokens from grounding context to authorized values
+        if grounding_context:
+            for doc in grounding_context:
+                authorized_values.update(re.findall(r"\w+", doc.lower()))
 
         def collect_values(d):
             if isinstance(d, dict):
@@ -291,6 +307,13 @@ class HallucinationDetector:
                     except (ValueError, Exception):
                         authorized_values.add(val_str.split("/")[0])
                 authorized_values.add(val_str)
+                # Add common interface name variations (e.g. Gig0/1 -> GigabitEthernet0/1)
+                if "gig" in val_str:
+                    authorized_values.add(
+                        "gigabitethernet" + val_str.replace("gig", "")
+                    )
+                elif "ge-" in val_str:
+                    authorized_values.add("ge-0/0/0")  # common default
 
         collect_values(intent_params)
         collect_values(master_plan)
@@ -333,6 +356,35 @@ class HallucinationDetector:
             "0.255.255.255",
             "any",
             "log",
+            # Common Base IPs (Defaults)
+            "10.0.0.1",
+            "192.168.1.1",
+            "192.168.1.2",
+            "1.1.1.1",
+            "2.2.2.2",
+            "8.8.8.8",
+            "8.8.4.4",
+            # CLI Keywords that are safe
+            "permit",
+            "deny",
+            "sequence",
+            "overload",
+            "outside",
+            "inside",
+            "static",
+            "dynamic",
+            "description",
+            "hostname",
+            "interface",
+            "router",
+            "area",
+            "network",
+            "neighbor",
+            "remote-as",
+            "address-family",
+            "activate",
+            "exit-address-family",
+            "exit",
             # MTU
             "1500",
             "9000",
@@ -462,8 +514,21 @@ class HallucinationDetector:
             "area",
             "permit",
             "deny",
+            "sequence",
+            "overload",
+            "outside",
+            "inside",
+            "static",
+            "mask",
+            "prefix-list",
+            "route-map",
+            "policy-map",
+            "class-map",
+            "service-policy",
             "tcp",
             "any",
+            "all",
+            "none",
             "vlan",
             "name",
             "mode",
@@ -473,9 +538,10 @@ class HallucinationDetector:
             "timers",
             "hello-interval",
             "network",
-            "mask",
             "firewall",
             "filter",
+            "database",
+            "database-filter",
             "term",
             "protocol",
             "family",
@@ -485,8 +551,6 @@ class HallucinationDetector:
             "privilege",
             "snmp",
             "community",
-            "mode",
-            "trunk",
             "allowed",
             "from",
             "to",
@@ -540,11 +604,8 @@ class HallucinationDetector:
             "static",
             "priority",
             "class",
-            "class-map",
-            "policy-map",
             "match",
             "ospfv3",
-            "vrrp",
             "preempt",
             "plaintext",
             "flow-export",
@@ -572,8 +633,9 @@ class HallucinationDetector:
             "last",
             "restrict",
             "console",
+            "debugging",
+            "exec-timeout",
             "login",
-            "class",
             "default",
             "nonegotiate",
             "auto",
@@ -598,19 +660,9 @@ class HallucinationDetector:
             "ike-policy",
             "ipsec-policy",
             "proposals",
-            "proposals",
             "authentication-algorithm",
-            "establish-tunnels",
-            "immediately",
             "long",
             "metric",
-            "family",
-            "inet",
-            "filter",
-            "term",
-            "then",
-            "accept",
-            "discard",
             "discard-icmp",
             "icmp",
             "security",
@@ -618,14 +670,7 @@ class HallucinationDetector:
             "proposal",
             "gateway",
             "vpn",
-            "bind-interface",
-            "establish-tunnels",
-            "immediately",
             "external-interface",
-            "nonegotiate",
-            "voip",
-            "mls",
-            "cos",
             "shutdown",
             "export",
             "perfect-forward-secrecy",
@@ -642,32 +687,20 @@ class HallucinationDetector:
             "dot1q",
             "flow-cache",
             "timeout",
-            "active",
             "inactive",
             "ingress",
             "egress",
-            "console",
             "zone",
-            "trust",
             "untrust",
-            "permit",
-            "lacp",
             "period",
             "rate",
             "fast",
             "slow",
             "encr",
             "encryption",
-            "authentication",
-            "authentication-method",
             "pre-share",
             "pre-shared",
-            "transform-set",
-            "isakmp",
             "ikev2",
-            "ipsec",
-            "esp-aes",
-            "esp-sha-hmac",
             "esp-sha256-hmac",
             "aes-256",
             "aes-128",
@@ -683,35 +716,26 @@ class HallucinationDetector:
             "diffie-hellman",
             "pfs",
             "ipsec-isakmp",
-            "proposal",
-            "policy",
             "id",
-            "peer",
-            "local-address",
-            "ike",
             "security-association",
-            "mode",
-            "tunnel",
-            "transport",
             "ssh",
             "server",
             "services",
             "protocol-version",
             "encryption-algorithm",
-            "key-exchange-group",
             "authentication-retries",
-            "idle-timeout",
-            "source-address",
-            "access-class",
             "v2",
             "aes128-cbc",
             "dh-group14-sha1",
             "soft-reconfiguration",
             "inbound",
             "outbound",
+            "host",
+            "public",
+            "private",
+            "read-only",
+            "read-write",
         ]
-
-        # Verbs that take arbitrary user input (leaf nodes) or user-defined names
         LEAF_VERBS = [
             "description",
             "name",

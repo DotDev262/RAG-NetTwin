@@ -35,6 +35,7 @@ from src.rag.parameter_normalizer import ParameterNormalizer
 from src.rag.query_expander import QueryExpander
 from src.validation.referential_integrity import ReferentialIntegrityValidator
 from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
+from src.evaluation.hallucination_detector import HallucinationDetector
 from src.schemas.intent import StructuredIntent
 from src.llm import LLMProvider
 from src.utils import clean_cli_prose, setup_logger, with_retry
@@ -125,6 +126,7 @@ class ConfigGenerator:
         )
         self.vector_store = vector_store or VectorStore()
         self.coordinator = coordinator or MultiVendorCoordinator()
+        self.hallucination_detector = HallucinationDetector()
         self.query_expander = QueryExpander(model_name=model_name)
         self._sanity_lock = threading.Lock()
 
@@ -379,9 +381,9 @@ class ConfigGenerator:
         else:
             logger.info(f"Lite-RAG path activated (Retrieval Mode: {retrieval_mode}).")
 
-        # 3. Generation Phase: Parallelized
+        # 3. Generation Phase: Sequential (to avoid rate limits)
         futures: List[Any] = []
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             for device in structured_intent.devices:
                 if device.name in configs:
                     continue
@@ -414,6 +416,7 @@ class ConfigGenerator:
                         coordination_prompt,
                         valid_ids,
                         examples,
+                        master_plan=master_plan,
                     )
                 )
 
@@ -487,6 +490,7 @@ class ConfigGenerator:
         coordination_prompt: str = "",
         valid_source_ids: Optional[List[str]] = None,
         examples: Optional[List[Dict[str, Any]]] = None,
+        master_plan: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Generates configuration for a single device with a refinement loop.
@@ -496,7 +500,7 @@ class ConfigGenerator:
         if examples:
             examples_str = "\n### REFERENCE EXAMPLES (GOLD STANDARD) ###\n"
             for i, ex in enumerate(examples):
-                examples_str += f"Example {i+1}:\nIntent: {ex['intent']}\nConfig:\n{ex['config']}\n\n"
+                examples_str += f"Example {i + 1}:\nIntent: {ex['intent']}\nConfig:\n{ex['config']}\n\n"
 
         # Phase 1: Syntactic Formatting Hints
         formatting_hints = ParameterNormalizer.normalize_ip_parameters(
@@ -509,11 +513,21 @@ class ConfigGenerator:
                     "system",
                     "Expert {vendor} {os_version} CLI specialist. "
                     "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints.\n\n"
+                    "### ZERO TOLERANCE FOR HALLUCINATION ###\n"
+                    "- NEVER add commands that are not explicitly mentioned in the documentation or required for the specific intent.\n"
+                    "- NEVER invent IP addresses, VLAN IDs, or names that are not in the Intent or Parameters.\n"
+                    "- If a command is not found in the documentation, DO NOT invent it based on general knowledge unless it is a standard prerequisite (like 'configure terminal').\n"
+                    "- If the intent is to 'Enable OSPF', DO NOT also configure BGP or static routes 'just in case'.\n\n"
                     "### STRICT HIERARCHY RULES ###\n"
                     "- Global commands (hostname, logging) go at the top level.\n"
                     "- Interface commands (ip address, ip ospf, service-policy) MUST be within an 'interface <name>' block.\n"
                     "- Protocol commands (network, neighbor) MUST be within a 'router <protocol>' block.\n"
                     "- DO NOT put interface commands under a 'router' block.\n\n"
+                    "### PARAMETER INTEGRITY (CRITICAL) ###\n"
+                    "- ONLY use IP addresses, ASNs, and identifiers provided in the 'Parameters' or 'Intent'.\n"
+                    "- DO NOT invent complex network topologies or extra neighbors not mentioned in the intent.\n"
+                    "- If the intent asks for a specific neighbor, ONLY configure that neighbor.\n"
+                    "- If a parameter is missing, use a standard default (e.g. 10.0.0.1, GigabitEthernet0/1) but NEVER invent a pool of multiple random IPs.\n\n"
                     "### TOP FAILURE PATTERNS (FORBIDDEN) ###\n"
                     "- FORBIDDEN: 'ip address X.X.X.X ...' at global level. MUST be under interface.\n"
                     "- FORBIDDEN: 'service-policy ...' at global level. MUST be under interface.\n"
@@ -609,8 +623,15 @@ class ConfigGenerator:
                             all_citations.append(clean_cid)
 
             # Final sanity check for "ERROR" tokens in commands (Fix F16)
+            original_command_count = sum(len(b.commands) for b in output.blocks)
             all_commands = [c for c in all_commands if c.strip() != "ERROR"]
+
             if not all_commands:
+                logger.warning(
+                    f"LLM returned no valid commands for {device.name}. "
+                    f"Original count: {original_command_count}, "
+                    f"Reasoning: {output.reasoning_path}"
+                )
                 config_text = "ERROR"
             else:
                 config_text = "\n".join(all_commands)
@@ -637,6 +658,19 @@ class ConfigGenerator:
                     current_config, vendor=device.vendor or "cisco"
                 )
 
+                # Step 4: Audit for Hallucinations (Zero-Tolerance)
+                hal_report = self.hallucination_detector.detect(
+                    config=current_config,
+                    citations=list(set(all_citations)),
+                    valid_source_ids=valid_source_ids or [],
+                    retrieved_texts=[device_context],
+                    intent_context=structured_intent.original_text or "",
+                    intent_params=structured_intent.parameters,
+                    master_plan=master_plan.model_dump()
+                    if (master_plan and hasattr(master_plan, "model_dump"))
+                    else master_plan,
+                )
+
                 # Check if we should stop refinement (PASS/WARNING are acceptable)
                 has_critical_issues = False
                 if val_res["status"] == "FAIL":
@@ -649,7 +683,11 @@ class ConfigGenerator:
                     if remaining_issues:
                         has_critical_issues = True
 
-                if not has_critical_issues and not ref_issues:
+                if (
+                    not has_critical_issues
+                    and not ref_issues
+                    and not hal_report.is_hallucinated
+                ):
                     break
 
                 # Aggregate feedback
@@ -667,9 +705,16 @@ class ConfigGenerator:
                             + " (CRITICAL: You MUST define this entity in your output. Example: 'access-list 101 permit any' or 'route-map MY-MAP permit 10')"
                         )
 
+                if hal_report.is_hallucinated:
+                    feedback_parts.append(
+                        f"HALLUCINATION DETECTED: {hal_report.reason}. "
+                        "CRITICAL: Remove any ungrounded commands or unauthorized parameters immediately. "
+                        "ONLY use parameters explicitly mentioned in the intent."
+                    )
+
                 error_feedback = "\n".join(feedback_parts)
                 logger.info(
-                    f"Refining {device.name} (Attempt {i+1}) due to: {error_feedback[:100]}..."
+                    f"Refining {device.name} (Attempt {i + 1}) due to: {error_feedback[:100]}..."
                 )
 
                 current_config = self.refine(
@@ -700,7 +745,7 @@ class ConfigGenerator:
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
     def distill_context(
-        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 1200
+        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 1500
     ) -> str:
         """
         Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.

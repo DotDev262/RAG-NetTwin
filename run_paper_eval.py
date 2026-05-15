@@ -189,7 +189,7 @@ class PaperQualityEvaluator:
                     if "429" in err_str or "rate_limit" in err_str.lower():
                         original_text = intent.original_text or "Unknown"
                         logger.error(
-                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {original_text[:50]}..."
+                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx + 1}: {original_text[:50]}..."
                         )
 
                         logger.error(f"Error Details: {err_str}")
@@ -643,7 +643,7 @@ class PaperQualityEvaluator:
         )
 
         report = []
-        report.append(f"\n{icon} FAILURE at Intent #{idx+1}")
+        report.append(f"\n{icon} FAILURE at Intent #{idx + 1}")
         report.append(f"   Intent: {intent_text}")
         report.append(f"   Status: {status}")
 
@@ -857,8 +857,7 @@ if __name__ == "__main__":
                         cleaned_cache = {
                             k: v
                             for k, v in full_cache.items()
-                            if v.get("status")
-                            in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]
+                            if v.get("status") in ["PASS", "WARNING"]
                         }
                         with open(filepath, "w") as fw:
                             json.dump(cleaned_cache, fw, indent=2)
