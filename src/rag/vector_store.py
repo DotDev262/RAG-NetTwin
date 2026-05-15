@@ -28,19 +28,29 @@ Typical Usage:
     )
 """
 
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 import json
 import hashlib
-import networkx as nx
-from networkx.readwrite import json_graph
-from rank_bm25 import BM25Okapi
+import os
+import logging
+from typing import List, Dict, Any, Optional, cast
+from pathlib import Path
+
+import chromadb
+import networkx as nx  # type: ignore
+from chromadb.config import Settings
+from networkx.readwrite import json_graph  # type: ignore
+from rank_bm25 import BM25Okapi  # type: ignore
 from sentence_transformers import CrossEncoder
+
 from src.config import settings
 from src.utils import setup_logger
+
+from chromadb.utils import embedding_functions
+
+# Suppress transformer and BERT loading reports
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("chromadb").setLevel(logging.ERROR)
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
 
 logger = setup_logger("VectorStore")
 
@@ -93,9 +103,24 @@ class VectorStore:
             path=str(self.persist_dir), settings=Settings(anonymized_telemetry=False)
         )
 
-        # Initialize embedding function using sentence-transformers
-        # This converts text into dense vectors for semantic search
-        sentence_transformer_ef = (
+        # Recommendation 2 & 4: Upgraded retrieval with Jina-v5 SOTA stack
+        # Using SentenceTransformer directly to handle trust_remote_code more reliably
+        from sentence_transformers import SentenceTransformer
+
+        try:
+            self.model = SentenceTransformer(
+                settings.embedding_model_name, trust_remote_code=True
+            )
+            # Use retrieval task for Jina models to improve recall
+            if "jina" in settings.embedding_model_name.lower():
+                self.model.default_task = "retrieval"
+            logger.info(f"Loaded embedding model: {settings.embedding_model_name}")
+        except Exception as e:
+            logger.error(f"Failed to load SentenceTransformer: {e}")
+            raise e
+
+        # Create the custom embedding function wrapper
+        self.chroma_embedding_function = (
             embedding_functions.SentenceTransformerEmbeddingFunction(
                 model_name=settings.embedding_model_name
             )
@@ -105,35 +130,35 @@ class VectorStore:
         self.collection = self.client.get_or_create_collection(
             name=settings.collection_name,
             metadata={"hnsw:space": "cosine"},
-            embedding_function=sentence_transformer_ef,
+            embedding_function=self.chroma_embedding_function,
         )
 
         # Get or create collection for few-shot intent parsing examples (Recommendation 2)
         self.few_shot_collection = self.client.get_or_create_collection(
             name="intent_few_shot",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=sentence_transformer_ef,
+            embedding_function=self.chroma_embedding_function,
         )
 
         # Get or create collection for Semantic Cache (Recommendation 5)
         self.cache_collection = self.client.get_or_create_collection(
             name="intent_cache",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=sentence_transformer_ef,
+            embedding_function=self.chroma_embedding_function,
         )
 
         # Get or create collection for Gold Standard Configs (Recommendation 3 - Phase 2)
         self.gold_configs_collection = self.client.get_or_create_collection(
             name="gold_configs",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=sentence_transformer_ef,
+            embedding_function=self.chroma_embedding_function,
         )
 
         # Get or create collection for Intent Parsing Cache (Efficiency Phase 1)
         self.intent_parsing_cache_collection = self.client.get_or_create_collection(
             name="intent_parsing_cache",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=sentence_transformer_ef,
+            embedding_function=self.chroma_embedding_function,
         )
 
         # Hybrid Search: BM25 components
@@ -144,10 +169,12 @@ class VectorStore:
         # Reranker: Cross-Encoder (Recommendation 1 Elite)
         self.reranker: Optional[CrossEncoder] = None
         try:
-            self.reranker = CrossEncoder(settings.reranker_model_name)
-            print(f"Reranker initialized: {settings.reranker_model_name}")
+            self.reranker = CrossEncoder(
+                settings.reranker_model_name, trust_remote_code=True
+            )
+            logger.info(f"Reranker initialized: {settings.reranker_model_name}")
         except Exception as e:
-            print(f"Failed to initialize Reranker: {e}")
+            logger.error(f"Failed to initialize Reranker: {e}")
 
         # Knowledge Graph: GraphRAG components (Recommendation 4)
         self.graph: Optional[nx.Graph] = None
@@ -158,15 +185,20 @@ class VectorStore:
 
     def _load_knowledge_graph(self) -> None:
         """
-        Loads the specialized documentation knowledge graph.
+        Loads the specialized documentation knowledge graph from the graphify-docs directory.
         """
-        graph_path = Path("data/graph_db/graph.json")
-        mapping_path = Path("data/graph_db/chunk_to_node.json")
-        labels_path = Path("graphify-out/.graphify_labels.json")
+        # Point to the graphify-docs directory which contains the domain concepts
+        base_path = Path("graphify-docs")
+        graph_path = base_path / "graph.json"
+        # mapping_path is optional; GraphRAG falls back to direct ID matching
+        mapping_path = base_path / "chunk_to_node.json"
+        labels_path = base_path / ".graphify_labels.json"
 
         if not graph_path.exists():
             logger.warning(
-                f"Knowledge graph not found at {graph_path}. GraphRAG will be disabled."
+                f"Knowledge graph not found at {graph_path}. "
+                "GraphRAG features (Community-Aware Retrieval) will be disabled. "
+                "Run 'graphify update .' to generate the graph."
             )
             return
 
@@ -197,6 +229,24 @@ class VectorStore:
                     f"Loaded {len(self.community_labels)} community labels for GraphRAG."
                 )
 
+            # 4. Identify God Nodes (High-degree nodes) dynamically (Fix F15)
+            degrees = dict(self.graph.degree())
+            if degrees:
+                deg_values = sorted(degrees.values())
+                # Threshold: nodes in the top 1% of degrees or > 5x the average
+                avg_deg = sum(deg_values) / len(deg_values)
+                percentile_99 = deg_values[int(len(deg_values) * 0.99)]
+                threshold = max(avg_deg * 5, percentile_99)
+
+                self.god_nodes = {
+                    node for node, deg in degrees.items() if deg >= threshold
+                }
+                logger.info(
+                    f"Identified {len(self.god_nodes)} 'God Nodes' dynamically (degree >= {threshold:.1f})"
+                )
+            else:
+                self.god_nodes = set()
+
         except Exception as e:
             logger.error(f"Failed to load documentation knowledge graph: {e}")
 
@@ -216,20 +266,6 @@ class VectorStore:
         if not self.graph:
             return seed_chunks
 
-        # High-degree 'God Nodes' that cause context explosion (Recommendation 4)
-        GOD_NODES = {
-            "vector_store_vectorstore",
-            "schemas_intent_structuredintent",
-            "rag_config_generator_configgenerator",
-            "validation_gns3_validator_gns3validator",
-            "parser_intent_parser_intentparser",
-            "rag_nettwin_run_paper_eval_paperqualityevaluator",
-            "full_phase_1_report_version_aware_rag",
-            "validation_base_networkvalidator",
-            "evaluation_hallucination_detector_hallucinationdetector",
-            "evaluation_cfr_checker_cfrchecker",
-        }
-
         community_ids = set()
         for chunk in seed_chunks:
             chunk_id = str(chunk.get("id"))
@@ -241,7 +277,11 @@ class VectorStore:
                 node_id = chunk_id if chunk_id in self.graph else None
 
             # Token Efficiency: Prune God Nodes from seed expansion
-            if node_id and node_id in self.graph and node_id not in GOD_NODES:
+            if (
+                node_id
+                and node_id in self.graph
+                and node_id not in getattr(self, "god_nodes", set())
+            ):
                 community = self.graph.nodes[node_id].get("community")
                 if community is not None:
                     community_ids.add(community)
@@ -250,7 +290,7 @@ class VectorStore:
         expanded_ids = set()
         for node_id, data in self.graph.nodes(data=True):
             # Token Efficiency: Never expand through God Nodes even if they share a community
-            if node_id in GOD_NODES:
+            if node_id in getattr(self, "god_nodes", set()):
                 continue
 
             if data.get("community") in community_ids:
@@ -273,14 +313,14 @@ class VectorStore:
                 # Avoid duplicates
                 if not any(c.get("id") == cid for c in final_results):
                     chunk = self.corpus_map[cid].copy()
-                    
+
                     # Tag with community label for semantic grounding
                     node_data = self.graph.nodes.get(nid, {})
                     comm_id = str(node_data.get("community"))
                     comm_label = self.community_labels.get(comm_id)
                     if comm_label:
                         chunk["metadata"]["graph_community"] = comm_label
-                    
+
                     final_results.append(chunk)
                     added_count += 1
 
@@ -301,9 +341,11 @@ class VectorStore:
                 return
 
             tokenized_corpus: List[List[str]] = []
-            ids: List[str] = all_data["ids"]
-            documents: List[str] = all_data["documents"]
-            metadatas: List[Dict[str, Any]] = all_data["metadatas"]
+            ids: List[str] = cast(List[str], all_data.get("ids") or [])
+            documents: List[str] = cast(List[str], all_data.get("documents") or [])
+            metadatas: List[Dict[str, Any]] = cast(
+                List[Dict[str, Any]], all_data.get("metadatas") or []
+            )
 
             for i in range(len(ids)):
                 chunk_id: str = ids[i]
@@ -325,94 +367,108 @@ class VectorStore:
         except Exception as e:
             print(f"Failed to initialize BM25: {e}")
 
-    def add_chunks(self, chunks: List[Any], batch_size: int = 5000) -> None:
+    def add_chunks(self, chunks: List[Any], batch_size: int = 1000) -> None:
         """
-        Add chunks to vector database in batches.
-
-        This method processes chunks in configurable batch sizes to avoid
-        memory issues with large ingestion. Each chunk should be an object
-        with text and metadata attributes.
+        Add chunks to vector database in batches with CPU throttling.
 
         Args:
-            chunks: List of chunk objects with attributes:
-                - text: The document text content
-                - tier: Hierarchical level (1, 2, or 3)
-                - vendor: Device vendor
-                - os_version: OS version string
-                - command_hierarchy: Parent command path
-                - context_tags: Topic tags
-                - source_file: Original source file
-                - page_range: PDF page range
-                - id: Unique chunk identifier
-            batch_size: Number of chunks to process per batch.
-                Default is 5000. Adjust based on available memory.
-
-        Returns:
-            None. Chunks are added to the ChromaDB collection in place.
-
-        Note:
-            This is a destructive operation - chunks are added to the
-            collection permanently. Use with caution in production.
+            chunks: List of chunk objects/dicts.
+            batch_size: Chunks per batch (default 1000 for lower memory/CPU pressure).
         """
         if not chunks:
             return
 
+        import torch
+        from tqdm import tqdm
+
+        # Use all available CPU threads for maximum performance
+        original_threads = torch.get_num_threads()
+        # torch.set_num_threads(max(1, original_threads)) # Use default full allocation
+
         total_added = 0
-        # Process chunks in batches to avoid memory issues
-        for i in range(0, len(chunks), batch_size):
+        logger.info(
+            f"High-performance bulk indexing: {len(chunks)} chunks using {original_threads} threads..."
+        )
+
+        # Sort by text length descending so each encode batch has similar-length texts,
+        # minimizing wasteful padding to the longest sequence in the batch
+        chunks.sort(
+            key=lambda c: -len(c.get("text", "") if isinstance(c, dict) else c.text)
+        )
+
+        # Process in larger batches for efficiency
+        for i in tqdm(
+            range(0, len(chunks), batch_size), desc="Bulk Indexing", unit="batch"
+        ):
             batch = chunks[i : i + batch_size]
 
-            documents: List[str] = []
-            metadatas: List[Dict[str, Any]] = []
-            ids: List[str] = []
+            batch_texts = []
+            batch_metas = []
+            batch_ids = []
 
-            # Extract text and metadata from each chunk
+            # Process metadata on the fly to save memory
             for chunk in batch:
-                # Support both dict and object access
                 if isinstance(chunk, dict):
                     text = chunk.get("text", "")
-                    tier = chunk.get("tier", 1)
-                    vendor = chunk.get("vendor", "unknown")
-                    os_version = chunk.get("os_version", "unknown")
-                    cmd_h = chunk.get("command_hierarchy", [])
-                    tags = chunk.get("context_tags", [])
-                    src = chunk.get("source_file", "unknown")
-                    page = chunk.get("page_range", [0, 0])
+                    metas = {
+                        "tier": chunk.get("tier", 1),
+                        "vendor": chunk.get("vendor", "unknown"),
+                        "os_version": chunk.get("os_version", "unknown"),
+                        "command_hierarchy": json.dumps(
+                            chunk.get("command_hierarchy", [])
+                        ),
+                        "context_tags": json.dumps(chunk.get("context_tags", [])),
+                        "source_file": chunk.get("source_file", "unknown"),
+                        "page_range": json.dumps(chunk.get("page_range", [0, 0])),
+                    }
                     cid = chunk.get("id", hashlib.md5(text.encode()).hexdigest())
                 else:
                     text = chunk.text
-                    tier = chunk.tier
-                    vendor = chunk.vendor
-                    os_version = chunk.os_version
-                    cmd_h = chunk.command_hierarchy
-                    tags = chunk.context_tags
-                    src = chunk.source_file
-                    page = chunk.page_range
+                    metas = {
+                        "tier": chunk.tier,
+                        "vendor": chunk.vendor,
+                        "os_version": chunk.os_version,
+                        "command_hierarchy": json.dumps(chunk.command_hierarchy),
+                        "context_tags": json.dumps(chunk.context_tags),
+                        "source_file": chunk.source_file,
+                        "page_range": chunk.page_range,
+                        "id": chunk.id,
+                    }
                     cid = chunk.id
 
-                documents.append(text)
-                metadatas.append(
-                    {
-                        "tier": tier,
-                        "vendor": vendor,
-                        "os_version": os_version,
-                        "command_hierarchy": json.dumps(cmd_h),
-                        "context_tags": json.dumps(tags),
-                        "source_file": src,
-                        "page_range": json.dumps(page),
-                    }
-                )
-                ids.append(cid)
+                batch_texts.append(text)
+                batch_metas.append(metas)
+                batch_ids.append(cid)
 
-            # Add batch to collection
-            self.collection.add(documents=documents, metadatas=metadatas, ids=ids)
-
-            total_added += len(batch)
-            print(
-                f"  Added batch {i // batch_size + 1}: {len(batch)} chunks (total: {total_added})"
+            # Generate embeddings with sorted-length batching to minimize padding waste
+            # Texts are pre-sorted by length, so each encode batch has similar-length texts
+            # batch_size=4 keeps per-batch sequence lengths manageable on CPU
+            is_granite = "granite" in settings.embedding_model_name.lower()
+            doc_prefix = (
+                "Instruction: Given a network documentation chunk, extract and embed it for retrieval.\nChunk: "
+                if is_granite
+                else ""
             )
 
-        print(f"Added {total_added} chunks to vector database")
+            processed_texts = [doc_prefix + t for t in batch_texts]
+            embeddings = self.model.encode(
+                processed_texts,
+                batch_size=4,
+                show_progress_bar=True,
+                convert_to_numpy=True,
+            ).tolist()
+
+            # Bulk add to Chroma
+            self.collection.add(
+                documents=batch_texts,
+                embeddings=embeddings,
+                metadatas=cast(Any, batch_metas),
+                ids=batch_ids,
+            )
+
+            total_added += len(batch_texts)
+
+        logger.info(f"Successfully indexed {total_added} chunks.")
 
     def retrieve(
         self,
@@ -486,23 +542,40 @@ class VectorStore:
             # Multiple conditions - combine with $and
             where_clause = {"$and": where_conditions}
 
+        # Generate query embedding manually with Granite prefix if applicable
+        is_granite = "granite" in settings.embedding_model_name.lower()
+        processed_query = (
+            f"Instruction: Given a network engineering query, retrieve the most relevant command documentation.\nQuery: {query}"
+            if is_granite
+            else query
+        )
+        query_embeddings = self.model.encode(
+            [processed_query], convert_to_numpy=True
+        ).tolist()
+
         # Query the collection with filters
         results = self.collection.query(
-            query_texts=[query], n_results=n_results, where=where_clause
+            query_embeddings=query_embeddings, n_results=n_results, where=where_clause
         )
 
         # Format results into list of dicts
         formatted_results: List[Dict[str, Any]] = []
-        if not results["ids"] or not results["ids"][0]:
+        ids_list = results.get("ids")
+        documents_list = results.get("documents")
+        metadatas_list = results.get("metadatas")
+        distances_list = results.get("distances")
+
+        if not ids_list or not ids_list[0]:
             return formatted_results
 
-        for i in range(len(results["ids"][0])):
+        # Since we only queried one text, we look at the first list of results
+        for i in range(len(ids_list[0])):
             formatted_results.append(
                 {
-                    "id": results["ids"][0][i],
-                    "text": results["documents"][0][i],
-                    "metadata": results["metadatas"][0][i],
-                    "distance": results["distances"][0][i],
+                    "id": ids_list[0][i],
+                    "text": documents_list[0][i] if documents_list else "",
+                    "metadata": metadatas_list[0][i] if metadatas_list else {},
+                    "distance": distances_list[0][i] if distances_list else 1.0,
                 }
             )
 
@@ -524,26 +597,43 @@ class VectorStore:
             {"structured": ex["structured"]} for ex in examples
         ]
 
-        self.few_shot_collection.add(ids=ids, documents=documents, metadatas=metadatas)
+        # Generate embeddings manually
+        embeddings = self.model.encode(documents, convert_to_numpy=True).tolist()
+
+        self.few_shot_collection.add(
+            ids=ids,
+            embeddings=embeddings,
+            documents=documents,
+            metadatas=cast(Any, metadatas),
+        )
         print(f"Added {len(examples)} examples to few-shot collection.")
 
     def retrieve_few_shot(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """
         Retrieves the most similar intent-to-json examples.
         """
+        # Generate query embedding manually
+        query_embeddings = self.model.encode([query], convert_to_numpy=True).tolist()
+
         results = self.few_shot_collection.query(
-            query_texts=[query], n_results=n_results
+            query_embeddings=query_embeddings, n_results=n_results
         )
 
         formatted: List[Dict[str, Any]] = []
-        if not results["ids"] or not results["ids"][0]:
+        ids_list = results.get("ids")
+        documents_list = results.get("documents")
+        metadatas_list = results.get("metadatas")
+
+        if not ids_list or not ids_list[0]:
             return formatted
 
-        for i in range(len(results["ids"][0])):
+        for i in range(len(ids_list[0])):
+            metadata = metadatas_list[0][i] if metadatas_list else {}
+            doc = documents_list[0][i] if documents_list else ""
             formatted.append(
                 {
-                    "intent": results["documents"][0][i],
-                    "structured": results["metadatas"][0][i]["structured"],
+                    "intent": doc,
+                    "structured": metadata.get("structured"),
                 }
             )
         return formatted
@@ -565,8 +655,13 @@ class VectorStore:
             {"vendor": ex["vendor"], "config": ex["config"]} for ex in examples
         ]
 
+        embeddings = self.model.encode(documents, convert_to_numpy=True).tolist()
+
         self.gold_configs_collection.add(
-            ids=ids, documents=documents, metadatas=metadatas
+            ids=ids,
+            documents=documents,
+            embeddings=embeddings,
+            metadatas=cast(Any, metadatas),
         )
         print(f"Added {len(examples)} examples to gold standard collection.")
 
@@ -576,19 +671,28 @@ class VectorStore:
         """
         Retrieves the most similar Intent-to-Config examples for a vendor.
         """
+        query_embeddings = self.model.encode([query], convert_to_numpy=True).tolist()
         results = self.gold_configs_collection.query(
-            query_texts=[query], n_results=n_results, where={"vendor": vendor}
+            query_embeddings=query_embeddings,
+            n_results=n_results,
+            where={"vendor": vendor},
         )
 
         formatted: List[Dict[str, Any]] = []
-        if not results["ids"] or not results["ids"][0]:
+        ids_list = results.get("ids")
+        documents_list = results.get("documents")
+        metadatas_list = results.get("metadatas")
+
+        if not ids_list or not ids_list[0]:
             return formatted
 
-        for i in range(len(results["ids"][0])):
+        for i in range(len(ids_list[0])):
+            metadata = metadatas_list[0][i] if metadatas_list else {}
+            doc = documents_list[0][i] if documents_list else ""
             formatted.append(
                 {
-                    "intent": results["documents"][0][i],
-                    "config": results["metadatas"][0][i]["config"],
+                    "intent": doc,
+                    "config": metadata.get("config"),
                 }
             )
         return formatted
@@ -604,14 +708,18 @@ class VectorStore:
             query_texts=[intent_text], n_results=1
         )
 
+        ids_list = results.get("ids")
+        distances_list = results.get("distances")
+        metadatas_list = results.get("metadatas")
+
         if (
-            results["ids"]
-            and results["ids"][0]
-            and results["distances"]
-            and results["distances"][0]
-            and results["distances"][0][0] <= threshold
+            ids_list
+            and ids_list[0]
+            and distances_list
+            and distances_list[0]
+            and distances_list[0][0] <= threshold
         ):
-            metadata = results["metadatas"][0][0]
+            metadata = metadatas_list[0][0] if metadatas_list else None
             if metadata and "structured_intent" in metadata:
                 return json.loads(str(metadata["structured_intent"]))
         return None
@@ -651,14 +759,18 @@ class VectorStore:
             where={"$and": [{"vendor": vendor}, {"retrieval_mode": retrieval_mode}]},
         )
 
+        ids_list = results.get("ids")
+        distances_list = results.get("distances")
+        metadatas_list = results.get("metadatas")
+
         if (
-            results["ids"]
-            and results["ids"][0]
-            and results["distances"]
-            and results["distances"][0]
-            and results["distances"][0][0] <= threshold
+            ids_list
+            and ids_list[0]
+            and distances_list
+            and distances_list[0]
+            and distances_list[0][0] <= threshold
         ):
-            metadata = results["metadatas"][0][0]
+            metadata = metadatas_list[0][0] if metadatas_list else None
             if metadata and "response" in metadata:
                 return json.loads(str(metadata["response"]))
         return None
@@ -698,7 +810,7 @@ class VectorStore:
         """
         for coll_name, coll in [
             ("Semantic Cache", self.cache_collection),
-            ("Intent Parsing Cache", self.intent_parsing_cache_collection)
+            ("Intent Parsing Cache", self.intent_parsing_cache_collection),
         ]:
             try:
                 ids_result = coll.get()
@@ -776,7 +888,7 @@ class VectorStore:
 
         # 3. Reciprocal Rank Fusion (RRF)
         rrf_scores: Dict[str, float] = {}  # id -> rrf_score
-        vector_distances: Dict[str, float] = {} # id -> distance
+        vector_distances: Dict[str, float] = {}  # id -> distance
 
         # Add vector ranks
         for rank, res in enumerate(vector_results):
@@ -806,7 +918,7 @@ class VectorStore:
                     "text": chunk_final["text"],
                     "metadata": chunk_final["metadata"],
                     "rrf_score": rrf_scores[chunk_id_final],
-                    "distance": vector_distances.get(chunk_id_final)
+                    "distance": vector_distances.get(chunk_id_final),
                 }
             )
 
@@ -821,8 +933,13 @@ class VectorStore:
         if not self.reranker or not chunks:
             return chunks[:n_results]
 
+        # Fix F13: Avoid mutating the original chunks list
+        processed_chunks = [chunk.copy() for chunk in chunks]
+
         # Prepare pairs for the Cross-Encoder: (Query, Document)
-        pairs: List[List[str]] = [[query, str(chunk["text"])] for chunk in chunks]
+        pairs: List[List[str]] = [
+            [query, str(chunk["text"])] for chunk in processed_chunks
+        ]
 
         # Get scores (higher is better)
         scores = self.reranker.predict(pairs)
@@ -834,7 +951,7 @@ class VectorStore:
 
             # Phase 1: Syntax-Aware Reranking (Functional Improvement)
             # Boost chunks that contain explicit configuration syntax
-            text_lower = str(chunks[i]["text"]).lower()
+            text_lower = str(processed_chunks[i]["text"]).lower()
             syntax_markers = [
                 "(config)#",
                 "(config-if)#",
@@ -848,10 +965,10 @@ class VectorStore:
             if any(marker in text_lower for marker in syntax_markers):
                 final_score *= 1.15
 
-            chunks[i]["rerank_score"] = final_score
+            processed_chunks[i]["rerank_score"] = final_score
 
         ranked: List[Dict[str, Any]] = sorted(
-            chunks, key=lambda x: x.get("rerank_score", 0.0), reverse=True
+            processed_chunks, key=lambda x: x.get("rerank_score", 0.0), reverse=True
         )
         return ranked[:n_results]
 

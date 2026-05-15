@@ -94,7 +94,10 @@ class CLIExtractor:
         (r"(?:ip\s+access-list\s+(?:extended|standard)\s+\S+)", "acl-named"),
         (r"(?:access-list\s+\d+\s+(?:permit|deny)\s+.*)", "acl-numbered"),
         # Static route
-        (r"(?:ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+\s+.*)", "static-route"),
+        (
+            r"(?:ip\s+route\s+\d+\.\d+\.\d+\.\d+\s+\d+\.\d+\.\d+\.\d+\s+.*)",
+            "static-route",
+        ),
         # VLAN patterns
         (r"(?:vlan\s+\d+)", "vlan"),
         (r"(?:name\s+\S+)", "vlan-name"),
@@ -268,7 +271,7 @@ def reindex_cli_chunks():
         "data/raw_docs/catalyst_9300_cmdref_17_6.pdf",
         "data/raw_docs/catalyst_9500_cmdref_17_6.pdf",
         "data/raw_docs/cisco_routing_17_15.pdf",
-        "data/raw_docs/catalyst_9300_config_guide_17_6.pdf"
+        "data/raw_docs/catalyst_9300_config_guide_17_6.pdf",
     ]
 
     for pdf in cisco_pdfs:
@@ -282,7 +285,7 @@ def reindex_cli_chunks():
         "data/raw_docs/junos-ospf.pdf",
         "data/raw_docs/junos_bgp_config.pdf",
         "data/raw_docs/junos_routing_policy.pdf",
-        "data/raw_docs/junos_ethernet_switching.pdf"
+        "data/raw_docs/junos_ethernet_switching.pdf",
     ]
 
     for pdf in juniper_pdfs:

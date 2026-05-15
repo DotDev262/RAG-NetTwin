@@ -7,8 +7,8 @@ import hashlib
 import threading
 import numpy as np
 from pathlib import Path
-from typing import List, Optional, Dict, Any
-from tqdm import tqdm
+from typing import List, Optional, Dict, Any, cast
+from tqdm import tqdm  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add src to path for imports
@@ -41,6 +41,8 @@ class PaperQualityEvaluator:
         run_vanilla: bool = False,
         cache_only: bool = False,
         run_gns3: bool = False,
+        re_validate: bool = False,
+        interactive: bool = False,
         parser: Optional[IntentParser] = None,
         generator: Optional[ConfigGenerator] = None,
         validator: Optional[BatfishValidator] = None,
@@ -56,6 +58,8 @@ class PaperQualityEvaluator:
         self.run_vanilla = run_vanilla
         self.cache_only = cache_only
         self.run_gns3 = run_gns3
+        self.re_validate = re_validate
+        self.interactive = interactive
 
         self.cache_manager = CacheManager()
         self.cfr_checker = CFRChecker()
@@ -173,28 +177,29 @@ class PaperQualityEvaluator:
                 try:
                     res = future.result()
                     if res:
-                        # Check for rate limit errors embedded in results
-                        if (
-                            "rag_nettwin" in res
-                            and res["rag_nettwin"].get("status") == "ERROR"
-                        ):
-                            err_msg = str(res["rag_nettwin"].get("error", ""))
-                            if "429" in err_msg or "rate_limit" in err_msg.lower():
-                                logger.error(
-                                    f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {intent.original_text[:50]}..."
-                                )
-                                logger.error(f"Error Details: {err_msg}")
+                        # Real-time failure reporting
+                        rag_res = res.get("rag_nettwin", {})
+                        status = rag_res.get("status")
+                        if status in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]:
+                            self._print_failure_report(idx, intent, res)
 
                         all_results_map[idx] = res
                 except Exception as e:
                     err_str = str(e)
                     if "429" in err_str or "rate_limit" in err_str.lower():
+                        original_text = intent.original_text or "Unknown"
                         logger.error(
-                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {intent.original_text[:50]}..."
+                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx+1}: {original_text[:50]}..."
                         )
+
                         logger.error(f"Error Details: {err_str}")
                     else:
-                        logger.error(f"Unexpected error at Intent #{idx+1}: {e}")
+                        # Print failure report for unexpected exceptions
+                        self._print_failure_report(
+                            idx,
+                            intent,
+                            {"rag_nettwin": {"status": "ERROR", "error": err_str}},
+                        )
                     continue
 
         # Sort results back into original order
@@ -219,6 +224,17 @@ class PaperQualityEvaluator:
             self.cache_manager.save_cache(RAG_CACHE_FILE, self.rag_cache)
 
         self.stats_reporter.generate_summary_table(all_results, retrieval_mode)
+        self._print_final_failure_summary(all_results)
+
+    def _get_authorized_citations(self) -> List[str]:
+        """
+        Scans graph_tmp for actual documentation filenames.
+        """
+        import glob
+
+        files = glob.glob("graph_tmp/*.txt")
+        names = [Path(f).stem for f in files]
+        return names
 
     def evaluate_intent(self, intent, retrieval_mode: str = "tiered"):
         intent_key = self.get_intent_key(intent)
@@ -227,19 +243,46 @@ class PaperQualityEvaluator:
             "parsed_intent": intent.model_dump(),
         }
 
+        authorized_citations = self._get_authorized_citations()
+
         # --- RAG Mode ---
         cache_key = f"{CONFIG_GENERATOR_VERSION}:{retrieval_mode}:{intent_key}"
         with self.evaluation_lock:
             cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
 
-        if cached_rag and cached_rag.get("status") not in [
-            "PASS",
-            "WARNING",
-            "REJECT_FOR_MANUAL_REVIEW",
-        ]:
-            cached_rag = None
+        # [INTERACTIVE] Check for retrying failed entries
+        if (
+            cached_rag
+            and self.interactive
+            and cached_rag.get("status")
+            not in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]
+        ):
+            print(f"\n[INTERACTIVE] Cached failure for: {intent_key[:70]}...")
+            choice = input("  Retry AI generation? (y/n): ").strip().lower()
+            if choice == "y":
+                cached_rag = None
 
         if cached_rag:
+            # [RE-VALIDATE] If requested, re-run local validation on cached config
+            if self.re_validate:
+                logger.info(f"Re-validating cached config: {intent_key[:20]}...")
+                device_configs = cached_rag.get("configs", {})
+                if device_configs:
+                    try:
+                        val_report = self.validator.validate(device_configs, intent)
+                        cached_rag["status"] = val_report.get("status")
+                        cached_rag["issues"] = val_report.get("issues", [])
+                        # Update cache with new validation status
+                        with self.evaluation_lock:
+                            self.cache_manager.set(
+                                self.rag_cache,
+                                cache_key,
+                                cached_rag,
+                                mode=retrieval_mode,
+                            )
+                    except Exception as e:
+                        logger.error(f"Re-validation failed: {e}")
+
             results["rag_nettwin"] = cached_rag
             configs = cached_rag.get("configs", {})
             all_hal_reports = []
@@ -247,19 +290,30 @@ class PaperQualityEvaluator:
             for s_list in cached_rag.get("retrieved_sources", []):
                 if isinstance(s_list, list):
                     all_sources.extend(s_list)
+
+            # Map valid source IDs (Flatten for robustness in cached runs)
+            flat_valid_ids = []
+            for v_list in cached_rag.get("valid_source_ids", []):
+                if isinstance(v_list, list):
+                    flat_valid_ids.extend(v_list)
+                elif isinstance(v_list, str):
+                    flat_valid_ids.append(v_list)
+
             all_texts = [t for t in cached_rag.get("retrieved_texts", []) if t]
 
-            for dev_name, config_text in configs.items():
+            for i, (dev_name, config_text) in enumerate(configs.items()):
                 if dev_name and dev_name.startswith("_"):
                     continue
+
                 hal_report = self.hallucination_detector.detect(
                     config_text,
                     all_sources,
-                    [],
+                    flat_valid_ids,  # Use flattened list for cached safety
                     retrieved_texts=all_texts,
                     intent_context=intent.original_text,
                     intent_params=intent.parameters,
                     master_plan=cached_rag.get("master_plan"),
+                    authorized_citations=authorized_citations,
                 )
                 all_hal_reports.append(hal_report.model_dump())
             results["rag_nettwin"]["hallucinations"] = all_hal_reports
@@ -306,6 +360,7 @@ class PaperQualityEvaluator:
                         intent_context=intent.original_text,
                         intent_params=intent.parameters,
                         master_plan=master_plan,
+                        authorized_citations=authorized_citations,
                     )
                     all_hal_reports.append(hal_report.model_dump())
 
@@ -332,6 +387,7 @@ class PaperQualityEvaluator:
                                 g_res.get("nodes", {}), v_cmds
                             )
                             has_functional_error = False
+                            functional_errors = []
                             for dev_name, cmd_outputs in v_res.items():
                                 outputs_to_check = (
                                     list(cmd_outputs.values())
@@ -339,7 +395,7 @@ class PaperQualityEvaluator:
                                     else cmd_outputs
                                 )
 
-                                # Process raw outputs from verify_functional (it returns list of dicts)
+                                # Process raw outputs from verify_functional
                                 if isinstance(outputs_to_check, list):
                                     for entry in outputs_to_check:
                                         out = (
@@ -353,6 +409,9 @@ class PaperQualityEvaluator:
                                             or "Invalid input" in out
                                         ):
                                             has_functional_error = True
+                                            functional_errors.append(
+                                                f"{dev_name}: {out[:100]}..."
+                                            )
                                             break
                                 if has_functional_error:
                                     break
@@ -362,9 +421,11 @@ class PaperQualityEvaluator:
                             )
                         else:
                             functional_status = "FAIL"
+                            functional_errors = ["GNS3 node initialization failed."]
                     except Exception as ge:
                         logger.error(f"GNS3 validation failed: {ge}")
                         functional_status = "ERROR"
+                        functional_errors = [str(ge)]
 
                 if self.run_gns3 and self.gns3 and "g_res" in locals():
                     deep_trace["telnet_logs"] = g_res.get("telnet_logs", {})
@@ -373,7 +434,12 @@ class PaperQualityEvaluator:
                     "scenario": intent.original_text,
                     "configs": device_configs,
                     "status": val_report.get("status"),
+                    "error": val_report.get("error") or val_report.get("message"),
+                    "issues": val_report.get("issues", []),
                     "functional_status": functional_status,
+                    "functional_errors": functional_errors
+                    if "functional_errors" in locals()
+                    else [],
                     "car": gns3_car,
                     "is_multi_vendor": is_multi_vendor,
                     "master_plan": master_plan,
@@ -382,6 +448,11 @@ class PaperQualityEvaluator:
                     "cfr_failure": cfr_failure,
                     "retrieved_sources": [
                         v.get("retrieved_sources", [])
+                        for k, v in rag_output.items()
+                        if k is None or not k.startswith("_")
+                    ],
+                    "valid_source_ids": [
+                        v.get("valid_source_ids", [])
                         for k, v in rag_output.items()
                         if k is None or not k.startswith("_")
                     ],
@@ -409,7 +480,45 @@ class PaperQualityEvaluator:
         if self.run_vanilla:
             with self.evaluation_lock:
                 cached_vanilla = self.cache_manager.get(self.vanilla_cache, intent_key)
+
+            # [INTERACTIVE] Check for retrying failed entries
+            if (
+                cached_vanilla
+                and self.interactive
+                and cached_vanilla.get("status")
+                not in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]
+            ):
+                print(
+                    f"\n[INTERACTIVE] Cached vanilla failure for: {intent_key[:70]}..."
+                )
+                choice = input("  Retry AI generation? (y/n): ").strip().lower()
+                if choice == "y":
+                    cached_vanilla = None
+
             if cached_vanilla:
+                # [RE-VALIDATE]
+                if self.re_validate:
+                    logger.info(
+                        f"Re-validating cached vanilla config: {intent_key[:20]}..."
+                    )
+                    vanilla_cfg = cached_vanilla.get("config", "")
+                    if vanilla_cfg:
+                        try:
+                            validation = self.validator.validate(
+                                {"Vanilla-Router": vanilla_cfg}
+                            )
+                            cached_vanilla["status"] = validation["status"]
+                            cached_vanilla["issues"] = validation.get("issues", [])
+                            with self.evaluation_lock:
+                                self.cache_manager.set(
+                                    self.vanilla_cache,
+                                    intent_key,
+                                    cached_vanilla,
+                                    mode="vanilla",
+                                )
+                        except Exception as e:
+                            logger.error(f"Vanilla re-validation failed: {e}")
+
                 results["vanilla"] = cached_vanilla
                 logger.info(f"Vanilla cache hit: {intent_key[:20]}...")
             elif self.cache_only:
@@ -454,6 +563,7 @@ class PaperQualityEvaluator:
                     vanilla_result = {
                         "config": vanilla_cfg,
                         "status": validation["status"],
+                        "issues": validation.get("issues", []),
                         "functional_status": functional_status,
                         "cfr_failure": self.cfr_checker.check(intent, vanilla_cfg),
                         "hallucination": self.hallucination_detector.detect(
@@ -487,10 +597,14 @@ class PaperQualityEvaluator:
             "Output ONLY the raw commands. NO prose. "
             "If no vendor is specified, provide Cisco IOS. CLI:"
         )
+        if not self.vanilla_llm:
+            return "Vanilla LLM not initialized"
+
         chain = prompt | self.vanilla_llm
-        return chain.invoke(
+        response = chain.invoke(
             {"request": scenario, "vendor_hint": vendor_hint or "Cisco/Juniper"}
-        ).content
+        )
+        return cast(str, response.content)
 
     def _save_deep_trace(self, intent, mode: str, trace_data: Dict[str, Any]) -> str:
         """
@@ -509,6 +623,155 @@ class PaperQualityEvaluator:
 
         return str(filepath)
 
+    def _print_failure_report(self, idx: int, intent: Any, res: Dict[str, Any]):
+        """
+        Prints a detailed failure report to the console without breaking tqdm.
+        """
+        rag_res = res.get("rag_nettwin", {})
+        status = rag_res.get("status", "UNKNOWN")
+        intent_text = (
+            intent.original_text if hasattr(intent, "original_text") else str(intent)
+        )
+
+        # Determine icon
+        icon = (
+            "❌"
+            if status == "ERROR"
+            else "⚠️"
+            if status == "REJECT_FOR_MANUAL_REVIEW"
+            else "🛑"
+        )
+
+        report = []
+        report.append(f"\n{icon} FAILURE at Intent #{idx+1}")
+        report.append(f"   Intent: {intent_text}")
+        report.append(f"   Status: {status}")
+
+        if "error" in rag_res:
+            report.append(f"   Error: {rag_res['error']}")
+
+        # Extract Batfish issues if present
+        # Note: We don't have direct access to val_report here unless it's in rag_res
+        # In evaluate_intent, we only save status, latency, etc.
+        # Let's check if we can add 'issues' to eval_res in evaluate_intent.
+
+        if "issues" in rag_res:
+            report.append("   Issues Found (Tier 1):")
+            for issue in rag_res["issues"]:
+                report.append(f"     - [{issue.get('type')}] {issue.get('details')}")
+
+        if rag_res.get("functional_status") in ["FAIL", "ERROR"]:
+            report.append(
+                f"   Functional Status (Tier 3): {rag_res.get('functional_status')}"
+            )
+            if "functional_errors" in rag_res:
+                for f_err in rag_res["functional_errors"]:
+                    report.append(f"     - {f_err}")
+
+        if "configs" in rag_res:
+            report.append("   Generated Configs (Preview):")
+            retrieved_sources = rag_res.get("retrieved_sources", [])
+            for idx, (dev, cfg) in enumerate(rag_res["configs"].items()):
+                snippet = cfg[:200] + "..." if len(cfg) > 200 else cfg
+                report.append(f"     {dev}:\n{snippet}")
+                if idx < len(retrieved_sources) and retrieved_sources[idx]:
+                    report.append(
+                        f"     🔗 Citations: {', '.join(retrieved_sources[idx])}"
+                    )
+
+        tqdm.write("\n".join(report))
+
+    def _print_final_failure_summary(self, results: List[Dict[str, Any]]):
+        """
+        Groups and prints all failures from the evaluation run.
+        """
+        batfish_issues = {}  # type: Dict[str, List[str]]
+        gns3_issues = []
+        hallucination_issues: Dict[str, List[str]] = {
+            "Invalid citations": [],
+            "Ungrounded commands": [],
+            "Placeholders": [],
+            "Unauthorized parameters": [],
+        }
+
+        for res in results:
+            scenario = res.get("scenario", "Unknown")
+            rag = res.get("rag_nettwin", {})
+
+            # Batfish issues
+            for issue in rag.get("issues", []):
+                i_type = issue.get("type", "UNKNOWN")
+                details = issue.get("details", "")
+                # Normalize details slightly to group similar errors
+                norm_details = (
+                    details.split(" at line:")[0] if " at line:" in details else details
+                )
+                key = f"[{i_type}] {norm_details}"
+                if key not in batfish_issues:
+                    batfish_issues[key] = []
+                batfish_issues[key].append(scenario)
+
+            # GNS3 issues
+            if rag.get("functional_status") in ["FAIL", "ERROR"]:
+                for f_err in rag.get("functional_errors", []):
+                    gns3_issues.append(f"({scenario}) {f_err}")
+
+            # Hallucination issues
+            for hal in rag.get("hallucinations", []):
+                if hal.get("is_hallucinated"):
+                    reason = hal.get("reason", "")
+                    if "Invalid citations" in reason:
+                        hallucination_issues["Invalid citations"].append(
+                            f"({scenario}) {hal.get('invalid_citations')}"
+                        )
+                    if "Ungrounded commands" in reason:
+                        hallucination_issues["Ungrounded commands"].append(
+                            f"({scenario}) {hal.get('ungrounded_commands')}"
+                        )
+                    if "Placeholders" in reason:
+                        hallucination_issues["Placeholders"].append(
+                            f"({scenario}) {hal.get('suspicious_commands')}"
+                        )
+                    if "Unauthorized parameters" in reason:
+                        hallucination_issues["Unauthorized parameters"].append(
+                            f"({scenario}) {hal.get('unauthorized_parameters')}"
+                        )
+
+        print("\n" + "=" * 100)
+        print(f"{'COMPREHENSIVE FAILURE SUMMARY':^100}")
+        print("=" * 100)
+
+        print("\n[TIER 1] Batfish Static Analysis Failures:")
+        if not batfish_issues:
+            print("  ✅ No major issues found.")
+        else:
+            for issue_key, scenarios in batfish_issues.items():
+                print(f"  🔴 {issue_key}")
+                for s in list(set(scenarios))[:5]:  # Show first 5 scenarios
+                    print(f"     - {s}")
+                if len(set(scenarios)) > 5:
+                    print(f"     ... and {len(set(scenarios)) - 5} more")
+
+        print("\n[TIER 3] GNS3 / Functional Failures:")
+        if not gns3_issues:
+            print("  ✅ No functional failures found.")
+        else:
+            for g_issue in list(set(gns3_issues))[:10]:
+                print(f"  🛑 {g_issue}")
+
+        print("\n[AUDIT] Hallucination Patterns Detected:")
+        found_any_hal = False
+        for h_type, items in hallucination_issues.items():
+            if items:
+                found_any_hal = True
+                print(f"  ⚠️ {h_type}:")
+                for item in list(set(items))[:5]:
+                    print(f"     - {item}")
+        if not found_any_hal:
+            print("  ✅ No hallucinations detected.")
+
+        print("\n" + "=" * 100 + "\n")
+
 
 if __name__ == "__main__":
     random.seed(42)
@@ -526,6 +789,21 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cache-only", action="store_true", help="Use only cached results"
+    )
+    parser.add_argument(
+        "--clear-failed",
+        action="store_true",
+        help="Clear only failed/error entries from cache",
+    )
+    parser.add_argument(
+        "--re-validate",
+        action="store_true",
+        help="Re-run validation on cached configs (offline)",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Interactively ask to retry failed cached entries",
     )
     parser.add_argument(
         "--run-gns3", action="store_true", help="Run GNS3 functional verification"
@@ -566,11 +844,39 @@ if __name__ == "__main__":
 
         print("--- CACHE PURGE COMPLETE ---")
 
+    if args.clear_failed:
+        print("Clearing FAILED/ERROR entries from caches...")
+        cm = CacheManager()
+        for cache_file in [VANILLA_CACHE_FILE, RAG_CACHE_FILE]:
+            filepath = os.path.join(cm.cache_dir, cache_file)
+            if os.path.exists(filepath):
+                with open(filepath, "r") as f:
+                    try:
+                        full_cache = json.load(f)
+                        original_count = len(full_cache)
+                        cleaned_cache = {
+                            k: v
+                            for k, v in full_cache.items()
+                            if v.get("status")
+                            in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]
+                        }
+                        with open(filepath, "w") as fw:
+                            json.dump(cleaned_cache, fw, indent=2)
+                        print(
+                            f"  {cache_file}: Removed {original_count - len(cleaned_cache)} failed entries."
+                        )
+                    except Exception as e:
+                        print(f"  Failed to clear {cache_file}: {e}")
+
     if args.ablation:
         for mode in ["none", "flat", "tiered", "graph"]:
             print(f"\n--- Running Mode: {mode.upper()} ---")
             evaluator = PaperQualityEvaluator(
-                run_vanilla=False, cache_only=args.cache_only, run_gns3=args.run_gns3
+                run_vanilla=False,
+                cache_only=args.cache_only,
+                run_gns3=args.run_gns3,
+                re_validate=args.re_validate,
+                interactive=args.interactive,
             )
             evaluator.run_full_eval(retrieval_mode=mode)
     else:
@@ -578,5 +884,7 @@ if __name__ == "__main__":
             run_vanilla=args.run_vanilla,
             cache_only=args.cache_only,
             run_gns3=args.run_gns3,
+            re_validate=args.re_validate,
+            interactive=args.interactive,
         )
         evaluator.run_full_eval()

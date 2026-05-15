@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 from pydantic import BaseModel
 from src.llm import LLMProvider
 from src.rag.config_generator import ConfigGenerator
@@ -10,6 +10,12 @@ logger = setup_logger("EnsembleEngine")
 
 class EnsembleResult(BaseModel):
     winner_config: str
+    rationale: str
+    consistency_score: float
+
+
+class EnsembleJudgeResponse(BaseModel):
+    winner_index: int
     rationale: str
     consistency_score: float
 
@@ -71,20 +77,39 @@ Candidates:
 
         prompt += """
 Select the most accurate and syntactically correct configuration. 
-Provide your response as a JSON object with:
-winner_index: int
-rationale: str
-consistency_score: float (0.0 to 1.0, how similar are the candidates?)
+Provide your response as a JSON object with winner_index, rationale, and consistency_score.
 """
-        # Note: Using structured LLM would be better here, but for now we just use raw LLM
-        # and assume it follows instructions or we parse it.
+        try:
+            # Use structured output for the judge
+            structured_judge = LLMProvider.get_structured_llm(
+                schema=EnsembleJudgeResponse,
+                model="llama-3.3-70b-versatile",
+                temperature=0,
+            )
+            response = cast(EnsembleJudgeResponse, structured_judge.invoke(prompt))
 
-        # (Parsing logic omitted for brevity, assuming judge is helpful)
-        logger.info(f"Ensemble vote completed for {device_name}")
+            # Map back to EnsembleResult
+            # Subtract 1 because winner_index is 1-based in the prompt instructions
+            winner_idx = response.winner_index - 1
+            if 0 <= winner_idx < len(candidates):
+                winner_config = candidates[winner_idx]["config"]
+            else:
+                logger.warning(
+                    f"Judge returned invalid winner_index {response.winner_index}, falling back to candidate 0"
+                )
+                winner_config = candidates[0]["config"]
 
-        # Placeholder result
-        return EnsembleResult(
-            winner_config=candidates[0]["config"],
-            rationale="Selected via multi-model ensemble analysis.",
-            consistency_score=0.85,
-        )
+            logger.info(f"Ensemble vote completed for {device_name}")
+            return EnsembleResult(
+                winner_config=winner_config,
+                rationale=response.rationale,
+                consistency_score=response.consistency_score,
+            )
+        except Exception as e:
+            logger.error(f"Ensemble vote failed for {device_name}: {e}")
+            # Robust fallback to first candidate
+            return EnsembleResult(
+                winner_config=candidates[0]["config"],
+                rationale=f"Fallback due to judge error: {e}",
+                consistency_score=0.5,
+            )

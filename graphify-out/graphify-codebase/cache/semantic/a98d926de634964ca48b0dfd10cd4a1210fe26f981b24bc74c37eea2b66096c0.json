@@ -1,1 +1,0 @@
-{"nodes": [{"id": "agents_verification_agent", "label": "Verification Agent", "file_type": "rationale", "source_file": "AGENTS.md", "source_location": null}], "edges": [{"source": "agents_verification_agent", "target": "batfish_validator_batfishvalidator", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.85, "source_file": "AGENTS.md"}], "hyperedges": []}

@@ -1,96 +1,114 @@
+import os
 import sys
-from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-# Add src to path for imports
+# Add src to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-
-# Ensure project root is in sys.path for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-from src.rag.vector_store import VectorStore  # noqa: E402
+from src.rag.vector_store import VectorStore
+from src.config import settings
 
 console = Console()
 
-TEST_QUERIES = [
-    {"query": "OSPF area configuration", "vendor": "cisco", "version": "ios-xe-17.6"},
-    {"query": "BGP neighbor peering", "vendor": "juniper", "version": "junos-21.4"},
-    {"query": "Standard Access-list", "vendor": "cisco", "version": "ios-xe-17.6"},
-    {"query": "Interface MTU and speed", "vendor": "juniper", "version": "junos-21.4"},
-]
 
-
-def test_hierarchical_retrieval():
+def test_retrieval(query: str, vendor: str = "cisco"):
     console.print(
-        Panel.fit(
-            "[bold cyan]RAG-NetTwin: Balanced Hierarchical Retrieval Test[/bold cyan]\n[dim]Verifying 1 Syntax Chunk (T1) + 1 Context Chunk (T2/3)[/dim]"
+        Panel(
+            f"[bold yellow]RAG Dry-Run (No LLM Call)[/bold yellow]\n"
+            f"Query: [cyan]{query}[/cyan]\n"
+            f"Vendor: [magenta]{vendor}[/magenta]\n"
+            f"Stack: {settings.embedding_model_name} + {settings.reranker_model_name}",
+            expand=False,
         )
     )
 
-    store = VectorStore()
-    stats = store.get_stats()
-    console.print(f"Index Stats: [green]{stats['total_chunks']} total chunks[/green]\n")
+    # 1. Initialize Vector Store
+    console.print("[dim]Initializing VectorStore...[/dim]")
+    try:
+        store = VectorStore()
+    except Exception as e:
+        console.print(f"[bold red]Initialization failed: {e}[/bold red]")
+        return
 
-    for i, test in enumerate(TEST_QUERIES, 1):
-        query = test["query"]
-        vendor = test["vendor"]
-        version = test["version"]
+    # 2. Perform Retrieval
+    console.print(f"[dim]Retrieving documentation for: '{query}'...[/dim]")
 
-        console.print(
-            f"[bold yellow]Test {i}:[/bold yellow] Query: '[italic]{query}[/italic]' | Vendor: [bold]{vendor.upper()}[/bold]"
+    # 1. Hybrid Search (Semantic + BM25)
+    candidates = store.hybrid_retrieve(query=query, vendor=vendor, n_results=10)
+
+    # 2. Cross-Encoder Reranking
+    results = store.rerank(query=query, chunks=candidates, n_results=5)
+
+    # 3. Parent Document Enhancement
+    final_results = store.retrieve_with_parents(results)
+
+    # 3. Display Results
+    table = Table(title="Retrieved Documentation Chunks (Reranked & Enhanced)")
+    table.add_column("Rank", justify="center", style="dim")
+    table.add_column("Score", justify="right", style="green")
+    table.add_column("Source", style="blue")
+    table.add_column("Content Snippet", style="white")
+
+    for i, doc in enumerate(final_results):
+        snippet = doc["text"][:150].replace("\n", " ") + "..."
+        # Use rerank_score if available
+        score = (
+            f"{doc.get('rerank_score', 'N/A'):.4f}"
+            if isinstance(doc.get("rerank_score"), float)
+            else "N/A"
+        )
+        table.add_row(
+            str(i + 1),
+            score,
+            doc.get("metadata", {}).get("source_file", "Unknown"),
+            snippet,
         )
 
-        # --- SIMULATE BALANCED RETRIEVAL LOGIC ---
-        results = []
+    console.print(table)
 
-        # 1. Fetch Syntax (Tier 1)
-        syntax = store.retrieve(
-            query=query, vendor=vendor, os_version=version, tier=1, n_results=1
-        )
-        if syntax:
-            results.extend(syntax)
+    # 4. Check Knowledge Graph Context
+    if store.graph:
+        console.print("\n[bold cyan]Network Concept Graph Context:[/bold cyan]")
+        # Find related communities or entities
+        # (This uses the logic from src/rag/vector_store.py:retrieve_community_context)
+        try:
+            # Check for direct entity matches in query
+            related_nodes = [
+                n
+                for n, d in store.graph.nodes(data=True)
+                if d.get("label", "").lower() in query.lower()
+            ]
+            if related_nodes:
+                console.print(
+                    f"Entities matched in graph: [yellow]{', '.join(related_nodes)}[/yellow]"
+                )
 
-        # 2. Fetch Concept (Tier 2/3)
-        concept = store.retrieve(
-            query=query, vendor=vendor, os_version=version, tier=2, n_results=1
-        )
-        if not concept:
-            concept = store.retrieve(
-                query=query, vendor=vendor, os_version=version, tier=3, n_results=1
-            )
-        if concept:
-            results.extend(concept)
-
-        if not results:
-            console.print("  [red]❌ No results found.[/red]\n")
-            continue
-
-        table = Table(show_header=True, header_style="bold magenta", box=None)
-        table.add_column("Tier", justify="center")
-        table.add_column("Type")
-        table.add_column("Chunk ID")
-        table.add_column("Content Snippet", ratio=1)
-
-        for res in results:
-            tier = str(res["metadata"].get("tier", "?"))
-            cmd_type = res["metadata"].get("command_type", "unknown")
-            chunk_id = res["id"]
-            text = res["text"].replace("\n", " ")[:120] + "..."
-
-            # Color code by tier
-            tier_display = (
-                f"[bold green]{tier}[/bold green]"
-                if tier == "1"
-                else f"[cyan]{tier}[/cyan]"
-            )
-
-            table.add_row(tier_display, cmd_type, chunk_id, text)
-
-        console.print(table)
-        console.print("-" * 80 + "\n")
+                # Fetch community info
+                for node in related_nodes[:3]:
+                    neighbors = list(store.graph.neighbors(node))
+                    console.print(
+                        f"→ Node [bold]{node}[/bold] connects to: [dim]{', '.join(neighbors[:5])}...[/dim]"
+                    )
+            else:
+                console.print(
+                    "[dim]No direct graph entity matches found in query.[/dim]"
+                )
+        except Exception as e:
+            console.print(f"[dim]Graph analysis skipped: {e}[/dim]")
 
 
 if __name__ == "__main__":
-    test_hierarchical_retrieval()
+    # Test queries
+    test_queries = [
+        {"q": "Configure OSPF area 0 on Catalyst 9300", "v": "cisco"},
+        {"q": "Enable BFD for BGP neighbors", "v": "cisco"},
+        {"q": "Set up VLAN 10 tagging", "v": "juniper"},
+    ]
+
+    # Use first query by default or take from sys.argv
+    q = sys.argv[1] if len(sys.argv) > 1 else test_queries[0]["q"]
+    v = sys.argv[2] if len(sys.argv) > 2 else "cisco"
+
+    test_retrieval(q, v)

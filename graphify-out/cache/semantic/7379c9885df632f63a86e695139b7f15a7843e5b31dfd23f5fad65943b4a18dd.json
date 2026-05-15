@@ -1,1 +1,0 @@
-{"nodes": [{"id": "gemini_graphify_rules", "label": "graphify rules", "file_type": "document", "source_file": "GEMINI.md", "source_location": 1}], "edges": [{"source": "gemini_graphify_rules", "target": "agents_rag_nettwin", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.85, "source_file": "GEMINI.md"}], "hyperedges": []}

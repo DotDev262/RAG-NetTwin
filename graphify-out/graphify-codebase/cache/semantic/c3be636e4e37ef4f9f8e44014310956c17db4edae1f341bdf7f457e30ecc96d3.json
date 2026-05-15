@@ -1,1 +1,0 @@
-{"nodes": [{"id": "audit_demo", "label": "Grounding Audit Demo", "file_type": "code", "source_file": "scripts/audit_demo.py"}], "edges": [{"source": "audit_demo", "target": "main_cli", "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 0.9, "source_file": "scripts/audit_demo.py"}], "hyperedges": []}

@@ -3,7 +3,7 @@
 {
   # https://devenv.sh/basics/
   env.GREET = "devenv";
-  env.PYTHONPATH = "./";
+  env.PYTHONPATH = lib.mkForce "./";
 
   # https://devenv.sh/packages/
   packages = [ 
@@ -17,6 +17,7 @@
     pkgs.libffi
     pkgs.openssl
     pkgs.gcc
+    pkgs.just
   ];
 
   # https://devenv.sh/languages/
@@ -36,16 +37,20 @@
   '';
 
   scripts.batfish-start.exec = ''
-    if ! docker ps --format '{{.Names}}' | grep -q "^batfish$"; then
-      if docker ps -a --format '{{.Names}}' | grep -q "^batfish$"; then
-        echo "Starting existing Batfish container..."
-        docker start batfish
+    if command -v docker >/dev/null 2>&1; then
+      if ! docker ps --format '{{.Names}}' | grep -q "^batfish$"; then
+        if docker ps -a --format '{{.Names}}' | grep -q "^batfish$"; then
+          echo "Starting existing Batfish container..."
+          docker start batfish
+        else
+          echo "Creating and starting new Batfish container..."
+          docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/allinone
+        fi
       else
-        echo "Creating and starting new Batfish container..."
-        docker run -d --name batfish -p 9997:9997 -p 9996:9996 batfish/allinone
+        echo "Batfish container is already running."
       fi
     else
-      echo "Batfish container is already running."
+      echo "Docker not found. Skipping Batfish startup."
     fi
   '';
 
@@ -57,6 +62,8 @@
     echo "Python environment with uv enabled. PYTHONPATH is set to: $PYTHONPATH"
     uv --version
     batfish-start
-    pre-commit install
+    if command -v pre-commit >/dev/null 2>&1; then
+      pre-commit install
+    fi
   '';
 }

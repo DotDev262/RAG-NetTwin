@@ -19,13 +19,14 @@ Typical Usage:
 """
 
 import re
+import json
 from pathlib import Path
 from typing import List, Dict
 import hashlib
 
 # Add project root to path for imports
 
-from data_processing.pdf_extractor import extract_text_from_pdf
+from src.data_processing.pdf_extractor import extract_text_from_pdf
 from src.rag.vector_store import VectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -107,7 +108,9 @@ JUNIPER_CLI_PATTERNS = [
 ]
 
 
-def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
+def extract_cli_examples(
+    text: str, vendor: str, source_file: str = "unknown", page_num: int = 0
+) -> List[Dict]:
     """
     Extract CLI command examples with context from text.
 
@@ -118,6 +121,8 @@ def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
     Args:
         text: Documentation text to scan for CLI examples.
         vendor: Vendor identifier ("cisco" or "juniper").
+        source_file: Source PDF filename for provenance tracking.
+        page_num: Page number in the source PDF.
 
     Returns:
         List of chunk dictionaries, each containing:
@@ -126,6 +131,10 @@ def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
             - vendor: Vendor name
             - os_version: Default OS version for vendor
             - command_type: Command category
+            - source_file: Source PDF filename
+            - page_range: [page_num, page_num] for provenance
+            - context_tags: List of topic tags
+            - command_hierarchy: Empty (CLI top-level)
             - tier: Priority level (1 = highest)
     """
     chunks = []
@@ -139,10 +148,7 @@ def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
             # Filter by reasonable length (20-2000 chars)
             # Too short = likely partial match, too long = full config
             if len(cli_text) > 20 and len(cli_text) < 2000:
-                # Generate unique ID from vendor, type, and content prefix
-                chunk_id = hashlib.md5(
-                    f"{vendor}:{cmd_type}:{cli_text[:50]}".encode()
-                ).hexdigest()[:16]
+                chunk_id = hashlib.md5(cli_text.encode()).hexdigest()[:16]
 
                 chunks.append(
                     {
@@ -153,14 +159,37 @@ def extract_cli_examples(text: str, vendor: str) -> List[Dict]:
                         if vendor == "cisco"
                         else "junos-21.4",
                         "command_type": cmd_type,
-                        "tier": 1,  # High priority CLI examples
+                        "source_file": source_file,
+                        "page_range": [page_num, page_num],
+                        "context_tags": [cmd_type, vendor, "cli"],
+                        "command_hierarchy": [],
+                        "tier": 1,
                     }
                 )
 
     return chunks
 
 
-def extract_semantic_chunks(text: str, vendor: str, tier: int = 2) -> List[Dict]:
+BOILERPLATE_KEYWORDS = [
+    "copyright",
+    "all rights reserved",
+    "table of contents",
+    "preface",
+    "intended audience",
+    "document history",
+    "legal notice",
+    "trademark",
+    "proprietary information",
+]
+
+
+def extract_semantic_chunks(
+    text: str,
+    vendor: str,
+    tier: int = 2,
+    source_file: str = "unknown",
+    page_num: int = 0,
+) -> List[Dict]:
     """
     Extracts high-level semantic chunks (Recommendation 1).
     Tier 2: Semantic Paragraphs (~500 chars)
@@ -183,8 +212,19 @@ def extract_semantic_chunks(text: str, vendor: str, tier: int = 2) -> List[Dict]
     docs = splitter.split_text(text)
     chunks = []
 
+    min_length = 40 if tier == 1 else 150
+
     for i, doc_text in enumerate(docs):
-        # Generate unique ID based on content
+        text_lower = doc_text.lower()
+
+        # Filter very short chunks
+        if len(doc_text) < min_length:
+            continue
+
+        # Filter boilerplate (copyright, legal, etc.)
+        if any(kw in text_lower for kw in BOILERPLATE_KEYWORDS):
+            continue
+
         content_hash = hashlib.md5(doc_text.encode()).hexdigest()[:12]
 
         chunks.append(
@@ -194,6 +234,10 @@ def extract_semantic_chunks(text: str, vendor: str, tier: int = 2) -> List[Dict]
                 "vendor": vendor,
                 "os_version": "ios-xe-17.6" if vendor == "cisco" else "junos-21.4",
                 "command_type": "conceptual",
+                "source_file": source_file,
+                "page_range": [page_num, page_num],
+                "context_tags": [vendor, f"tier{tier}"],
+                "command_hierarchy": [],
                 "tier": tier,
             }
         )
@@ -215,53 +259,64 @@ def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
     Returns:
         List of extracted CLI example chunks from all pages.
     """
-    print(f"  Processing {Path(pdf_path).name}...")
+    source_file = Path(pdf_path).name
+    print(f"  Processing {source_file}...")
     pages = extract_text_from_pdf(pdf_path, use_hybrid=False)
 
     all_chunks = []
 
     # Extract CLI from each page
-    for page in pages:
+    for page_idx, page in enumerate(pages):
+        page_num = page.get("page_num", page_idx + 1)
+
         # Step 1: Create the "Parent" chunk for this page (Tier 2)
         # This provides the conceptual anchor for all CLI blocks on the same page
-        tier2_parents = extract_semantic_chunks(page["text"], vendor, tier=2)
+        tier2_parents = extract_semantic_chunks(
+            page["text"], vendor, tier=2, source_file=source_file, page_num=page_num
+        )
         all_chunks.extend(tier2_parents)
 
         # We pick the first Tier 2 chunk as the primary parent for this page
         parent_id = tier2_parents[0]["id"] if tier2_parents else None
 
         # Step 2: Tier 1: Precise CLI blocks (linked to Parent)
-        tier1 = extract_cli_examples(page["text"], vendor)
+        tier1 = extract_cli_examples(
+            page["text"], vendor, source_file=source_file, page_num=page_num
+        )
         if parent_id:
             for c in tier1:
                 c["parent_id"] = parent_id  # Critical link for Recommendation Elite
         all_chunks.extend(tier1)
 
         # Step 3: Tier 3: Broad sections
-        tier3 = extract_semantic_chunks(page["text"], vendor, tier=3)
+        tier3 = extract_semantic_chunks(
+            page["text"], vendor, tier=3, source_file=source_file, page_num=page_num
+        )
         all_chunks.extend(tier3)
 
     print(f"    Found {len(all_chunks)} chunks across linked hierarchy")
     return all_chunks
 
 
-def reindex_with_cli_focus():
+def reindex_with_cli_focus(json_only: bool = False):
     """
     Re-index the vector store by automatically discovering all PDFs in raw_docs.
-    """
-    vector_store = VectorStore()
 
-    # Clear existing collection
-    print("Clearing existing collection...")
-    try:
-        existing = vector_store.collection.get()
-        if existing.get("ids"):
-            # Chroma has limits on delete batch size too
-            ids = existing["ids"]
-            for i in range(0, len(ids), 5000):
-                vector_store.collection.delete(ids=ids[i : i + 5000])
-    except Exception as e:
-        print(f"  Note: {e}")
+    Args:
+        json_only: If True, export clean chunks to JSON and skip ChromaDB indexing.
+    """
+    if not json_only:
+        vector_store = VectorStore()
+        # Clear existing collection
+        print("Clearing existing collection...")
+        try:
+            existing = vector_store.collection.get()
+            if existing.get("ids"):
+                ids = existing["ids"]
+                for i in range(0, len(ids), 5000):
+                    vector_store.collection.delete(ids=ids[i : i + 5000])
+        except Exception as e:
+            print(f"  Note: {e}")
 
     all_chunks = []
     raw_dir = Path("data/raw_docs")
@@ -291,42 +346,57 @@ def reindex_with_cli_focus():
         chunks = process_file_with_cli_extraction(str(pdf), vendor)
         all_chunks.extend(chunks)
 
-    # Deduplicate by ID (use dictionary)
-    unique_chunks_map = {}
+    # Quality gate: filter too-short and boilerplate chunks
+    initial_count = len(all_chunks)
+    filtered_chunks = []
     for chunk in all_chunks:
-        unique_chunks_map[chunk["id"]] = chunk
+        text = chunk.get("text", "").lower()
+        tier = chunk.get("tier", 2)
+        if tier == 1:
+            if len(text) > 40:
+                filtered_chunks.append(chunk)
+            continue
+        if len(text) < 150:
+            continue
+        if any(kw in text for kw in BOILERPLATE_KEYWORDS):
+            continue
+        filtered_chunks.append(chunk)
 
-    unique_chunks = list(unique_chunks_map.values())
-    print(f"\nTotal unique CLI examples by ID: {len(unique_chunks)}")
+    removed_count = initial_count - len(filtered_chunks)
+    print(
+        f"Quality gate: removed {removed_count} noise chunks, kept {len(filtered_chunks)}"
+    )
 
-    # Add to vector store in batches (Recommendation: stay under 5000)
-    if unique_chunks:
-        batch_size = 5000
-        for i in range(0, len(unique_chunks), batch_size):
-            batch = unique_chunks[i : i + batch_size]
+    # Deduplicate by full text content (catches cross-file duplicates)
+    seen_texts = {}
+    for chunk in filtered_chunks:
+        text_key = chunk.get("text", "")
+        if text_key not in seen_texts:
+            seen_texts[text_key] = chunk
+    unique_chunks = list(seen_texts.values())
+    dup_count = len(filtered_chunks) - len(unique_chunks)
+    if dup_count:
+        print(f"Dedup: removed {dup_count} duplicate texts")
 
-            texts = [c["text"] for c in batch]
-            metadatas = [
-                {
-                    "vendor": c["vendor"],
-                    "os_version": c["os_version"],
-                    "tier": c["tier"],
-                    "command_type": c["command_type"],
-                    "parent_id": c.get("parent_id", ""),
-                    "source": "cli_focused",
-                }
-                for c in batch
-            ]
-            ids = [c["id"] for c in batch]
+    print(f"\nTotal chunks: {len(unique_chunks)}")
 
-            vector_store.collection.add(ids=ids, documents=texts, metadatas=metadatas)
-            print(f"Added batch {i//batch_size + 1}: {len(batch)} chunks")
-
-        print(f"Successfully added {len(unique_chunks)} total chunks across all tiers.")
+    if json_only:
+        out_dir = Path("data/processed_chunks")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / "all_chunks.json"
+        with open(out_path, "w") as f:
+            json.dump(unique_chunks, f, indent=2)
+        print(f"Exported {len(unique_chunks)} chunks to {out_path}")
+    else:
+        if unique_chunks:
+            vector_store.add_chunks(unique_chunks)
+            print(
+                f"Successfully added {len(unique_chunks)} total chunks across all tiers."
+            )
 
     # Print statistics
-    vendor_counts = {}
-    type_counts = {}
+    vendor_counts: dict[str, int] = {}
+    type_counts: dict[str, int] = {}
     for chunk in unique_chunks:
         vendor_counts[chunk["vendor"]] = vendor_counts.get(chunk["vendor"], 0) + 1
         type_counts[chunk["command_type"]] = (
@@ -338,4 +408,7 @@ def reindex_with_cli_focus():
 
 
 if __name__ == "__main__":
-    reindex_with_cli_focus()
+    import sys
+
+    json_only = "--json-only" in sys.argv
+    reindex_with_cli_focus(json_only=json_only)

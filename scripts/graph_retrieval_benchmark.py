@@ -8,7 +8,7 @@ import numpy as np
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from src.rag.vector_store import VectorStore
 

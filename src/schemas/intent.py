@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
 
@@ -62,6 +62,48 @@ class StructuredIntent(BaseModel):
     original_text: Optional[str] = Field(
         description="The original natural language text", default=None
     )
+
+    model_config = {"coerce_numbers_to_str": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_strings(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        import ast
+        import json
+
+        # Handle parameters
+        params = data.get("parameters")
+        if isinstance(params, str) and params.strip():
+            try:
+                # Try JSON first
+                cleaned = params.replace("'", '"')
+                data["parameters"] = json.loads(cleaned)
+            except Exception:
+                try:
+                    data["parameters"] = ast.literal_eval(params)
+                except Exception:
+                    pass
+
+        # Handle requirements
+        reqs = data.get("requirements")
+        if isinstance(reqs, str) and reqs.strip():
+            try:
+                data["requirements"] = ast.literal_eval(reqs)
+            except Exception:
+                data["requirements"] = [reqs]
+
+        # Handle devices
+        devs = data.get("devices")
+        if isinstance(devs, str) and devs.strip():
+            try:
+                data["devices"] = ast.literal_eval(devs)
+            except Exception:
+                pass
+
+        return data
 
 
 class BatchStructuredIntent(BaseModel):

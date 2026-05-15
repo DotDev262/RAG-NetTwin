@@ -1,0 +1,365 @@
+
+
+PAGE 14
+
+
+
+
+Connecting to the Switch
+Before you begin
+Set up the DHCP Client Identifier on the client to get the IP address from the switch, and to be able to
+authenticate with Day 0 login credentials.
+Setting up the DHCP Client Identifier on the client for Windows
+1. Type regedit in the Windows search box on the taskbar and press enter.
+2. If prompted by User Account Control, click Yes to open the Registry Editor.
+3. Navigate to
+Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\
+and locate the Ethernet Interface Global Unique Identifier (GUID).
+4. Add a new REG_BINARY DhcpClientIdentifier with Data 77 65 62 75 69 for webui. You need to
+manually type in the value.
+Figure 6: Setting up DHCP Client Identifier on Windows
+5. Restart the PC for the configuration to take effect.
+Setting up the DHCP Client Identifier on the client for MAC
+1. Go to System Preferences >Network >Advanced >TCP >DHCP Client ID: and enter webui.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Connecting to the Switch
+
+
+
+
+PAGE 15
+
+
+
+
+Figure 7: Setting up DHCP Client Identifier on MAC
+2. Click OK to save the changes.
+The bootup script runs the configuration wizard, which prompts you for basic configuration input: (Would
+you like to enter the initial configuration dialog? [yes/no]: ). To configure Day 0 settings using the web
+UI, do not enter a response. Perform the following tasks instead:
+Step 1 Make sure that no devices are connected to the switch.
+Step 2 Connect one end of an ethernet cable to one of the downlink (non-management) ports on the active supervisor and the
+other end of the ethernet cable to the host (PC/MAC).
+Step 3 Set up your PC/MAC as a DHCP client, to obtain the IP address of the switch automatically. You should get an IP address
+within the 192.168.1.x/24 range.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Connecting to the Switch
+
+
+
+
+PAGE 16
+
+
+
+
+Figure 8: Obtaining the IP Address
+It may take up to three mins. You must complete the Day 0 setup through the web UI before using the device terminal.
+Step 4 Launch a web browser on the PC and enter the device IP address (https://192.168.1.1) in the address bar.
+Step 5 Enter the Day 0 username webui and password cisco.
+What to do next
+Create a user account.
+Creating User Accounts
+Setting a username and password is the first task you will perform on your device. Typically, as a network
+administrator, you will want to control access to your device and prevent unauthorized users from seeing your
+network configuration or manipulating your settings.
+Step 1 Log on using the default username and password provided with the device.
+Step 2 Set a password of up to 25 alphanumeric characters. The username password combination you set gives you privilege 15
+access. The string cannot start with a number, is case sensitive, and allows spaces but ignores leading spaces.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Creating User Accounts
+
+
+
+
+PAGE 17
+
+
+
+
+Figure 9: Create Account
+Choosing Setup Options
+Select Wired Network to configure your device based on a site profile, and continue to configure switch
+wide settings. Otherwise, continue to the next step and configure only basic settings for your device.
+Configuring Basic Device Settings
+On the Basic Device Settings page configure the following information:
+Step 1 In the Device ID and Location Settings section, type a unique name to identify your device in the network.
+Step 2 Choose the date and time settings for your device. To synchronize your device with a valid outside timing mechanism,
+such as an NTP clock source, choose Automatic, or choose Manual to set it yourself.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Choosing Setup Options
+
+
+
+
+PAGE 18
+
+
+
+
+Figure 10: Basic Settings - Device ID and Location Settings
+Step 3 In the Device Management Settings section, assign an IP address to the management interface. Ensure that the IP
+address you assign is part of the subnet mask you enter.
+Step 4 Optionally, enter an IP address to specify the default gateway.
+Step 5 To enable access to the device using telnet, check the Telnet check box.
+Step 6 To enable secure remote access to the device using Secure Shell (SSH), check the SSH check box.
+Step 7 Check the VTP transparent mode check box to disable the device from participating in VTP.
+If you did not select Wired Network, in the earlier step, continue to the next screen to verify your configuration on the
+Day 0 Config Summary screen, and click Finish. To automatically configure your device based on a site profile, click
+Setup Options, and select Wired Network.
+Figure 11: Basic Settings - Device Management Settings
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring Basic Device Settings
+
+
+
+
+PAGE 19
+
+
+
+
+Configuring Your Device Based on a Site Profile
+To ease your configuration tasks and save time, choose a site profile based on where your device may be
+installed and managed in your network. Based on the site profile you choose, your device is automatically
+configured according to Cisco best practices. You can easily modify this default configuration, from the
+corresponding detailed configuration screens.
+Choosing a site profile as part of Quick Setup allows you to configure your device based on the business needs
+of your enterprise. For example, you could use your device as an access switch, to connect client nodes and
+endpoints on your network, or as a distribution switch, to route packets between subnets and VLANs.
+Table 1: Default Configuration Loaded with Each Site Profile (Access Switches)
+Single Access Switch
+(Redundant Port Channel
+Uplink)
+Single Access Switch
+(Single Port Channel
+Uplink)
+Single Access Switch
+(Single Uplink)
+Setting
+The hostname or device
+name you provided as part
+of Quick Setup
+The hostname or device
+name you provided as part
+of Quick Setup
+The hostname or device
+name you provided as part
+of Quick Setup
+Hostname
+RPVST+RPVST+RPVST+Spanning Tree Mode
+Mode TransparentMode TransparentMode TransparentVTP
+EnabledEnabledEnabledUDLD
+Recovery mode set to
+Auto
+Recovery mode set to
+Auto
+Recovery mode set to
+Auto
+Error Disable Recovery
+Source Destination IPSource Destination IPSource Destination IPPort Channel Load
+Balance
+Version 2Version 2Version 2SSH
+EnabledEnabledEnabledSCP
+EnabledEnabledEnabledVTY Access to Switch
+EnabledEnabledEnabledService Timestamp
+The followingVLANs are
+created:
+• Default VLAN
+• Data VLAN
+• Voice VLAN
+• Management VLAN
+The followingVLANs are
+created:
+• Default VLAN
+• Data VLAN
+• Voice VLAN
+• Management VLAN
+The followingVLANs are
+created:
+• Default VLAN
+• Data VLAN
+• Voice VLAN
+• Management VLAN
+VLAN
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring Your Device Based on a Site Profile
+
+
+
+
+PAGE 20
+
+
+
+
+Single Access Switch
+(Redundant Port Channel
+Uplink)
+Single Access Switch
+(Single Port Channel
+Uplink)
+Single Access Switch
+(Single Uplink)
+Setting
+Layer 3 settings
+configured on the
+management port, based
+on Quick Setup
+Layer 3 settings
+configured on the
+management port, based
+on Quick Setup
+Layer 3 settings
+configured on the
+management port, based
+on Quick Setup
+Management Interface
+IPv6 host policy createdIPv6 host policy createdIPv6 host policy createdIPv6 Host Policy
+Auto QoS Policy for
+Access defined
+Auto QoS Policy for
+Access defined
+Auto QoS Policy for
+Access defined
+QoS Policy for Downlink
+Ports
+QoS Policy for
+Distribution created
+QoS Policy for
+Distribution created
+QoS Policy for
+Distribution created
+QoS Policy for Uplink
+Ports
+Selected ports configured
+as Port-channel in trunk
+mode, set to allow all
+VLANs.
+Selected ports configured
+as Port-channel in trunk
+mode, set to allow all
+VLANs.
+Selected uplink interfaces
+configured as trunk ports,
+set to allow all VLANs
+Uplink Interfaces
+Downlink ports
+configured in Access
+mode
+Downlink ports
+configured in Access
+mode
+Downlink ports
+configured in Access
+mode
+Downlink Interfaces
+Port-channel to
+distribution created
+Port-channel to
+distribution created
+Not configuredPort-channel
+Figure 12: Site Profile - Access Switches
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring Your Device Based on a Site Profile
+
+
+
+
+PAGE 21
+
+
+
+
+Figure 13: Site Profile - Access Switches (with Routed Access)
+Configuring VLAN Settings
+Step 1 In the VLAN Configuration section, you can configure both data and voice VLANs. Type a name for your data VLAN.
+Step 2 To configure a data VLAN, ensure that the Data VLAN check box is checked, type a name for your VLAN, and assign
+a VLAN ID to it. If you are creating several VLANs, indicate only a VLAN range.
+Step 3 To configure a voice VLAN, ensure that the Voice VLAN check box is checked, type a name for your VLAN, and assign
+a VLAN ID to it. If you are creating several VLANs, indicate a VLAN range.
+Configure STP Settings
+Step 1 RPVST is the default STP mode configured on your device. You can change it to PVST from the STP Mode drop-down
+list.
+Step 2 To change a bridge priority number from the default value 32748, change Bridge Priority to Yes and choose a priority
+number from the drop-down list.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring VLAN Settings
+
+
+
+
+PAGE 22
+
+
+
+
+Figure 14: VLAN and STP Settings
+Configuring DHCP, NTP, DNS and SNMP Settings
+Step 1 In the Domain Details section, enter a domain name that the software uses to complete unqualified hostnames.
+Step 2 Type an IP address to identify the DNS server. This server is used for name and address resolution on your device.
+Step 3 In the Server Details section, type the IP address of the DNS server that you want to make available to DHCP clients.
+Step 4 In the Syslog Server field, type the IP address of the server to which you want to send syslog messages.
+Step 5 To ensure that your device is configured with the right time, date and timezone, enter the IP address of the NTP server
+with which you want to synchronize the device time.
+Step 6 In the Management Details section, type an IP address to identify the SNMP server. SNMPv1, SNMPv2, and SNMPv3
+are supported on your device.
+Step 7 Specify the SNMP community string to permit access to the SNMP protocol.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring DHCP, NTP, DNS and SNMP Settings
+
+
+
+
+PAGE 23
+
+
+
+
+Figure 15: DHCP, NTP, DNS and SNMP Settings
+What to do next
+Configure port settings.
+Configuring Port Settings
+Step 1 Based on the site profile chosen in the earlier step which is displayed in the left-pane, select the Port Role from among
+the following options:
+• Uplink – For connecting to devices towards the core of the network.
+• Downlink – For connecting to devices further down in the network topology.
+• Access – For connecting guest devices that are VLAN-unaware.
+Step 2 Choose an option from the Select Switch drop-down list.
+Step 3 Make selections from the Available list of interfaces based on how you want to enable them and move them to the
+Enabled list.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring Port Settings
+
+
+
+
+PAGE 24
+
+
+
+
+Figure 16: Port Settings
+What to do next
+• Click Day 0 Config Summary to verify your setup.
+• Click Finish.
+Figure 17: Day 0 Config Summary
+Configuring VTY Lines
+For connecting to the device through Telnet or SSH, the Virtual Terminal Lines or Virtual TeleType (VTY)
+is used. The number of VTY lines is the maximum number of simultaneous access to the device remotely. If
+the device is not configured with sufficient number of VTY lines, users might face issues with connecting to
+the WebUI. The default value for VTY Line is 0-31. The device allows up to 99 simultaneous sessions.
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring VTY Lines
+

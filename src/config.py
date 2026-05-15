@@ -7,8 +7,14 @@ for common paths. Settings can be overridden via .env file or environment
 variables.
 """
 
+from __future__ import annotations
 import os
 from pathlib import Path
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
@@ -43,9 +49,15 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
 
     # Vector DB Settings
-    chroma_persist_dir: str = "./data/chroma_db"
-    embedding_model_name: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
-    reranker_model_name: str = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+    chroma_persist_dir: str = Field(
+        default="./data/chroma_db", validation_alias="chroma_db_path"
+    )
+    embedding_model_name: str = os.getenv(
+        "EMBEDDING_MODEL", "ibm-granite/granite-embedding-311m-multilingual-r2"
+    )
+    reranker_model_name: str = os.getenv(
+        "RERANKER_MODEL", "Alibaba-NLP/gte-reranker-modernbert-base"
+    )
     collection_name: str = "network_docs"
 
     # LLM Model Settings
@@ -82,7 +94,7 @@ class Settings(BaseSettings):
         return fix_path(v)
 
     @model_validator(mode="after")
-    def validate_llm_provider(self) -> "Settings":
+    def validate_llm_provider(self) -> Self:
         """
         Ensure required keys are present for the selected LLM provider.
         """

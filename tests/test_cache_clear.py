@@ -45,7 +45,7 @@ def test_cache_clearing_logic():
         vs.clear_cache()
 
     # Patch VectorStore and run simulation
-    with patch("rag.vector_store.VectorStore", return_value=mock_vs_instance):
+    with patch("src.rag.vector_store.VectorStore", return_value=mock_vs_instance):
         simulate_clear_cache(True)
 
     # Verify file deletions

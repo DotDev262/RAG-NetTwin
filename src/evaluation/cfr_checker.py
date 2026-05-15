@@ -1,7 +1,7 @@
 import re
-import ast
+import json
 from typing import Dict, Any
-from ciscoconfparse import CiscoConfParse
+from ciscoconfparse import CiscoConfParse  # type: ignore
 from src.utils import setup_logger
 
 logger = setup_logger("CFRChecker")
@@ -75,7 +75,13 @@ class CFRChecker:
                 vals = val
             elif isinstance(val, str) and val.startswith("[") and val.endswith("]"):
                 try:
-                    vals = ast.literal_eval(val)
+                    # Fix Python-isms in LLM output
+                    json_val = (
+                        val.replace("True", "true")
+                        .replace("False", "false")
+                        .replace("None", "null")
+                    )
+                    vals = json.loads(json_val)
                     if not isinstance(vals, list):
                         vals = [val]
                 except Exception:

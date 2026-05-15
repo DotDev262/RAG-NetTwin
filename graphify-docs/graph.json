@@ -1,0 +1,155 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "Day 0 WebUI",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_day_0_webui",
+      "community": 1,
+      "norm_label": "day 0 webui"
+    },
+    {
+      "label": "Cisco DNA Center Cloud Onboarding",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_cisco_dna_center_cloud_onboarding",
+      "community": 1,
+      "norm_label": "cisco dna center cloud onboarding"
+    },
+    {
+      "label": "Account Settings",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_account_settings",
+      "community": 1,
+      "norm_label": "account settings"
+    },
+    {
+      "label": "DHCP Client Identifier",
+      "file_type": "rationale",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_dhcp_client_identifier",
+      "community": 1,
+      "norm_label": "dhcp client identifier"
+    },
+    {
+      "label": "DHCP Client Configuration",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_dhcp_client",
+      "community": 0,
+      "norm_label": "dhcp client configuration"
+    },
+    {
+      "label": "Obtaining IP Address",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_obtaining_ip",
+      "community": 0,
+      "norm_label": "obtaining ip address"
+    },
+    {
+      "label": "Create User Accounts",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_create_user_accounts",
+      "community": 0,
+      "norm_label": "create user accounts"
+    },
+    {
+      "label": "Setup Options (Wired Network)",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_setup_options_wired",
+      "community": 0,
+      "norm_label": "setup options (wired network)"
+    },
+    {
+      "label": "Basic Device Settings",
+      "file_type": "document",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_basic_device_settings",
+      "community": 0,
+      "norm_label": "basic device settings"
+    },
+    {
+      "label": "VTY Lines",
+      "file_type": "rationale",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_vty_lines",
+      "community": 2,
+      "norm_label": "vty lines"
+    },
+    {
+      "label": "Web User Interface",
+      "file_type": "rationale",
+      "source_file": "data/graph_corpus/catalyst_9300_config_guide_17_6.txt",
+      "id": "catalyst_9300_config_guide_17_6_webui",
+      "community": 2,
+      "norm_label": "web user interface"
+    }
+  ],
+  "links": [
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_config_guide_17_6_day_0_webui",
+      "target": "catalyst_9300_config_guide_17_6_cisco_dna_center_cloud_onboarding"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_config_guide_17_6_cisco_dna_center_cloud_onboarding",
+      "target": "catalyst_9300_config_guide_17_6_account_settings"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source": "catalyst_9300_config_guide_17_6_cisco_dna_center_cloud_onboarding",
+      "target": "catalyst_9300_config_guide_17_6_dhcp_client_identifier"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_dhcp_client",
+      "target": "catalyst_9300_obtaining_ip"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_obtaining_ip",
+      "target": "catalyst_9300_create_user_accounts"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_create_user_accounts",
+      "target": "catalyst_9300_setup_options_wired"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_setup_options_wired",
+      "target": "catalyst_9300_basic_device_settings"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "catalyst_9300_config_guide_17_6_webui",
+      "target": "catalyst_9300_config_guide_17_6_vty_lines"
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "5a63e45b7e77c820e315b761452e6f62fa2305b6"
+}

@@ -660,6 +660,20 @@ APPROVE   REVIEW   REVIEW
   - "This configuration is SAFE because: [3 bullet points]"
   - "REVIEW NEEDED: This config has 2 potential issues..."
 
+### 3.5 Model Benchmark Results (May 2026)
+
+The following models were selected based on retrieval performance using a specialized network engineering documentation corpus.
+
+**Embedding Model Winner**: `ibm-granite/granite-embedding-311m-multilingual-r2`
+- **Mean MRR (Hybrid Search)**: 0.3000
+- **Rationale**: Best handling of domain-specific instructions and version-locked retrieval context.
+
+**Reranker Model Winner**: `Alibaba-NLP/gte-reranker-modernbert-base`
+- **Mean MRR**: 0.3000
+- **Rationale**: Effectively maintained the top-tier retrieval quality from the base embedder while providing high semantic precision.
+
+**Key Observation**: The "0.30 MRR Ceiling" indicates a potential data coverage gap in the benchmark corpus rather than a model limitation, as Hybrid Search (BM25 + Dense) results were consistent across top-tier models.
+
 ---
 
 ## 4. Application Scenarios

@@ -58,7 +58,7 @@ with open("graphify-out/.graphify_root", "w") as f:
 try:
     # We might need to use the resolved python to run the detection if the current one doesn't have it
     # But let's try current first if it's the same or has it
-    from graphify.detect import detect
+    from graphify.detect import detect  # type: ignore
 
     result = detect(Path("."))
     with open("graphify-out/.graphify_detect.json", "w") as f:

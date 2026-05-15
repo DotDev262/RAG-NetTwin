@@ -3,7 +3,7 @@ name = "rag-nettwin"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
@@ -11,9 +11,6 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "chromadb>=1.4.1",
     "fastapi>=0.128.1",
-    "flask>=3.1.2",
-    "flask-cors>=6.0.2",
-    "jupyter>=1.1.1",
     "langchain>=1.2.8",
     "langchain-community>=0.4.1",
     "langchain-groq>=1.1.2",
@@ -27,12 +24,9 @@ dependencies = [
     "pypdf>=6.6.2",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
-    "python-docx>=1.2.0",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
     "seaborn>=0.13.2",
-    "sentence-transformers>=5.2.2",
-    "torch>=2.0.0",
     "tqdm>=4.67.3",
     "uvicorn>=0.40.0",
     "llama-cpp-python>=0.3.16",
@@ -43,6 +37,15 @@ dependencies = [
     "dspy-ai>=2.5.0",
     "scipy>=1.15.0",
     "graphifyy>=0.7.10",
+    "peft>=0.14.0",
+    "mypy>=1.15.0",
+    "ruff>=0.9.0",
+    "types-requests>=2.32.0.20241016",
+    "pandas-stubs>=2.2.3.241126",
+    "scipy-stubs>=1.15.0.2",
+    "torch>=2.0.0",
+    "transformers>=4.45.0",
+    "sentence-transformers>=3.1.0",
 ]
 
 [tool.uv.sources]

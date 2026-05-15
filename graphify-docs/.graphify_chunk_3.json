@@ -1,0 +1,123 @@
+{
+  "nodes": [
+    {
+      "id": "junos_bgp_bgp",
+      "label": "BGP (Border Gateway Protocol)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_ebgp",
+      "label": "External BGP (EBGP)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_ibgp",
+      "label": "Internal BGP (IBGP)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_as",
+      "label": "Autonomous System (AS)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_med",
+      "label": "Multiple Exit Discriminator (MED)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_local_pref",
+      "label": "Local Preference",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_route_reflector",
+      "label": "Route Reflector",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_confederation",
+      "label": "BGP Confederation",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_flowspec",
+      "label": "BGP FlowSpec",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_bmp",
+      "label": "BGP Monitoring Protocol (BMP)",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "id": "junos_bgp_rib_sharding",
+      "label": "RIB Sharding",
+      "file_type": "document",
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    }
+  ],
+  "edges": [
+    {
+      "source": "junos_bgp_bgp",
+      "target": "junos_ospf_junos",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "source": "junos_bgp_ebgp",
+      "target": "junos_bgp_bgp",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "source": "junos_bgp_ibgp",
+      "target": "junos_bgp_bgp",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "source": "junos_bgp_route_reflector",
+      "target": "junos_bgp_ibgp",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "source": "junos_bgp_rib_sharding",
+      "target": "junos_bgp_bgp",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    },
+    {
+      "source": "junos_bgp_bgp",
+      "target": "cisco_routing_bfd",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "graph_tmp/junos_bgp_config.txt"
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

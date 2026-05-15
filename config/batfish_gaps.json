@@ -64,6 +64,16 @@
     "set system host-name",
     "set system domain-name",
     "set system name-server",
-    "set system license"
+    "set system license",
+    "ip ospf database filter all",
+    "neighbor 10.0.0.100 next-hop-unchanged",
+    "neighbor 10.0.0.100 next-hop-change",
+    "ip route 172.16.0.0 255.255.0.0 GigabitEthernet0/1",
+    "ip ospf 1 area 0.0.0.0",
+    "service-policy output QoS-OSPF",
+    "policy-map QoS-OSPF",
+    "class-map match-all CS6",
+    "ERROR",
+    "File unknown: This syntax is unrecognized at line: <EOF>"
   ]
 }

@@ -7,10 +7,9 @@ import time
 
 # Add src to path
 
-from parser.intent_parser import IntentParser
-from rag.config_generator import ConfigGenerator
-from validation.batfish_validator import BatfishValidator
-from validation.containerlab_validator import ContainerlabValidator
+from src.parser.intent_parser import IntentParser
+from src.rag.config_generator import ConfigGenerator
+from src.validation.batfish_validator import BatfishValidator
 from src.utils import setup_logger
 
 logger = setup_logger("Backend")
@@ -34,7 +33,6 @@ try:
     parser = IntentParser()
     generator = ConfigGenerator()
     validator_t1 = BatfishValidator()
-    validator_t2 = ContainerlabValidator()
 except Exception as e:
     logger.error(f"Initialization failed: {e}")
 
@@ -130,19 +128,6 @@ async def run_pipeline(job_id: str, intent_text: str):
         # ----------------------------------------
 
         jobs[job_id]["generated_configs"] = configs_output
-
-        # Only run T2 if T1 passes or with warning (to save resources)
-        if jobs[job_id]["validation_t1"]["status"] in ["PASS", "WARNING"]:
-            jobs[job_id]["status"] = "validating_t2"
-            config_map = {name: data["config"] for name, data in configs_output.items()}
-            report_t2 = validator_t2.validate(config_map, intent)
-            jobs[job_id]["validation_t2"] = report_t2
-        else:
-            jobs[job_id]["validation_t2"] = {
-                "status": "SKIPPED",
-                "reason": "Tier 1 failed after retries",
-            }
-
         jobs[job_id]["status"] = "completed"
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")

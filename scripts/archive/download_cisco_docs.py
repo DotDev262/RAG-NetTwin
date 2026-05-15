@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import time
 import json
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 
 
 class CiscoDocDownloader:
@@ -158,7 +158,7 @@ class CiscoDocDownloader:
 
         if not content_areas:
             # Fallback to body
-            content_areas = [soup.find("body")]
+            content_areas = cast(Any, [soup.find("body")])
 
         for area in content_areas:
             if not area:

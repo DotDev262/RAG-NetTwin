@@ -64,6 +64,11 @@ def seed_gold_configs():
             "vendor": "juniper",
             "config": "set vlans GUESTS vlan-id 200",
         },
+        {
+            "intent": "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1",
+            "vendor": "cisco",
+            "config": "access-list 100 permit 192.168.10.0 0.0.0.255\nip nat inside source list 100 interface GigabitEthernet0/1 overload\ninterface GigabitEthernet0/1\n ip nat outside\ninterface GigabitEthernet0/2\n ip nat inside",
+        },
     ]
 
     store.add_gold_configs(gold_examples)

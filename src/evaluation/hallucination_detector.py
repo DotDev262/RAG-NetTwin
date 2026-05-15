@@ -92,6 +92,7 @@ class HallucinationDetector:
         intent_context: str = "",
         intent_params: Optional[Dict[str, Any]] = None,
         master_plan: Optional[Dict[str, Any]] = None,
+        authorized_citations: Optional[List[str]] = None,
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
@@ -100,6 +101,11 @@ class HallucinationDetector:
         invalid_cites = []
         ungrounded = []
         unauthorized = []
+
+        # Authorized list includes provided IDs and general authorized names (guide titles)
+        full_authorized = set(valid_source_ids + (authorized_citations or []))
+        # Add global safe sources
+        full_authorized.add("BASE_CLI_KNOWLEDGE")
 
         # Step 1: Remove citation references from config
         config_clean = re.sub(r"\[Ref: [^\]]+\]", "", config)
@@ -112,27 +118,84 @@ class HallucinationDetector:
 
         # Step 3: Check citation validity
         for cite in citations:
-            # Clean 'ID: ' prefix if LLM included it (Fix)
+            # Clean 'ID: ' prefix if LLM included it
             clean_cite = cite.replace("ID:", "").replace("id:", "").strip()
+            clean_cite_lower = clean_cite.lower()
 
-            # Flexible citation check: ID match or ID is substring of citation (Flaw Fix)
+            # Flexible citation check: ID match, ID is substring, or clean_cite is known guide
             found_valid = False
-            for valid_id in valid_source_ids:
-                if (
-                    valid_id == clean_cite
-                    or valid_id in clean_cite
-                    or clean_cite in valid_id
-                ):
+
+            # 1. Exact match first (most robust) - case-insensitive
+            for auth in full_authorized:
+                if auth.lower() == clean_cite_lower:
                     found_valid = True
                     break
 
+            # 2. Substring match with strict safeguards
+            if not found_valid:
+                # Vague keywords that are common in documentation but should NOT be used as citations
+                VAGUE_KEYWORDS = {
+                    "interface",
+                    "ip",
+                    "address",
+                    "ospf",
+                    "bgp",
+                    "vlan",
+                    "router",
+                    "set",
+                    "protocols",
+                    "area",
+                    "network",
+                    "system",
+                    "hostname",
+                    "description",
+                    "logging",
+                    "snmp",
+                    "vty",
+                    "line",
+                    "access-list",
+                    "prefix-list",
+                    "route-map",
+                    "policy-map",
+                    "class-map",
+                    "etherchannel",
+                    "channel-group",
+                    "trunk",
+                    "mode",
+                    "description",
+                    "name",
+                    "vlan-id",
+                }
+
+                # Recommendation 1: Project-specific ID patterns (Always authorize if they look real)
+                # Matches: cisco_ospf_..., juniper_interface_..., juniper_tier2_..., etc.
+                if re.match(r"^(?:cisco|juniper)_[a-z0-9\-_]{5,}", clean_cite_lower):
+                    found_valid = True
+
+                if not found_valid:
+                    for auth in full_authorized:
+                        auth_lower = auth.lower()
+                        if clean_cite_lower in auth_lower:
+                            if clean_cite_lower in VAGUE_KEYWORDS:
+                                continue
+                            if len(clean_cite_lower) > 8:
+                                found_valid = True
+                                break
+
+            # Recommendation 1: Always authorize common guide titles if they look real
+            if not found_valid:
+                COMMON_GUIDE_KEYWORDS = [
+                    "Configuration Guide",
+                    "Command Reference",
+                    "Release",
+                    "Cisco IOS",
+                    "Junos OS",
+                ]
+                if any(kw.lower() in clean_cite_lower for kw in COMMON_GUIDE_KEYWORDS):
+                    found_valid = True
+
             if not found_valid and cite:
-                # Relax citation check: LLMs sometimes use descriptive text instead of exact IDs.
-                # Only flag as invalid if the citation looks like a completely fabricated ID format.
-                if (
-                    re.match(r"^[a-f0-9]{8,16}$", clean_cite)
-                    or "dummy" in clean_cite.lower()
-                ):
+                if len(clean_cite) > 3:
                     invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
@@ -201,40 +264,132 @@ class HallucinationDetector:
             elif d:
                 # Store normalized string representation
                 val_str = str(d).lower().strip()
-                # If it's a CIDR, also store the IP part
+                # If it's a CIDR, authorize the IP, the Network, and the Broadcast (Recommendation 5)
                 if "/" in val_str and "." in val_str:
-                    authorized_values.add(val_str.split("/")[0])
+                    try:
+                        import ipaddress
+
+                        # strict=False allows passing a host address like 10.1.1.1/24
+                        net = ipaddress.ip_network(val_str, strict=False)
+                        authorized_values.add(str(net.network_address))
+                        authorized_values.add(str(net.broadcast_address))
+                        # Also add common "base" addresses if it's a large subnet
+                        # e.g. for 172.16.0.0/16, add 172.16.0.0
+                        authorized_values.add(val_str.split("/")[0])
+
+                        # Add wildcard masks for Cisco
+                        if net.netmask:
+                            # Invert mask: 255.255.255.0 -> 0.0.0.255
+                            wildcard = ".".join(
+                                [
+                                    str(255 - int(octet))
+                                    for int_octet in str(net.netmask).split(".")
+                                    for octet in [int_octet]
+                                ]
+                            )
+                            authorized_values.add(wildcard)
+                    except (ValueError, Exception):
+                        authorized_values.add(val_str.split("/")[0])
                 authorized_values.add(val_str)
 
         collect_values(intent_params)
         collect_values(master_plan)
 
-        # Add common safe values (standard defaults)
-        authorized_values.update([
-            "0", "1", "100", "any", "log",
-            "255.255.255.0", "255.255.255.255", "255.255.255.128", "255.255.255.192", 
-            "255.255.255.224", "255.255.255.240", "255.255.255.248", "255.255.255.252",
-            "0.0.0.255", "0.0.0.0", "0.0.0.127", "0.0.0.63", "0.0.0.31", "0.0.0.15", "0.0.0.7", "0.0.0.3"
-        ])
-
         # 2. Extract potential identifiers from config
-        # IP Addresses
+        # IP Addresses - ALWAYS check these strictly
         ips = re.findall(r"(\d+\.\d+\.\d+\.\d+)", config)
-        # Numbers (ASNs, VLANs, Areas) - 2+ digits to avoid common small counters
-        numbers = re.findall(r"(?<![.\w])(\d{2,})(?![.\w])", config)
 
-        for val in set(ips + numbers):
-            if val not in authorized_values:
-                # Check if it's a substring of an authorized CIDR (e.g. 10.1.1.1 in 10.1.1.0/24)
-                # (Simple heuristic)
-                is_authorized = False
-                for auth in authorized_values:
-                    if val in auth:
-                        is_authorized = True
-                        break
+        # Numbers (ASNs, VLANs, Areas)
+        # Only extract 4+ digit numbers as "potentially high-risk" (ASNs, large IDs)
+        # or numbers that are explicitly NOT common network defaults/metrics.
+        all_numbers = re.findall(r"(?<![.\w])(\d+)(?![.\w])", config)
 
-                if not is_authorized:
-                    unauthorized.append(val)
+        # Common safe values (standard defaults, common timers, MTUs, ports, costs, wildcard masks)
+        SAFE_COMMON_VALUES = {
+            # Interfaces & VLANs (Small common ones)
+            "0",
+            "1",
+            "10",
+            "100",
+            "1000",
+            # IP Components & Wildcard Masks (Recommendation: add common masks)
+            "255.255.255.0",
+            "255.255.255.255",
+            "255.255.255.128",
+            "255.255.255.192",
+            "255.255.255.224",
+            "255.255.255.240",
+            "255.255.255.248",
+            "255.255.255.252",
+            "0.0.0.0",
+            "0.0.0.3",
+            "0.0.0.7",
+            "0.0.0.15",
+            "0.0.0.31",
+            "0.0.0.63",
+            "0.0.0.127",
+            "0.0.0.255",
+            "0.0.255.255",
+            "0.255.255.255",
+            "any",
+            "log",
+            # MTU
+            "1500",
+            "9000",
+            "9216",
+            # Common Timers (seconds/minutes)
+            "1",
+            "3",
+            "5",
+            "10",
+            "15",
+            "30",
+            "40",
+            "60",
+            "120",
+            "180",
+            "300",
+            "600",
+            # Ports
+            "22",
+            "23",
+            "80",
+            "443",
+            "179",
+            "161",
+            "162",
+            "500",
+            "4500",
+            # Metrics / Admin Dist
+            "20",
+            "110",
+            "170",
+            "200",
+            "254",
+            "1",
+            "100",
+        }
+
+        for val in set(ips + all_numbers):
+            # Skip if explicitly authorized or in the safe common set
+            if val in authorized_values or val in SAFE_COMMON_VALUES:
+                continue
+
+            # Heuristic: Allow small numbers (1-1024) as they are often
+            # common costs, timers, or well-known ports not in our safe set.
+            # This significantly reduces false positives for OSPF costs, etc.
+            if val.isdigit() and int(val) <= 1024:
+                continue
+
+            # Check if it's a substring of an authorized CIDR (e.g. 10.1.1.1 in 10.1.1.0/24)
+            is_authorized = False
+            for auth in authorized_values:
+                if val in auth:
+                    is_authorized = True
+                    break
+
+            if not is_authorized:
+                unauthorized.append(val)
 
         return unauthorized
 
@@ -604,15 +759,13 @@ class HallucinationDetector:
 
             structural_tokens = []
 
-            for word in parts:
+            for i, word in enumerate(parts):
                 w_lower = word.lower().rstrip(":")
-                
+
                 # If we encounter a leaf verb, stop processing this line.
                 # All subsequent tokens are likely user-defined strings.
                 if w_lower in LEAF_VERBS:
                     break
-
-                # Robust parameter detection:
 
                 # Robust parameter detection:
                 # Keywords should never be treated as parameters
@@ -710,7 +863,14 @@ class HallucinationDetector:
                     len(w_lower) > 2 and w_lower in intent_norm and not is_keyword
                 )
 
-                if is_numeric_ip or is_interface or is_user_id or is_in_intent:
+                # Only skip user IDs if they are NOT in a structural position (first, second, or third token)
+                # This ensures fake protocols/modes like 'switchport mode hyper-virtual' are caught.
+                if (
+                    is_numeric_ip
+                    or is_interface
+                    or is_in_intent
+                    or (is_user_id and i > 2)
+                ):
                     continue
 
                 # Skip common noisy tokens

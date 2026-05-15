@@ -22,7 +22,7 @@ Typical Usage:
     config = generator.generate(intent)
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 import json
@@ -51,7 +51,7 @@ class CommandBlock(BaseModel):
     commands: List[str] = Field(description="List of raw CLI configuration commands")
     source_ids: List[str] = Field(
         description="IDs from the DOCUMENTATION block that justify these specific commands. "
-        "Leave empty ONLY if the command is a generic prerequisite (like 'configure terminal').",
+        "Leave empty if the command is a generic prerequisite (like 'configure terminal').",
         default_factory=list,
     )
 
@@ -68,14 +68,15 @@ class DeviceConfigOutput(BaseModel):
         description="Confidence score (0.0 to 1.0) of the generated config", ge=0, le=1
     )
     reasoning_path: str = Field(
-        description="Step-by-step reasoning for the chosen commands"
+        description="Step-by-step reasoning for the chosen commands. NEVER leave this empty or null.",
+        default="",
     )
     verification_commands: List[str] = Field(
         description="CLI commands to verify the configuration works (e.g., show ip ospf neighbor)",
         default_factory=list,
     )
     explanation: Optional[str] = Field(
-        description="Brief summary of the changes", default=None
+        description="Brief summary of the changes", default=""
     )
 
 
@@ -134,6 +135,10 @@ class ConfigGenerator:
         Generates CLI configuration for each device.
         retrieval_mode: 'tiered' (ours), 'flat' (standard top-k), or 'none' (baseline).
         """
+        # TEMPORARY: Clear semantic cache for fresh generation during debugging
+        # This will be removed once generation is stable.
+        self.vector_store.clear_cache()
+
         configs: Dict[str, Any] = {}
         # Deep Trace: Initialize trace dictionary
         trace: Dict[str, Any] = {
@@ -321,14 +326,10 @@ class ConfigGenerator:
                     ]
 
                 if results:
-                    avg_distance: float = sum(
-                        (
-                            res.get("distance")
-                            if res.get("distance") is not None
-                            else 1.0
-                        )
-                        for res in results
-                    ) / len(results)
+                    distances: List[float] = [
+                        float(res.get("distance") or 1.0) for res in results
+                    ]
+                    avg_distance: float = sum(distances) / len(results)
                     if avg_distance > 1.2:
                         warning: str = f"Authoritative documentation for '{structured_intent.protocol}' not found for {vendor}. Hallucination risk is high."
                         with self._sanity_lock:
@@ -388,10 +389,20 @@ class ConfigGenerator:
                 device_context: str = ""
                 valid_ids: List[str] = []
                 examples: List[Dict[str, Any]] = []
+
+                # Recommendation: Handle Lite intents by providing a base knowledge anchor
+                if is_lite:
+                    valid_ids = ["BASE_CLI_KNOWLEDGE"]
+
                 if device.name in full_context_map:
                     data = full_context_map[device.name]
                     device_context = self.distill_context(data["chunks"])
                     valid_ids = [str(c.get("id")) for c in data["chunks"]]
+                    # Add community labels to valid_ids (Recommendation 4)
+                    for c in data["chunks"]:
+                        comm = c.get("metadata", {}).get("graph_community")
+                        if comm:
+                            valid_ids.append(str(comm))
                     examples = data["examples"]
 
                 futures.append(
@@ -478,9 +489,9 @@ class ConfigGenerator:
         examples: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
-        Helper to generate config for a single device (for parallelization).
+        Generates configuration for a single device with a refinement loop.
         """
-        # Format gold standard examples (Recommendation 3 - Phase 2)
+        # Format gold standard examples
         examples_str = ""
         if examples:
             examples_str = "\n### REFERENCE EXAMPLES (GOLD STANDARD) ###\n"
@@ -492,31 +503,31 @@ class ConfigGenerator:
             structured_intent.parameters, device.vendor
         )
 
-        # Build prompt with explicit vendor syntax rules
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
                     "Expert {vendor} {os_version} CLI specialist. "
-                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints. 4. Follow DEPLOYMENT SEQUENCE.\n\n"
-                    "### PREREQUISITES ###\n"
-                    "- Enable modified physical interfaces ('no shutdown').\n"
-                    "- Set IPs before protocols. - Set router-id for OSPF/BGP if missing.\n"
-                    "- TIP: Cisco BGP route-reflector uses 'neighbor <IP> route-reflector-client' (NOT 'reflect-client').\n"
-                    "- CRITICAL: Cisco OSPF interface commands MUST include a process ID (e.g., 'ip ospf 1 area 0').\n"
-                    "- CRITICAL: Interface-specific commands (hello-interval, mtu, description, ip ospf) MUST be placed under 'interface <name>'.\n"
-                    "### VENDOR-SPECIFIC ANCHORS ###\n"
-                    "- CISCO OSPF: USE 'ip ospf <PID> area <AREA>' (e.g., 'ip ospf 1 area 0'). NEVER use 'ip ospf area <AREA> <IP>'.\n"
-                    "- CISCO OSPF: USE 'ip ospf mtu-ignore' (NOT 'ip ospf mtu').\n"
-                    "### CRITICAL SYNTAX ANCHORS ###\n"
-                    "- CISCO: USE 'crypto isakmp', 'crypto ipsec', 'crypto map'. NEVER use 'set' for VPN/IPsec.\n"
-                    "- JUNIPER: USE 'set' commands (e.g., 'set protocols ospf'). NEVER use hierarchical curly braces '{{}}'.\n"
-                    "- JUNIPER: USE 'set security ike', 'set security ipsec'. NEVER use standalone 'isakmp' or legacy 'set policy id' (ScreenOS).\n"
-                    "### CITATIONS ###\n"
-                    "- ALWAYS include 'source_ids' for each command block. Use 'ID: <source_id>' from the documentation.\n"
-                    "### NEGATIVE CONSTRAINTS ###\n"
-                    "1. NO placeholders ('<YOUR_IP>', etc). 2. NO invented ASNs/IPs/VLANs. 3. NO ungrounded complex features (must have ID). Basic commands (description, interface, name) are allowed if required.\n"
-                    "4. PREFER incomplete configs over hallucinations. 5. DO NOT generate 'best practice' or default commands not explicitly requested (e.g., no spanning-tree if not asked).\n\n"
+                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints.\n\n"
+                    "### STRICT HIERARCHY RULES ###\n"
+                    "- Global commands (hostname, logging) go at the top level.\n"
+                    "- Interface commands (ip address, ip ospf, service-policy) MUST be within an 'interface <name>' block.\n"
+                    "- Protocol commands (network, neighbor) MUST be within a 'router <protocol>' block.\n"
+                    "- DO NOT put interface commands under a 'router' block.\n\n"
+                    "### TOP FAILURE PATTERNS (FORBIDDEN) ###\n"
+                    "- FORBIDDEN: 'ip address X.X.X.X ...' at global level. MUST be under interface.\n"
+                    "- FORBIDDEN: 'service-policy ...' at global level. MUST be under interface.\n"
+                    "- FORBIDDEN: Referencing an ACL name/number without defining it.\n\n"
+                    "### REFERENTIAL INTEGRITY RULE ###\n"
+                    "- If you reference an ACL, policy-map, route-map, or NAT pool, you MUST define it in the SAME output.\n\n"
+                    "### COMMON SYNTAX CORRECTIONS (STRICT) ###\n"
+                    "- CISCO OSPF: Use 'ip ospf database-filter all out' (with hyphen and 'out'), NOT 'ip ospf database filter all'.\n"
+                    "- JUNIPER OSPF: Use 'set protocols ospf area <area> interface <int>' syntax.\n"
+                    "- BGP: Ensure 'address-family' is used if multi-protocol (IPv4/IPv6) is involved. For Cisco, use 'neighbor <ip> remote-as <asn>'.\n"
+                    "- VPN: For Cisco Site-to-Site, define: crypto isakmp policy, crypto isakmp key, crypto ipsec transform-set, crypto map, and interface tunnel.\n"
+                    "- PLACEHOLDERS: NEVER use 'Unknown'. If a parameter is missing, use standard defaults: Interface 'GigabitEthernet0/1' (Cisco) or 'ge-0/0/0' (Juniper), IP '10.0.0.1'.\n\n"
+                    "### STRICT ISOLATION RULE ###\n"
+                    "Generate output ONLY for device: {device_name}.\n\n"
                     "{coordination_prompt}",
                 ),
                 (
@@ -530,27 +541,24 @@ class ConfigGenerator:
                     "### DOCUMENTATION ###\n"
                     "{device_context}\n\n"
                     "### INSTRUCTIONS ###\n"
-                    "1. Use provided documentation for vendor-specific syntax. Pay attention to the 'CONTEXT' breadcrumbs for hierarchical nesting.\n"
-                    "2. For citations, use the EXACT 'ID: <source_id>' values provided in the documentation block.\n"
-                    "3. Ensure ALL provided 'Parameters' are accurately translated into the config.\n"
-                    "4. Output strictly in the requested structured format.\n"
-                    "5. CRITICAL: Generate ONLY commands matching the specified vendor.",
+                    "1. Use provided documentation for syntax. Ground each command block in source IDs.\n"
+                    "2. CRITICAL: For citations, use ONLY the exact string found inside [SOURCE_ID: ...]. DO NOT include the 'SOURCE_ID:' prefix or the brackets themselves.\n"
+                    "3. DO NOT use the word 'Unknown' for parameters. If an IP or interface is missing, use a standard default (e.g., GigabitEthernet0/1, 10.0.0.1).\n"
+                    "4. Ensure all referenced entities (ACLs, policies, route-maps) are DEFINED in the output.\n"
+                    "5. Translate all parameters accurately.",
                 ),
             ]
         )
 
         try:
+            # 1. First Pass: Structured Generation
             chain = prompt | self.structured_llm
 
-            lite_context = (
-                device_context
-                if device_context
-                else f"Use your base knowledge of {device.vendor} {device.os_version} syntax."
+            lite_context = device_context or (
+                "No specific documentation chunks found. "
+                "Use your [SOURCE_ID: BASE_CLI_KNOWLEDGE] and expertise for standard CLI syntax."
             )
 
-            # Deep Trace: Capture the full prompts
-            # Token Efficiency: Only send parameters if master_plan is empty or if they aren't redundant
-            # (In this version, we still send all but minify them to save whitespace tokens)
             llm_input = {
                 "intent_params": json.dumps(
                     structured_intent.parameters, separators=(",", ":")
@@ -565,60 +573,134 @@ class ConfigGenerator:
                 "formatting_hints": formatting_hints,
             }
 
-            response = chain.invoke(llm_input)
+            output: DeviceConfigOutput = cast(
+                DeviceConfigOutput, chain.invoke(llm_input)
+            )
 
-            # Phase 2: Citation Gating
-            # Flatten blocks for backward compatibility in results and main config
-            all_commands: List[str] = []
-            all_citations: List[str] = []
-            for block in response.blocks:
-                all_commands.extend(block.commands)
-                all_citations.extend(block.source_ids)
+            # Extract combined config and clean citations
+            all_commands = []
+            seen_commands = set()
+            all_citations = []
+            for block in output.blocks:
+                for cmd in block.commands:
+                    # Deduplicate and limit (Fix F14: Loopy LLM protection)
+                    clean_cmd = cmd.strip()
+                    if clean_cmd and clean_cmd not in seen_commands:
+                        all_commands.append(clean_cmd)
+                        seen_commands.add(clean_cmd)
+                    if len(all_commands) > 200:  # Safety break
+                        break
 
-            # Remove duplicates from citations
-            unique_citations: List[str] = list(set(all_citations))
+                if block.source_ids:
+                    for cid in block.source_ids:
+                        # Clean up common LLM citation errors
+                        clean_cid = (
+                            cid.replace("SOURCE_ID:", "")
+                            .replace("ID:", "")
+                            .replace("[", "")
+                            .replace("]", "")
+                            .strip()
+                        )
+                        # Fix F15: Strip sub-keys from BASE_CLI_KNOWLEDGE
+                        if clean_cid.startswith("BASE_CLI_KNOWLEDGE"):
+                            clean_cid = "BASE_CLI_KNOWLEDGE"
 
-            config_text: str = "\n".join(all_commands)
-            comment_char = "#" if (device.vendor or "").lower() == "juniper" else "!"
+                        if clean_cid:
+                            all_citations.append(clean_cid)
 
-            if unique_citations:
-                config_text = (
-                    f"{comment_char} Based on [Ref: {', '.join(unique_citations)}]\n"
-                    + config_text
+            # Final sanity check for "ERROR" tokens in commands (Fix F16)
+            all_commands = [c for c in all_commands if c.strip() != "ERROR"]
+            if not all_commands:
+                config_text = "ERROR"
+            else:
+                config_text = "\n".join(all_commands)
+
+            # 2. Refinement Loop: Static Analysis (Batfish + Referential Integrity)
+            from src.validation.batfish_validator import BatfishValidator
+            from src.validation.referential_integrity import (
+                ReferentialIntegrityValidator,
+            )
+
+            validator = BatfishValidator()
+
+            max_refinements = 3
+            current_config = config_text
+
+            for i in range(max_refinements):
+                # Check for syntax/logic with Batfish
+                val_res = validator.validate(
+                    {device.name: current_config}, structured_intent
+                )
+
+                # Check for broken references locally (more robust for ACLs/Policies)
+                ref_issues = ReferentialIntegrityValidator.check_config(
+                    current_config, vendor=device.vendor or "cisco"
+                )
+
+                # Check if we should stop refinement (PASS/WARNING are acceptable)
+                has_critical_issues = False
+                if val_res["status"] == "FAIL":
+                    # Filter out purely informational or ignored gaps
+                    remaining_issues = [
+                        i
+                        for i in val_res.get("issues", [])
+                        if i.get("type") not in ["CONFIG_WARNING", "IGNORED"]
+                    ]
+                    if remaining_issues:
+                        has_critical_issues = True
+
+                if not has_critical_issues and not ref_issues:
+                    break
+
+                # Aggregate feedback
+                feedback_parts = []
+                if val_res.get("issues"):
+                    for issue in val_res["issues"]:
+                        details = issue["details"]
+                        if "Unknown" in details:
+                            details += " (CRITICAL: DO NOT use the word 'Unknown'. Replace with a sensible default like GigabitEthernet0/1 or 10.0.0.1)"
+                        feedback_parts.append(details)
+                if ref_issues:
+                    for issue in ref_issues:
+                        feedback_parts.append(
+                            issue
+                            + " (CRITICAL: You MUST define this entity in your output. Example: 'access-list 101 permit any' or 'route-map MY-MAP permit 10')"
+                        )
+
+                error_feedback = "\n".join(feedback_parts)
+                logger.info(
+                    f"Refining {device.name} (Attempt {i+1}) due to: {error_feedback[:100]}..."
+                )
+
+                current_config = self.refine(
+                    device_name=device.name,
+                    config=current_config,
+                    error_feedback=error_feedback,
+                    vendor=device.vendor,
+                    os_version=device.os_version,
                 )
 
             return {
                 "device_name": device.name,
-                "config": config_text,
-                "verification_commands": response.verification_commands or [],
-                "retrieved_sources": unique_citations,
-                "blocks": [b.model_dump() for b in response.blocks],
+                "config": current_config,
+                "explanation": output.explanation,
+                "verification_commands": output.verification_commands,
+                "retrieved_sources": list(set(all_citations)),
+                "blocks": [b.model_dump() for b in output.blocks],
                 "valid_source_ids": valid_source_ids or [],
                 "grounding_context": device_context,
-                "confidence": response.confidence_score,
-                "reasoning": response.reasoning_path,
-                "_device_trace": {
-                    "system_prompt": prompt.messages[0].prompt.template.format(
-                        vendor=device.vendor,
-                        os_version=device.os_version or "latest",
-                        coordination_prompt=coordination_prompt,
-                    ),
-                    "human_prompt": prompt.messages[1].prompt.template.format(
-                        **llm_input
-                    ),
-                },
+                "confidence": output.confidence_score,
+                "reasoning": output.reasoning_path,
             }
-        except Exception as e:
-            # Check for rate limits (429) specifically to allow retry logic in evaluator
-            if "429" in str(e) or "rate_limit_exceeded" in str(e):
-                logger.error(f"Rate limit reached during generation for {device.name}")
-                raise e
 
+        except Exception as e:
+            if "429" in str(e) or "rate_limit" in str(e).lower():
+                raise e
             logger.error(f"Generation failed for {device.name}: {e}")
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
     def distill_context(
-        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 2000
+        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 1200
     ) -> str:
         """
         Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.
@@ -693,7 +775,7 @@ class ConfigGenerator:
                     try:
                         h_list = json.loads(str(raw_h))
                         if h_list:
-                            hierarchy_str = "CONTEXT: " + " > ".join(h_list) + "\n"
+                            hierarchy_str = " > ".join(h_list)
                     except Exception:
                         pass
 
@@ -701,23 +783,22 @@ class ConfigGenerator:
                 community_str = ""
                 comm_label = res.get("metadata", {}).get("graph_community")
                 if comm_label:
-                    community_str = f"COMMUNITY: {comm_label}\n"
+                    community_str = f"[SOURCE_ID: {comm_label}] (Community Anchor)\n"
 
-                chunk_str = f"ID: {chunk_id}\n"
+                chunk_str = f"[SOURCE_ID: {chunk_id}]\n"
                 if community_str:
                     chunk_str += community_str
                 if hierarchy_str:
-                    chunk_str += hierarchy_str
+                    chunk_str += f"DOCUMENTATION_PATH: {hierarchy_str}\n"
                 if cli_lines:
-                    chunk_str += "COMMANDS:\n" + "\n".join(cli_lines[:15]) + "\n"
+                    chunk_str += "CLI_SYNTAX:\n" + "\n".join(cli_lines[:15]) + "\n"
                 if prose_context:
-                    chunk_str += (
-                        "RULES/EXAMPLES:\n" + "\n".join(prose_context[:5]) + "\n"
-                    )
+                    chunk_str += "USAGE_RULES:\n" + "\n".join(prose_context[:5]) + "\n"
                 chunk_str += "---\n"
 
                 distilled += chunk_str
-                current_token_est += len(chunk_str) // 4
+                # Conservative estimate for CLI/Code: 1 token per 3 characters (Fix F9)
+                current_token_est += len(chunk_str) // 3
 
         # Combine: Restrictions go FIRST
         final_output = ""
@@ -783,21 +864,6 @@ class ConfigGenerator:
     ) -> str:
         """
         Refines a configuration based on validation error feedback.
-
-        This method is called when a configuration fails validation (e.g., from
-        Batfish). It uses the error message to fix syntax issues while
-        maintaining vendor-specific syntax.
-
-        Args:
-            device_name: Name of the device being configured.
-            config: The configuration that failed validation.
-            error_feedback: Error message from the validator describing what went wrong.
-            vendor: Device vendor (e.g., "cisco", "juniper").
-            os_version: OS version string. Defaults to "21.4" for Juniper,
-                "17.6" for Cisco if not provided.
-
-        Returns:
-            Refined configuration string with syntax errors fixed.
         """
         if os_version is None:
             os_version = "21.4" if vendor.lower() == "juniper" else "17.6"
@@ -807,14 +873,17 @@ class ConfigGenerator:
             [
                 (
                     "system",
-                    "You are a CLI Debugger for {vendor} {os_version}. Fix syntax errors using {vendor} {os_version} CLI syntax. Output ONLY raw CLI commands. NEVER mix syntax from other vendors or versions.",
+                    "You are a CLI Debugger for {vendor} {os_version}.\n"
+                    "CRITICAL: Output ONLY raw CLI commands. DO NOT output prose, conversational text, explanations, or 'should be changed to'.\n"
+                    "Fix syntax errors using EXACT {vendor} {os_version} CLI syntax.\n"
+                    "NEVER mix syntax from other vendors or versions.",
                 ),
                 (
                     "human",
                     "Device: {device_name} ({vendor} {os_version})\n"
                     "ERRORS: {error_feedback}\n"
                     "CONFIG TO FIX:\n{config}\n\n"
-                    "FIXED CLI (MUST use {vendor} {os_version} syntax):",
+                    "FIXED RAW CLI COMMANDS:",
                 ),
             ]
         )
@@ -829,41 +898,26 @@ class ConfigGenerator:
             }
         )
 
-        return clean_cli_prose(response.content)
+        return clean_cli_prose(cast(str, response.content))
 
     def _normalize_version(self, device) -> str:
         """
         Normalize OS version to match knowledge base format.
-
-        The knowledge base stores versions with prefixes like "ios-xe-17.6"
-        or "junos-21.4". This method ensures the version string matches
-        that format for accurate retrieval.
-
-        Args:
-            device: DeviceIntent object with os_type and os_version attributes.
-
-        Returns:
-            Normalized version string with prefix (e.g., "ios-xe-17.6").
-            Returns "ios-xe-17.6" for Cisco or "junos-21.4" for Juniper
-            if version is not specified.
-
-        Examples:
-            >>> _normalize_version(DeviceIntent(os_type="ios-xe", os_version="17.6"))
-            'ios-xe-17.6'
-            >>> _normalize_version(DeviceIntent(os_type="junos", os_version="21.4"))
-            'junos-21.4'
-            >>> _normalize_version(DeviceIntent(vendor="cisco", os_version=None))
-            'ios-xe-17.6'
         """
-        os_type = device.os_type or "ios-xe"
+        os_type = device.os_type
+        vendor = (device.vendor or "cisco").lower()
+
+        # Recommendation: If OS Type is Unknown, infer it from Vendor
+        if not os_type or os_type.lower() == "unknown":
+            os_type = "junos" if vendor == "juniper" else "ios-xe"
+
         os_version = device.os_version
 
         # Default to well-tested versions if not specified
         if not os_version:
-            vendor_lower = (device.vendor or "cisco").lower()
-            os_version = "21.4" if vendor_lower == "juniper" else "17.6"
+            os_version = "21.4" if vendor == "juniper" else "17.6"
 
-        # Map os_type to KB prefix (handles various naming conventions)
+        # Map os_type to KB prefix
         type_prefix_map = {
             "ios-xe": "ios-xe",
             "junos": "junos",
@@ -874,17 +928,7 @@ class ConfigGenerator:
 
         prefix = type_prefix_map.get(os_type.lower(), os_type.lower())
 
-        # If os_version is missing, default to the most stable version in the KB
-        if not os_version:
-            if prefix == "ios-xe":
-                return "ios-xe-17.6"
-            elif prefix == "junos":
-                return "junos-21.4"
-            return f"{prefix}-latest"
-
         if os_version.startswith(prefix):
             return os_version
 
-        # Otherwise, combine prefix with version
-        # Example: "17.6" + "ios-xe" -> "ios-xe-17.6"
         return f"{prefix}-{os_version}"

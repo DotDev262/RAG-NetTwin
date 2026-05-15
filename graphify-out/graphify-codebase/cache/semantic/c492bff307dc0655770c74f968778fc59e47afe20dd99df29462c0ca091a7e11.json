@@ -1,1 +1,0 @@
-{"nodes": [{"id": "gns3_pipeline_test", "label": "Full GNS3 Pipeline Test", "file_type": "code", "source_file": "scripts/test_gns3_full.py"}], "edges": [{"source": "gns3_pipeline_test", "target": "iol_license_gen", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.8, "source_file": "scripts/test_gns3_full.py"}], "hyperedges": []}

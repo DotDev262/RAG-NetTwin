@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 from langchain_core.prompts import ChatPromptTemplate
 from src.llm import LLMProvider
 import json
@@ -54,7 +54,7 @@ class BlastRadiusAnalyzer:
                     "post": json.dumps(post_state, indent=2),
                 }
             )
-            return response.content
+            return cast(str, response.content)
         except Exception as e:
             logger.error(f"Blast Radius analysis failed: {e}")
             return f"Analysis Error: {str(e)}"

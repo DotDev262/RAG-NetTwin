@@ -9,7 +9,7 @@ import telnetlib  # noqa: E402
 import socket  # noqa: E402
 
 # noqa: E402
-from typing import Dict, Any, List, Optional  # noqa: E402
+from typing import Dict, Any, List, Optional, cast  # noqa: E402
 
 # noqa: E402
 from src.validation.base import NetworkValidator  # noqa: E402
@@ -230,7 +230,7 @@ class GNS3Validator(NetworkValidator):
                     for cmd in commands:
                         tn.write(cmd.encode("ascii") + b"\r\n")
                         # Wait until prompt appears
-                        idx, match, text = tn.expect([b">", b"#"], timeout=10)
+                        idx, match, text = tn.expect([b">", b"#"], timeout=10)  # type: ignore
                         output = text.decode("ascii", errors="ignore")
                         outputs.append({"command": cmd, "output": output})
 
@@ -278,7 +278,7 @@ class GNS3Validator(NetworkValidator):
                         tn.write(cmd.encode("ascii") + b"\r\n")
                         # Wait for prompt to ensure command finished
                         try:
-                            idx, match, text = tn.expect([b">", b"#"], timeout=5)
+                            idx, match, text = tn.expect([b">", b"#"], timeout=5)  # type: ignore
                             output = text.decode("ascii", errors="ignore")
 
                             # Check for common CLI error indicators (Fix: Ensure functional check actually validates)
@@ -345,7 +345,7 @@ class GNS3Validator(NetworkValidator):
                         # Look for common prompts: Router>, Router#, Switch>, user:
                         # We use expect with a short timeout
                         idx, match, text = tn.expect(
-                            [b">", b"#", b"login:", b"user:"], timeout=2
+                            cast(Any, [b">", b"#", b"login:", b"user:"]), timeout=2
                         )
                         tn.close()
 
@@ -405,11 +405,11 @@ class GNS3Validator(NetworkValidator):
             )
             if nodes_resp.status_code != 200:
                 break
-                
+
             nodes = nodes_resp.json()
             if not nodes:
                 break
-                
+
             for node in nodes:
                 try:
                     requests.delete(
@@ -417,8 +417,10 @@ class GNS3Validator(NetworkValidator):
                         auth=self.auth,
                     )
                 except Exception as e:
-                    logger.debug(f"Retry {attempt+1}: Failed to delete node {node['node_id']}: {e}")
-            
+                    logger.debug(
+                        f"Retry {attempt+1}: Failed to delete node {node['node_id']}: {e}"
+                    )
+
             if attempt < max_retries - 1:
                 time.sleep(1 * (attempt + 1))  # Exponential-ish backoff
 
@@ -564,7 +566,7 @@ class GNS3Validator(NetworkValidator):
             # Navigation commands (not counted in CAR)
             tn.write(b"enable\r\n")
             tn.write(b"configure terminal\r\n")
-            tn.expect([b">", b"#"], timeout=5)
+            tn.expect([b">", b"#"], timeout=5)  # type: ignore
 
             for line in config.splitlines():
                 cmd = line.strip()
@@ -575,7 +577,7 @@ class GNS3Validator(NetworkValidator):
                 tn.write(cmd.encode("ascii") + b"\r\n")
 
                 # Check for errors after each command
-                idx, match, text = tn.expect([b">", b"#"], timeout=5)
+                idx, match, text = tn.expect([b">", b"#"], timeout=5)  # type: ignore
                 output = text.decode("ascii", errors="ignore")
 
                 accepted = not any(
@@ -593,7 +595,7 @@ class GNS3Validator(NetworkValidator):
 
             tn.write(b"end\r\n")
             tn.write(b"write memory\r\n")
-            tn.expect([b">", b"#"], timeout=5)
+            tn.expect([b">", b"#"], timeout=5)  # type: ignore
             tn.close()
 
             return stats

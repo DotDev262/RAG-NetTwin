@@ -1,0 +1,25 @@
+
+
+PAGE 25
+
+
+
+
+Step 1 From the WebUI, navigate through Administration > Device and select the General page.
+Step 2 In the VTY Line field, enter 0-xx, depending on how many VTY lines you want to configure.
+Figure 18: Configuring VTY Line
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring VTY Lines
+
+
+
+
+PAGE 26
+
+
+
+
+Software Configuration Guide, Cisco IOS XE Bengaluru 17.6.x (Catalyst 9300 Switches)
+Configuring the Switch Using the Web User Interface
+Configuring VTY Lines

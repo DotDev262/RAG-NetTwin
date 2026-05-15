@@ -1,1 +1,0 @@
-{"nodes": [], "edges": [{"source": "main_tiered_hierarchical_chunking", "target": "figure_chunking_sensitivity_chart", "relation": "conceptually_related_to", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "figure_chunking_sensitivity.pdf", "source_location": null, "weight": 1.0}], "hyperedges": []}

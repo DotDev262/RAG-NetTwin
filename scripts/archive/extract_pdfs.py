@@ -8,7 +8,7 @@ import pypdf
 from pathlib import Path
 from typing import List, Dict, Tuple, Any
 import re
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 
 class PDFExtractor:

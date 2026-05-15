@@ -3,7 +3,7 @@
 **Project Name**: Hallucination-Mitigated Intent-Based Networking (RAG-NetTwin)  
 **Type**: B.Tech Final Year Project with Journal Publication Goal  
 **Timeline**: 10 Months (5 months implementation + 5 months paper)  
-**Last Updated**: May 9, 2026  
+**Last Updated**: May 11, 2026  
 
 ---
 
@@ -26,7 +26,7 @@
 ## 📋 CURRENT STATUS
 
 **Phase**: Final Paper Drafting & Graph-Driven Analysis  
-**Last Updated**: May 9, 2026
+**Last Updated**: May 11, 2026
 
 **Recent Milestones**:
 - ✅ **16.4x Token Reduction**: Achieved massive efficiency gain via God Node pruning and community budgeting.
@@ -35,8 +35,9 @@
 - ✅ **Knowledge Graph Finalized**: Constructed 863-node graphify KG across 189 functional communities.
 - ✅ **Adaptive Retrieval**: Implemented distance-based expansion gating (threshold 0.55) to bypass expensive LLM steps.
 - ✅ **Semantic Tagging**: Integrated KG community labels directamente into RAG context for better grounding.
+- ✅ **System Hardening & Cache Optimization**: Implemented status-based TTL, thread-safe Batfish operations, real-time failure reporting, and developed a 'brutal' mock test suite for comprehensive regression testing.
 
-**Next Action**: Perform final paper-scale benchmark runs with the ultra-efficient 16.4x+ GraphRAG pipeline.
+**Next Action**: Maintain system stability by running the 'brutal' mock test suite after every change, then proceed with final paper-scale benchmark runs with the ultra-efficient 16.4x+ GraphRAG pipeline.
 
 ---
 
@@ -56,6 +57,7 @@
 - **Adaptive Thresholding**: Pilot search distance > 0.55 triggers Multi-Query; otherwise, direct match is used.
 - **Dynamic Few-Shot Selection**: If `pilot_dist < 0.2`, skip few-shot. If `< 0.4`, include only 1 example.
 - **Lite-Path Heuristic**: Zero-RAG path for common administrative/boilerplate CLI tasks.
+- **Smart Cache Management**: Status-based TTL (30 days for success, 1 hour for failures) and surgical clearing (`--clear-failed`) to minimize LLM inference costs.
 
 ### 4. **Fail-Fast Configuration**
 - Uses `pydantic-settings` to validate environment variables and API keys immediately at startup.
@@ -138,16 +140,22 @@ RAG-NetTwin/
 # 1. Enter the environment
 devenv shell
 
-# 2. Run the main evaluation
-uv run python run_paper_eval.py --clear-cache
+# 2. Run the brutal mock test suite (mandatory after any code change)
+devenv shell pytest tests/test_brutal_system.py
 
-# 3. Run the retrieval benchmark
+# 3. Run the main evaluation (using optimized cache flags)
+uv run python run_paper_eval.py               # default: uses cache
+uv run python run_paper_eval.py --clear-failed # clears only failed entries
+uv run python run_paper_eval.py --re-validate  # re-runs validation without LLM calls
+uv run python run_paper_eval.py --clear-cache  # (use sparingly - clears all cache)
+
+# 4. Run the retrieval benchmark
 uv run python scripts/graph_retrieval_benchmark.py
 
-# 4. Generate/Update Knowledge Graph
+# 5. Generate/Update Knowledge Graph
 graphify update .
 
-# 5. Start the UI
+# 6. Start the UI
 uv run python ui/backend/app.py
 # (Then open ui/frontend/index.html)
 ```

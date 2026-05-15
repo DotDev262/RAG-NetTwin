@@ -6,7 +6,8 @@ from src.utils import setup_logger
 
 logger = setup_logger("CacheManager")
 
-CACHE_EXPIRY_DAYS = 7
+SUCCESS_TTL_DAYS = 30
+FAILURE_TTL_HOURS = 1
 
 
 class CacheManager:
@@ -18,6 +19,31 @@ class CacheManager:
         self.cache_dir = cache_dir
         os.makedirs(cache_dir, exist_ok=True)
 
+    def _is_expired(self, value: Dict[str, Any]) -> bool:
+        """
+        Check if a cache entry is expired based on its status.
+        """
+        if not isinstance(value, dict):
+            return True
+
+        ts = value.get("timestamp", "")
+        if not ts:
+            return True
+
+        try:
+            entry_time = datetime.fromisoformat(ts)
+            status = value.get("status", "ERROR")
+
+            # Determine TTL based on status
+            if status in ["PASS", "WARNING", "REJECT_FOR_MANUAL_REVIEW"]:
+                cutoff = datetime.now() - timedelta(days=SUCCESS_TTL_DAYS)
+            else:
+                cutoff = datetime.now() - timedelta(hours=FAILURE_TTL_HOURS)
+
+            return entry_time < cutoff
+        except (ValueError, TypeError):
+            return True
+
     def load_cache(self, filename: str) -> Dict[str, Any]:
         filepath = os.path.join(self.cache_dir, filename)
         if not os.path.exists(filepath):
@@ -27,21 +53,10 @@ class CacheManager:
             with open(filepath, "r") as f:
                 cache = json.load(f)
 
-            cutoff = datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS)
             filtered = {}
             for key, value in cache.items():
-                if isinstance(value, dict) and value.get("status") == "ERROR":
-                    continue
-
-                ts = value.get("timestamp", "") if isinstance(value, dict) else ""
-                if ts:
-                    try:
-                        entry_time = datetime.fromisoformat(ts)
-                        if entry_time > cutoff:
-                            filtered[key] = value
-                    except (ValueError, TypeError):
-                        # Skip entries with invalid timestamps
-                        pass
+                if not self._is_expired(value):
+                    filtered[key] = value
             return filtered
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Failed to load cache {filepath}: {e}")
@@ -73,14 +88,8 @@ class CacheManager:
             return None
 
         value = cache[key]
-        ts = value.get("timestamp", "")
-        if ts:
-            try:
-                entry_time = datetime.fromisoformat(ts)
-                if entry_time < datetime.now() - timedelta(days=CACHE_EXPIRY_DAYS):
-                    return None
-            except Exception:
-                pass
+        if self._is_expired(value):
+            return None
         return value
 
     def set(self, cache: Dict, key: str, value: Any, mode: Optional[str] = None):

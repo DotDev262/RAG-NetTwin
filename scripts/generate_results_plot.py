@@ -6,9 +6,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 import json
 import os
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # type: ignore
 import pandas as pd
-import seaborn as sns
+import seaborn as sns  # type: ignore
 
 # Set professional style
 sns.set_theme(style="whitegrid")

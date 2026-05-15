@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, cast
 import re
 import json
 from pydantic import BaseModel, Field
@@ -42,7 +42,13 @@ class MultiVendorCoordinator:
         # Maps intent parameters to their interoperability equivalents
         # Example: Cisco 'area' == Juniper 'area'
         self.interop_map = {
-            "ospf": ["area", "process_id", "hello_interval", "dead_interval", "wildcard_mask"],
+            "ospf": [
+                "area",
+                "process_id",
+                "hello_interval",
+                "dead_interval",
+                "wildcard_mask",
+            ],
             "bgp": ["local_as", "remote_as", "peer_group", "hold_time"],
             "vlan": ["vlan_id", "vlan_name"],
             "interface": ["mtu", "speed", "duplex", "subnet_mask"],
@@ -141,12 +147,15 @@ class MultiVendorCoordinator:
 
         try:
             device_info = [{"name": d.name, "vendor": d.vendor} for d in intent.devices]
-            plan = chain.invoke(
-                {
-                    "intent_text": intent.original_text,
-                    "params": json.dumps(intent.parameters),
-                    "devices": json.dumps(device_info),
-                }
+            plan = cast(
+                NetworkMasterPlan,
+                chain.invoke(
+                    {
+                        "intent_text": intent.original_text,
+                        "params": json.dumps(intent.parameters),
+                        "devices": json.dumps(device_info),
+                    }
+                ),
             )
             return plan
         except Exception as e:

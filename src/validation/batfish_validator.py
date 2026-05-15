@@ -25,11 +25,10 @@ Note:
     If Batfish is unavailable, the validator returns SKIPPED status.
 """
 
-import os
 import tempfile
 import shutil
 import json
-import time
+import uuid
 from pathlib import Path
 from pybatfish.client.session import Session
 from typing import Dict, Any
@@ -109,40 +108,20 @@ class BatfishValidator(NetworkValidator):
     def validate(self, configs: Dict[str, str], intent: Any = None) -> Dict[str, Any]:
         """
         Validates a set of network device configurations.
-
-        This method performs static analysis on network configurations
-        using Batfish. It creates a temporary snapshot, runs analysis
-        questions, and returns validation results with any issues found.
-
-        Args:
-            configs: Dictionary mapping hostname to configuration text.
-                Example: {"Router-A": "interface Gig0/1\n ip address ..."}
-            intent: Optional StructuredIntent for additional context.
-                Not used in Tier 1 validation.
-
-        Returns:
-            Dictionary containing:
-                - status: Validation result (PASS, FAIL, WARNING, etc.)
-                - tier: Always 1 for this validator
-                - issues: List of issue dicts with type, severity, details
-                - snapshot_id: Batfish snapshot identifier (for debugging)
-                - summary: Human-readable summary of results
-                - error: Error message if status is ERROR
-
-        Note:
-            If Batfish is not available, returns {"status": "SKIPPED", ...}
-            with a message instructing user to start Batfish via Docker.
         """
-        # Generate unique network and snapshot names (Fix 2: Prevent state leakage)
-        network_name = f"rag_net_{int(time.time())}_{os.getpid()}"
-        snapshot_name = f"snapshot_{os.getpid()}"
-
-        # Return skipped status if Batfish is not available
-        if not self.session:
+        # Create a local session for thread safety (Pybatfish Sessions are not thread-safe)
+        try:
+            session = Session(host=self.host)
+        except Exception as e:
             return {
                 "status": "SKIPPED",
-                "message": "Batfish service not available. Ensure Batfish is running (Docker).",
+                "message": f"Could not connect to Batfish service: {e}",
             }
+
+        # Generate unique network and snapshot names (Fix 2: Prevent state leakage)
+        unique_id = str(uuid.uuid4())[:8]
+        network_name = f"rag_net_{unique_id}"
+        snapshot_name = f"snapshot_{unique_id}"
 
         # Clean configs: Remove LLM-generated labels/comments that break parsing
         # Batfish is strict about config format - these labels cause parse failures
@@ -171,47 +150,49 @@ class BatfishValidator(NetworkValidator):
 
             # Write each config with appropriate file extension
             for hostname, config_text in cleaned_configs.items():
-                # Handle unnamed devices (hostname is None)
                 if hostname is None:
                     hostname = "unnamed_device"
 
-                # Sanitize hostname to prevent directory traversal or path errors
                 safe_hostname = hostname.replace("/", "_").replace("\\", "_")
 
-                # Detect vendor from src.config content (Fix 4: Robust Vendor Detection)
-                # Ignore comment lines for vendor detection
-                lines_for_detection = [
-                    l.strip()
-                    for l in config_text.splitlines()
-                    if l.strip() and not l.strip().startswith(("!", "#"))
+                # Robust Vendor Detection (Recommendation 2)
+                # Check for Junos-specific 'set' or 'hierarchy' patterns
+                is_juniper = (
+                    any(
+                        line.strip().startswith(
+                            ("set ", "delete ", "edit ", "replace ", "show ")
+                        )
+                        for line in config_text.splitlines()
+                    )
+                    or "{" in config_text
+                )
+
+                # Force Juniper if it looks like Junos set commands
+                if not is_juniper and "set protocols" in config_text.lower():
+                    is_juniper = True
+
+                header = "#\n" if is_juniper else "!\n"
+                # Ensure the header is the VERY first thing in the file
+                clean_lines = [
+                    line for line in config_text.splitlines() if line.strip()
                 ]
 
-                is_juniper = any(
-                    any(
-                        l.startswith(prefix)
-                        for prefix in [
-                            "set ",
-                            "firewall",
-                            "protocols ",
-                            "interfaces ",
-                            "routing-options",
-                            "policy-options",
-                            "security ",
-                            "system ",
-                            "chassis ",
-                            "forwarding-options",
-                            "groups ",
-                            "logical-systems",
-                            "bridge-domains",
-                            "routing-instances",
-                        ]
-                    )
-                    for l in lines_for_detection
-                ) or any(l.endswith("{") for l in lines_for_detection[:10])
+                if not clean_lines:
+                    config_text = header
+                else:
+                    # Cisco Stabilization: Add 'end' if missing and not Juniper
+                    if not is_juniper and clean_lines[-1].strip().lower() != "end":
+                        clean_lines.append("end")
 
-                # Set appropriate extension:
-                # - Juniper: .conf (Batfish recognizes set commands)
-                # - Cisco: .cfg
+                    if not clean_lines[0].startswith(("#", "!")):
+                        config_text = header + "\n".join(clean_lines)
+                    else:
+                        config_text = "\n".join(clean_lines)
+
+                # Ensure trailing newlines (at least 2) to prevent Batfish EOF parser issues
+                if not config_text.endswith("\n\n"):
+                    config_text = config_text.rstrip() + "\n\n"
+
                 if is_juniper:
                     safe_hostname = safe_hostname.replace(".cfg", "") + ".conf"
                 elif not safe_hostname.endswith(".cfg"):
@@ -221,14 +202,14 @@ class BatfishValidator(NetworkValidator):
                     f.write(config_text)
 
             # Step 2: Initialize Network and Snapshot in Batfish
-            self.session.set_network(network_name)
-            self.session.init_snapshot(temp_dir, name=snapshot_name, overwrite=True)
+            session.set_network(network_name)
+            session.init_snapshot(temp_dir, name=snapshot_name, overwrite=True)
 
             # Step 3: Run Analysis Questions
             issues = []
 
             # Check for configuration parsing issues
-            parse_status = self.session.q.initIssues().answer().frame()
+            parse_status = session.q.initIssues().answer().frame()  # type: ignore
             if not parse_status.empty:
                 for _, row in parse_status.iterrows():
                     # Safely extract values from the dataframe
@@ -287,7 +268,7 @@ class BatfishValidator(NetworkValidator):
                     )
 
             # Check for undefined references (e.g., referenced but not defined)
-            undefined = self.session.q.undefinedReferences().answer().frame()
+            undefined = session.q.undefinedReferences().answer().frame()  # type: ignore
             if not undefined.empty:
                 for _, row in undefined.iterrows():
                     struct_type = str(row.get("Structure_Type", "Unknown"))
@@ -366,9 +347,9 @@ class BatfishValidator(NetworkValidator):
         finally:
             # Always clean up temporary directory and Batfish network (Fix 2)
             shutil.rmtree(temp_dir)
-            if self.session:
+            if "session" in locals() and session:
                 try:
-                    self.session.delete_network(network_name)
+                    session.delete_network(network_name)
                 except Exception:
                     pass
 

@@ -57,18 +57,8 @@ def main():
 
     # Validate LLM configuration before starting
     # This ensures API keys are present for the selected provider
-    try:
-        settings.validate_config()
-        logger.info(f"Using LLM provider: {settings.llm_provider}")
-        print(f"\n✓ LLM Provider: {settings.llm_provider}")
-    except ValueError as e:
-        logger.critical(f"LLM Configuration Error: {e}")
-        print(f"\n[!] Configuration Error: {e}")
-        print("\nPlease set the appropriate API key in your .env file:")
-        print("  - For Groq: GROQ_API_KEY")
-        print("  - For Gemini: GEMINI_API_KEY")
-        print(f"\nCurrent provider setting: {settings.llm_provider}")
-        return
+    logger.info(f"Using LLM provider: {settings.llm_provider}")
+    print(f"\n✓ LLM Provider: {settings.llm_provider}")
 
     # Initialize core components
     # IntentParser: Converts NL to StructuredIntent

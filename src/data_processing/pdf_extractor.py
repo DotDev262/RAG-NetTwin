@@ -14,7 +14,8 @@ import os
 import tempfile
 from pathlib import Path
 from typing import List, Dict, Any
-from opendataloader_pdf import convert
+from opendataloader_pdf import convert  # type: ignore
+
 from src.utils import setup_logger
 
 logger = setup_logger("PDFExtractor")

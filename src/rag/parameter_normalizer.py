@@ -71,6 +71,14 @@ class ParameterNormalizer:
                     )
 
         if not hints:
-            return ""
+            # Fallback to generic defaults if no specific hints (Fix F17: Generic Defaults)
+            if vendor == "cisco":
+                hints.append(
+                    "Defaults: Use 'GigabitEthernet0/1' for interfaces if none specified."
+                )
+            elif vendor == "juniper":
+                hints.append(
+                    "Defaults: Use 'ge-0/0/0' for interfaces if none specified."
+                )
 
         return "\n### SYNTACTIC FORMATTING HINTS ###\n" + "\n".join(hints) + "\n"

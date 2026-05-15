@@ -1,1 +1,0 @@
-{"nodes": [{"id": "quick_eval", "label": "Quick Evaluation Script", "file_type": "code", "source_file": "scripts/quick_eval.py"}], "edges": [{"source": "quick_eval", "target": "papereval_evaluator", "relation": "semantically_similar_to", "confidence": "INFERRED", "confidence_score": 0.9, "source_file": "scripts/quick_eval.py"}], "hyperedges": []}

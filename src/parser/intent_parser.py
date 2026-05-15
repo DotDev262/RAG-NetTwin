@@ -3,11 +3,11 @@ import json
 import time
 import hashlib
 import threading
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
 from src.llm import LLMProvider
-import dspy
+import dspy  # type: ignore
 from src.schemas.intent import StructuredIntent, BatchStructuredIntent, ActionType
 from src.parser.inventory_resolver import InventoryResolver
 from src.rag.vector_store import VectorStore
@@ -22,24 +22,32 @@ INTENT_CACHE_FILE = "data/processed/intent_cache.json"
 
 class IntentSignature(dspy.Signature):
     """
-    Translate a natural language network intent into a structured JSON-like format.
+    Translate a natural language network intent into a structured format.
     You must identify the protocol, action, target devices, and all critical parameters.
+    - action and protocol: plain string values, do NOT wrap in a JSON object.
+    - devices: JSON array of objects.
+    - parameters: JSON object.
+    - requirements: JSON array of strings.
     """
 
     intent = dspy.InputField(desc="The natural language intent from the user.")
     context = dspy.InputField(desc="Relevant examples or documentation snippets.")
 
-    protocol = dspy.OutputField(desc="Primary network protocol (e.g., OSPF, BGP).")
+    protocol = dspy.OutputField(
+        desc="Primary network protocol (e.g., OSPF, BGP). Plain string value only."
+    )
     action = dspy.OutputField(
-        desc="Allowed values: 'create', 'update', 'delete', 'apply', 'add', 'remove', 'verify', etc."
+        desc="Action: one of 'create', 'update', 'delete', 'enable', 'disable', 'configure', 'set', 'show', 'verify', 'monitor', 'apply', 'add', 'remove'. Plain string value only, do NOT wrap in JSON."
     )
     devices = dspy.OutputField(
-        desc="List of devices with 'name', 'vendor', and 'os_type'."
+        desc="JSON array of device objects. CRITICAL: Do NOT use interface names (e.g., Gig0/1, ge-0/0/0) as device names. If no device name is mentioned, use 'Device'. Example: [{'name': 'Router1', 'vendor': 'cisco', 'os_type': 'ios-xe'}]."
     )
     parameters = dspy.OutputField(
-        desc="Dictionary of key-value parameters (e.g., area, as_number)."
+        desc="JSON object of ALL mentioned parameters. CRITICAL: MUST be a valid JSON dictionary object, NOT a string representation. Example: {'interface': 'Gig0/1', 'acl': '101'}."
     )
-    requirements = dspy.OutputField(desc="List of constraints (e.g., no_downtime).")
+    requirements = dspy.OutputField(
+        desc="JSON array of string constraints. CRITICAL: MUST be a valid JSON list, NOT a string representation. Example: ['no_downtime', 'secure_access']."
+    )
 
 
 class DSPyIntentParser(dspy.Module):
@@ -56,10 +64,14 @@ class IntentParser:
 
     # Shared vendor detection instructions for consistency
     VENDOR_DETECTION_INSTRUCTIONS = """
-IMPORTANT VENDOR DETECTION:
+IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
 - If the text mentions multiple vendors (e.g. "between Cisco and Juniper"), you MUST create separate device objects for each vendor.
-- If a device name is mentioned (e.g. Router-A), try to infer its vendor from the surrounding text or the inventory context.
-- Default to "cisco" only if NO other vendor is mentioned in the entire intent.
+- CRITICAL: Do NOT use interface names (e.g., Gig0/1, ge-0/0/0, Serial1) as device names. 
+- If an intent says "Configure X on interface Y", the device name is "Device" (or specific name if given) and "interface": "Y" goes in parameters.
+- VENDOR HEURISTICS:
+    * If interface starts with 'GigabitEthernet', 'FastEthernet', 'TenGigabitEthernet', 'Serial', 'Gig', 'Fa', 'Te', it is likely "cisco".
+    * If interface starts with 'ge-', 'xe-', 'et-', 'fe-', 'ae', it is likely "juniper".
+- Default to "cisco" only if NO other vendor or heuristic is matched.
 - Use "cisco" for IOS, IOS-XE, NX-OS.
 - Use "juniper" for JunOS, MX, EX, QFX.
 """
@@ -134,8 +146,13 @@ IMPORTANT VENDOR DETECTION:
                     )
                     # Fallback to sequential for this chunk only
                     for j, text in enumerate(chunk_texts):
-                        time.sleep(1.0)  # Add delay to avoid rate limiting during fallback
-                        all_intents_map[start_idx + j] = self.parse(text)
+                        time.sleep(
+                            1.0
+                        )  # Add delay to avoid rate limiting during fallback
+                        # Fix F12: Disable retries here since _parse_chunk already retried
+                        all_intents_map[start_idx + j] = self.parse(
+                            text, use_retry=False
+                        )
 
         return [all_intents_map[i] for i in range(len(texts))]
 
@@ -197,7 +214,10 @@ RULES:
 
         input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(to_parse_texts)])
         chain = prompt | self.batch_llm
-        batch_result = chain.invoke({"input_list": input_list, "num": count})
+        batch_result = cast(
+            BatchStructuredIntent,
+            chain.invoke({"input_list": input_list, "num": count}),
+        )
 
         if len(batch_result.intents) != count:
             raise ValueError(
@@ -225,7 +245,7 @@ RULES:
         self._save_cache()
         return [results[i] for i in range(len(texts))]
 
-    def parse(self, text: str) -> StructuredIntent:
+    def parse(self, text: str, use_retry: bool = True) -> StructuredIntent:
         """Translates NL text to StructuredIntent object using DSPy."""
         # 1. Check Local Cache (Hash-based)
         text_hash = hashlib.sha256(text.encode()).hexdigest()
@@ -253,10 +273,10 @@ RULES:
         # 3. Use Compiled DSPy Logic
         try:
             # Wrap the actual DSPy call with retry logic
-            result = self._dspy_parse(text, examples_str)
+            result = self._dspy_parse(text, examples_str, use_retry=use_retry)
         except Exception as e:
             logger.error(f"DSPy parsing failed: {e}. Falling back to standard LLM.")
-            result = self._legacy_parse(text, examples_str)
+            result = self._legacy_parse(text, examples_str, use_retry=use_retry)
 
         # Assign unique ID
         if not result.intent_id:
@@ -273,12 +293,24 @@ RULES:
 
         return result
 
+    def _dspy_parse(
+        self, text: str, examples_str: str, use_retry: bool = True
+    ) -> StructuredIntent:
+        """Internal DSPy call with optional retry logic."""
+        if use_retry:
+            return self._dspy_parse_with_retry(text, examples_str)
+        return self._dspy_parse_raw(text, examples_str)
+
     @with_retry(max_retries=5)
-    def _dspy_parse(self, text: str, examples_str: str) -> StructuredIntent:
-        """Internal DSPy call with retry logic."""
+    def _dspy_parse_with_retry(self, text: str, examples_str: str) -> StructuredIntent:
+        return self._dspy_parse_raw(text, examples_str)
+
+    def _dspy_parse_raw(self, text: str, examples_str: str) -> StructuredIntent:
+        """Internal DSPy call without retry logic."""
         response = self.dspy_parser(intent=text, context=examples_str)
 
         # Helper to safely parse lists/dicts from strings
+        import json
         import ast
 
         def safe_eval(val, default_type):
@@ -287,18 +319,82 @@ RULES:
 
             parsed = val
             if isinstance(val, str):
+                cleaned_val = val.replace("```json", "").replace("```", "").strip()
+                # Remove common conversational prefixes
+                if (
+                    ":" in cleaned_val
+                    and "{" not in cleaned_val[: cleaned_val.find(":")]
+                ):
+                    # Might be "devices: [...]"
+                    cleaned_val = cleaned_val[cleaned_val.find(":") + 1 :].strip()
+
                 try:
+                    # Try json first
                     # Clean up common LLM string artifacts
-                    cleaned_val = val.replace("```json", "").replace("```", "").strip()
-                    parsed = ast.literal_eval(cleaned_val)
+                    cleaned_val = (
+                        cleaned_val.replace("True", "true")
+                        .replace("False", "false")
+                        .replace("None", "null")
+                    )
+                    # Fix F13: If it looks like a Python dict but should be JSON (e.g. ' instead of ")
+                    if "'" in cleaned_val and '"' not in cleaned_val:
+                        # Very crude heuristic to flip quotes for JSON compatibility if it's not already valid JSON
+                        try:
+                            json.loads(cleaned_val)
+                        except Exception:
+                            # If not valid JSON, it's likely a Python string representation
+                            # We'll let ast.literal_eval handle it in the next block
+                            pass
+
+                    parsed = json.loads(cleaned_val)
                 except Exception:
-                    parsed = val
+                    try:
+                        # Try ast.literal_eval for Python-like strings
+                        # This is much safer for strings like "{'key': 'val'}"
+                        parsed = ast.literal_eval(cleaned_val)
+                    except Exception:
+                        # Fallback to a very basic split if it looks like a simple list
+                        if cleaned_val.startswith("[") and cleaned_val.endswith("]"):
+                            items = cleaned_val[1:-1].split(",")
+                            parsed = [
+                                i.strip().strip("'").strip('"')
+                                for i in items
+                                if i.strip()
+                            ]
+                        else:
+                            parsed = cleaned_val
+
+            # Defensive: LLM sometimes wraps plain values in {"action": "create"} etc.
+            if (
+                isinstance(parsed, dict)
+                and not isinstance(default_type, dict)
+                and not isinstance(default_type, list)
+            ):
+                if len(parsed) == 1:
+                    parsed = list(parsed.values())[0]
+                else:
+                    parsed = max(
+                        (v for v in parsed.values() if isinstance(v, str)),
+                        default=str(parsed),
+                    )
 
             # If we expect a list but got a single item (dict or string)
             if isinstance(default_type, list):
                 if not isinstance(parsed, list):
                     parsed = [parsed] if parsed else []
-                
+
+                # Further check: if it's a list of strings that look like dicts
+                processed_list = []
+                for item in parsed:
+                    if isinstance(item, str) and "{" in item and ":" in item:
+                        try:
+                            processed_list.append(ast.literal_eval(item))
+                        except Exception:
+                            processed_list.append(item)
+                    else:
+                        processed_list.append(item)
+                parsed = processed_list
+
                 # Robust conversion of items to strings if required
                 if default_type and isinstance(default_type[0], str):
                     stringified = []
@@ -314,8 +410,8 @@ RULES:
 
         intent = StructuredIntent(
             original_text=text,
-            protocol=response.protocol,
-            action=response.action,
+            protocol=safe_eval(response.protocol, ""),
+            action=safe_eval(response.action, ActionType.CONFIGURE),
             devices=safe_eval(response.devices, [{}]),
             parameters=safe_eval(response.parameters, {}),
             requirements=safe_eval(response.requirements, [""]),
@@ -323,9 +419,22 @@ RULES:
         self._resolve_device_metadata(intent)
         return intent
 
+    def _legacy_parse(
+        self, text: str, examples_str: str, use_retry: bool = True
+    ) -> StructuredIntent:
+        """Original LangChain-based parsing logic (Fallback) with optional retry logic."""
+        if use_retry:
+            return self._legacy_parse_with_retry(text, examples_str)
+        return self._legacy_parse_raw(text, examples_str)
+
     @with_retry(max_retries=5)
-    def _legacy_parse(self, text: str, examples_str: str) -> StructuredIntent:
-        """Original LangChain-based parsing logic (Fallback) with retry logic."""
+    def _legacy_parse_with_retry(
+        self, text: str, examples_str: str
+    ) -> StructuredIntent:
+        return self._legacy_parse_raw(text, examples_str)
+
+    def _legacy_parse_raw(self, text: str, examples_str: str) -> StructuredIntent:
+        """Original LangChain-based parsing logic without retry logic."""
         actions_str = ", ".join([f"'{action.value}'" for action in ActionType])
         system_prompt = f"""You are a network automation expert. Translate the following natural language intent into a structured JSON format for Intent-Based Networking.
 
@@ -346,7 +455,7 @@ Populate the 'requirements' list with any relevant constraints.
         )
 
         chain = prompt | self.structured_llm
-        intent = chain.invoke({"input": text})
+        intent = cast(StructuredIntent, chain.invoke({"input": text}))
 
         intent.original_text = text
         self._resolve_device_metadata(intent)

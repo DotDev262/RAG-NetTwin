@@ -152,7 +152,7 @@ class InventoryResolver:
             "found_in_inventory": False,
         }
 
-    def _query_live_device(self, hostname: str) -> Dict[str, str]:
+    def _query_live_device(self, hostname: str) -> Dict[str, Any]:
         """
         Uses NAPALM to fetch real version info from a device.
 
@@ -179,7 +179,7 @@ class InventoryResolver:
             Requires NAPALM_USERNAME and NAPALM_PASSWORD environment variables.
             Optionally NAPALM_PORT can be set (default 22).
         """
-        import napalm
+        import napalm  # type: ignore
 
         # Determine driver from hostname suffix or default to 'ios'
         # .j suffix typically indicates Juniper

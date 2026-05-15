@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+from typing import Any, cast
 import sys
+import warnings
+import os
 
 sys.path.insert(0, "src")
-import warnings
-
 warnings.filterwarnings("ignore")
 
 import json  # noqa: E402
@@ -11,7 +12,6 @@ from sentence_transformers import SentenceTransformer  # noqa: E402
 import chromadb  # noqa: E402
 from chromadb.config import Settings  # noqa: E402
 from src.config import settings  # noqa: E402
-import os  # noqa: E402
 
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["HF_HUB_DISABLE_IMPLICIT_WEB"] = "1"
@@ -68,7 +68,10 @@ for i in range(0, len(chunks), batch_size):
 
     # Add to collection with explicit embeddings
     collection.add(
-        ids=ids, documents=texts, metadatas=metadatas, embeddings=embeddings.tolist()
+        ids=ids,
+        documents=texts,
+        metadatas=cast(Any, metadatas),
+        embeddings=embeddings.tolist(),
     )
 
     if (i + batch_size) % 500 == 0 or i + batch_size >= len(chunks):
