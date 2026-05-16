@@ -673,7 +673,7 @@ class ConfigGenerator:
 
                 # Check if we should stop refinement (PASS/WARNING are acceptable)
                 has_critical_issues = False
-                if val_res["status"] == "FAIL":
+                if val_res["status"] in ["FAIL", "REJECT_FOR_MANUAL_REVIEW"]:
                     # Filter out purely informational or ignored gaps
                     remaining_issues = [
                         i
@@ -724,6 +724,11 @@ class ConfigGenerator:
                     vendor=device.vendor,
                     os_version=device.os_version,
                 )
+
+            # Final post-processing (Recommendation 5)
+            current_config = ParameterNormalizer.post_process_config(
+                current_config, vendor=device.vendor
+            )
 
             return {
                 "device_name": device.name,

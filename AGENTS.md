@@ -3,7 +3,7 @@
 **Project Name**: Hallucination-Mitigated Intent-Based Networking (RAG-NetTwin)  
 **Type**: B.Tech Final Year Project with Journal Publication Goal  
 **Timeline**: 10 Months (5 months implementation + 5 months paper)  
-**Last Updated**: May 11, 2026  
+**Last Updated**: May 15, 2026  
 
 ---
 
@@ -11,8 +11,8 @@
 
 **Objective**: Build a system that generates network configurations from natural language intents while minimizing LLM hallucinations through RAG + multi-tier validation.
 
-**Key Innovation**: OS Version-Locked RAG with Three-Tier Validation and Hierarchical Graph-Augmented Retrieval.  
-**Target**: <2% hallucination rate (Current: 5.7% with strict gating)
+**Key Innovation**: OS Version-Locked RAG with **Zero-Tolerance Hallucination Refinement**, Three-Tier Validation, and Hierarchical Graph-Augmented Retrieval.  
+**Target**: <2% hallucination rate (Current: 8.6% with N=35 baseline)
 
 **Core Components**:
 1. **Hierarchical GraphRAG**: Uses a knowledge graph to expand context from syntax seeds to hierarchical parents and siblings.
@@ -25,19 +25,20 @@
 
 ## 📋 CURRENT STATUS
 
-**Phase**: Final Paper Drafting & Graph-Driven Analysis  
-**Last Updated**: May 11, 2026
+**Phase**: Final Paper Drafting & Evaluation Hardening  
+**Last Updated**: May 15, 2026
 
 **Recent Milestones**:
+- ✅ **Zero-Tolerance Hallucination Loop**: Integrated real-time auditing and refinement into the generation cycle.
+- ✅ **Multi-Vendor Digital Twin**: Hardened GNS3 support for Juniper Junos with vendor-specific navigation.
+- ✅ **Syntactic Post-Processing**: Automated CIDR-to-Mask conversion for Cisco static routes.
+- ✅ **Codebase Release-Ready**: Organized repository into dedicated `benchmarks/`, `notebooks/`, and `paper-analysis/` for publication.
 - ✅ **16.4x Token Reduction**: Achieved massive efficiency gain via God Node pruning and community budgeting.
 - ✅ **Dynamic Few-Shot Gating**: Implemented confidence-based gating (0, 1, or 2 examples) based on pilot search distance.
-- ✅ **Hardened Lite-RAG Path**: Expanded heuristic to bypass RAG for boilerplate tasks (NTP, Logging, Hostname, Interface Enable).
-- ✅ **Knowledge Graph Finalized**: Constructed 863-node graphify KG across 189 functional communities.
-- ✅ **Adaptive Retrieval**: Implemented distance-based expansion gating (threshold 0.55) to bypass expensive LLM steps.
-- ✅ **Semantic Tagging**: Integrated KG community labels directamente into RAG context for better grounding.
-- ✅ **System Hardening & Cache Optimization**: Implemented status-based TTL, thread-safe Batfish operations, real-time failure reporting, and developed a 'brutal' mock test suite for comprehensive regression testing.
+- ✅ **Knowledge Graph Finalized**: Constructed 1334-node graphify KG across 162 functional communities.
+- ✅ **System Hardening**: Increased rate-limit resilience (10x retries) and implemented numeric boundary verification in the detector.
 
-**Next Action**: Maintain system stability by running the 'brutal' mock test suite after every change, then proceed with final paper-scale benchmark runs with the ultra-efficient 16.4x+ GraphRAG pipeline.
+**Next Action**: Execute final paper-scale evaluation run with the hardened GNS3/Juniper logic and the zero-tolerance refinement loop.
 
 ---
 
@@ -50,14 +51,13 @@
 ### 2. **"Strict Grounding" Policy**
 - **Incompleteness over Fabrication**: Instruct model to omit commands rather than invent syntax.
 - **Citation Gating**: Every generated block must map back to a verified `source_file` in the KG.
+- **Refinement Gating**: REJECT_FOR_MANUAL_REVIEW (parsing issues) now triggers the LLM refinement loop.
 
 ### 3. **Graph-Driven Token Efficiency**
 - **God Node Pruning**: Filter high-degree hubs (e.g., `VectorStore`) to prevent context explosion.
 - **Community Budgeting**: Strict limit of 15 additional chunks per community expansion.
 - **Adaptive Thresholding**: Pilot search distance > 0.55 triggers Multi-Query; otherwise, direct match is used.
-- **Dynamic Few-Shot Selection**: If `pilot_dist < 0.2`, skip few-shot. If `< 0.4`, include only 1 example.
 - **Lite-Path Heuristic**: Zero-RAG path for common administrative/boilerplate CLI tasks.
-- **Smart Cache Management**: Status-based TTL (30 days for success, 1 hour for failures) and surgical clearing (`--clear-failed`) to minimize LLM inference costs.
 
 ### 4. **Fail-Fast Configuration**
 - Uses `pydantic-settings` to validate environment variables and API keys immediately at startup.
@@ -85,6 +85,9 @@
 
 ```
 RAG-NetTwin/
+├── benchmarks/         # Performance comparison scripts
+├── notebooks/          # Google Colab reproduction notebooks
+├── paper-analysis/     # Scripts for generating paper figures/tables
 ├── src/
 │   ├── schemas/           # Pydantic models (Intent, Device, etc.)
 │   ├── rag/               # VectorStore, QueryExpander, Normalizer, Coordinator
@@ -96,8 +99,8 @@ RAG-NetTwin/
 ├── ui/
 │   ├── frontend/          # index.html (Visual Grounding Dashboard)
 │   └── backend/           # FastAPI app.py
-├── scripts/               # Benchmarks and seeding scripts
-├── graphify-out/          # Knowledge Graph assets (863 nodes, 189 communities)
+├── scripts/               # Essential setup and seeding scripts
+├── graphify-out/          # Knowledge Graph assets (1334 nodes, 162 communities)
 └── devenv.nix             # Nix-based environment config
 ```
 
@@ -110,9 +113,9 @@ RAG-NetTwin/
 | Mode | Strict SV | PEA (Parameter) | GNS3 CAR | Hallucination |
 |------|-----------|-----------------|----------|---------------|
 | Vanilla LLM | 74.3% | 80.0% | 0.0% | 25.7% |
-| **RAG-NetTwin** | **80.0%** | **94.3%** | **100.0%** | **5.7%** |
+| **RAG-NetTwin** | **77.1%** | **97.1%** | **48.4%** | **8.6%** |
 
-*Note: PEA reached 100% in hardening tests. 16.4x token reduction achieved via GraphRAG optimizations.*
+*Note: Strict SV reflects Batfish "PASS/WARNING". GNS3 CAR reflects hardware command acceptance. Recent hardening targets 0% GNS3 failures.*
 
 ### Retrieval Benchmarks (GraphRAG vs Baseline)
 
@@ -127,9 +130,9 @@ RAG-NetTwin/
 ## 💡 KEY RESEARCH INNOVATIONS
 
 1. **OS Version-Locked Retrieval**: Ensuring syntax matches specific firmware via `InventoryResolver`.
-2. **Deterministic Syntactic Verification Gate**: Tier 1 validation before any execution attempt.
-3. **Adaptive Community Anchoring**: Using KG community labels and budgeting to mitigate retrieval noise.
-4. **Dynamic Few-Shot Selection**: Confidence-aware example injection to minimize prompt overhead.
+2. **Zero-Tolerance Hallucination Refinement**: Multi-stage auditing that re-prompts the LLM upon detecting ungrounded params.
+3. **Deterministic Syntactic Verification Gate**: Tier 1 validation before any execution attempt.
+4. **Adaptive Community Anchoring**: Using KG community labels and budgeting to mitigate retrieval noise.
 5. **Config Acceptance Rate (CAR)**: Quantitative measurement of hardware-level syntax acceptance.
 
 ---
@@ -140,24 +143,17 @@ RAG-NetTwin/
 # 1. Enter the environment
 devenv shell
 
-# 2. Run the brutal mock test suite (mandatory after any code change)
-devenv shell pytest tests/test_brutal_system.py
+# 2. Run the main evaluation (using optimized cache flags)
+uv run python run_paper_eval.py --max-workers 1 --run-gns3
 
-# 3. Run the main evaluation (using optimized cache flags)
-uv run python run_paper_eval.py               # default: uses cache
-uv run python run_paper_eval.py --clear-failed # clears only failed entries
-uv run python run_paper_eval.py --re-validate  # re-runs validation without LLM calls
-uv run python run_paper_eval.py --clear-cache  # (use sparingly - clears all cache)
+# 3. Run the retrieval benchmark
+uv run python benchmarks/graph_retrieval_benchmark.py
 
-# 4. Run the retrieval benchmark
-uv run python scripts/graph_retrieval_benchmark.py
-
-# 5. Generate/Update Knowledge Graph
+# 4. Generate/Update Knowledge Graph
 graphify update .
 
-# 6. Start the UI
+# 5. Start the UI
 uv run python ui/backend/app.py
-# (Then open ui/frontend/index.html)
 ```
 
 ---

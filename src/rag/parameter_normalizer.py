@@ -82,3 +82,42 @@ class ParameterNormalizer:
                 )
 
         return "\n### SYNTACTIC FORMATTING HINTS ###\n" + "\n".join(hints) + "\n"
+
+    @staticmethod
+    def post_process_config(config: str, vendor: str) -> str:
+        """
+        Final pass to fix common syntactic errors that Batfish/GNS3 reject.
+        Example: Converting CIDR to Mask for Cisco static routes.
+        """
+        vendor = (vendor or "cisco").lower()
+        if vendor != "cisco":
+            return config
+
+        cidr_to_mask = {
+            "0": "0.0.0.0",
+            "8": "255.0.0.0",
+            "16": "255.255.0.0",
+            "24": "255.255.255.0",
+            "28": "255.255.255.240",
+            "30": "255.255.255.252",
+            "32": "255.255.255.255",
+        }
+
+        def replace_cidr(match):
+            ip = match.group(1)
+            prefix = match.group(2)
+            mask = cidr_to_mask.get(
+                prefix, "255.255.255.0"
+            )  # Default to /24 if unknown
+            return f"{ip} {mask}"
+
+        # Fix 'ip route 10.0.0.0/24 ...' -> 'ip route 10.0.0.0 255.255.255.0 ...'
+        # Matches 'ip route' followed by an IP/CIDR
+        processed = re.sub(
+            r"(ip route \d+\.\d+\.\d+\.\d+)/(\d+)",
+            replace_cidr,
+            config,
+            flags=re.IGNORECASE,
+        )
+
+        return processed

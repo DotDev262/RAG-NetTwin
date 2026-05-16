@@ -126,8 +126,18 @@ class GNS3Validator(NetworkValidator):
 
             for device_name, config in configs.items():
                 if device_name in nodes:
-                    logger.info(f"Pushing config to {device_name}...")
-                    node_stats = self._push_config_to_node(nodes[device_name], config)
+                    # Find vendor for this device
+                    vendor = "cisco"
+                    if intent and intent.devices:
+                        for dev in intent.devices:
+                            if dev.name == device_name:
+                                vendor = (dev.vendor or "cisco").lower()
+                                break
+
+                    logger.info(f"Pushing {vendor} config to {device_name}...")
+                    node_stats = self._push_config_to_node(
+                        nodes[device_name], config, vendor
+                    )
                     telnet_logs[device_name] = node_stats.get("telnet_log", [])
 
                     if node_stats["total"] > 0:
@@ -530,7 +540,9 @@ class GNS3Validator(NetworkValidator):
                 auth=self.auth,
             )
 
-    def _push_config_to_node(self, node_id: str, config: str) -> Dict[str, Any]:
+    def _push_config_to_node(
+        self, node_id: str, config: str, vendor: str = "cisco"
+    ) -> Dict[str, Any]:
         """Pushes configuration via Telnet and tracks command acceptance."""
         stats: Dict[str, Any] = {"total": 0, "accepted": 0, "telnet_log": []}
         try:
@@ -557,16 +569,24 @@ class GNS3Validator(NetworkValidator):
                 "Ambiguous command",
                 "syntax error",
                 "Invalid command",
+                "error: ",
             ]
 
-            tn = telnetlib.Telnet(console_host, console_port, timeout=10)
+            tn = telnetlib.Telnet(console_host, console_port, timeout=15)
             tn.write(b"\r\n")
             time.sleep(1)
 
-            # Navigation commands (not counted in CAR)
-            tn.write(b"enable\r\n")
-            tn.write(b"configure terminal\r\n")
-            tn.expect([b">", b"#"], timeout=5)  # type: ignore
+            # Vendor-specific navigation
+            if vendor == "juniper":
+                tn.write(b"cli\r\n")
+                time.sleep(0.5)
+                tn.write(b"configure\r\n")
+                tn.expect([b"Entering configuration mode", b"#"], timeout=5)  # type: ignore
+            else:
+                # Cisco/Default
+                tn.write(b"enable\r\n")
+                tn.write(b"configure terminal\r\n")
+                tn.expect([b"(config)#", b"#"], timeout=5)  # type: ignore
 
             for line in config.splitlines():
                 cmd = line.strip()
@@ -577,7 +597,8 @@ class GNS3Validator(NetworkValidator):
                 tn.write(cmd.encode("ascii") + b"\r\n")
 
                 # Check for errors after each command
-                idx, match, text = tn.expect([b">", b"#"], timeout=5)  # type: ignore
+                # Junos uses # as prompt in config mode, Cisco uses (config)#
+                idx, match, text = tn.expect([b"#", b">"], timeout=5)  # type: ignore
                 output = text.decode("ascii", errors="ignore")
 
                 accepted = not any(
@@ -586,19 +607,26 @@ class GNS3Validator(NetworkValidator):
                 if accepted:
                     stats["accepted"] += 1
                 else:
-                    logger.warning(f"GNS3 Reject: {cmd} | Output: {output.strip()}")
+                    logger.warning(
+                        f"GNS3 Reject ({vendor}): {cmd} | Output: {output.strip()}"
+                    )
 
                 # Deep Trace: Log everything
                 stats["telnet_log"].append(
                     {"command": cmd, "output": output.strip(), "accepted": accepted}
                 )
 
-            tn.write(b"end\r\n")
-            tn.write(b"write memory\r\n")
-            tn.expect([b">", b"#"], timeout=5)  # type: ignore
+            if vendor == "juniper":
+                tn.write(b"commit and-quit\r\n")
+                tn.expect([b"commit complete", b">"], timeout=20)  # type: ignore
+            else:
+                tn.write(b"end\r\n")
+                tn.write(b"write memory\r\n")
+                tn.expect([b"[OK]", b"#"], timeout=10)  # type: ignore
+
             tn.close()
 
             return stats
         except Exception as e:
-            logger.error(f"Config push failed: {e}")
+            logger.error(f"Config push failed for {vendor} node {node_id}: {e}")
             return stats

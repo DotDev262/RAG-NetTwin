@@ -268,7 +268,15 @@ class HallucinationDetector:
         # Add all tokens from grounding context to authorized values
         if grounding_context:
             for doc in grounding_context:
-                authorized_values.update(re.findall(r"\w+", doc.lower()))
+                # Extract words AND standalone numbers (including those with commas/dots)
+                # This ensures 16,384 in docs authorizes 16384 in config
+                tokens = re.findall(r"\b[\w\.\,]+\b", doc.lower())
+                for t in tokens:
+                    clean_t = t.replace(",", "").replace(" ", "").strip()
+                    authorized_values.add(clean_t)
+                    # Also add the original token if different
+                    if clean_t != t:
+                        authorized_values.add(t)
 
         def collect_values(d):
             if isinstance(d, dict):

@@ -2,59 +2,19 @@
   "2.4.0:tiered:Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24": {
     "scenario": "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
     "configs": {
-      "Device": "interface Gig1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 1 area 0.0.0.0\nrouter ospf 1\nnetwork 10.10.10.0 0.0.0.255 area 0\nip ospf database filter all"
+      "Device": "enable\nconfigure terminal\ninterface Gig1/0/1\nip address 10.10.10.1 255.255.255.0\nip ospf 109 area 0"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
     "car": 0.0,
     "is_multi_vendor": false,
     "master_plan": null,
-    "latency": 15.90470838546753,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ip ospf database filter all']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ip ospf database filter all"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": true,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101635_tiered_e778dc20.json",
-    "timestamp": "2026-05-15T10:59:59.613159",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
-    "scenario": "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6",
-    "configs": {
-      "Cisco": "router ospf 109\nredistribute eigrp 108 metric 100 subnets\ndefault-information originate metric 100 metric-type 1"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 17.935210704803467,
+    "latency": 25.13465166091919,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -68,6 +28,103 @@
     "cfr_failure": false,
     "retrieved_sources": [
       [
+        "cisco_interface_613bc1d200e39715",
+        "cisco_router-ospf_dcbe3908284fd95d"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "cisco_tier2_f8bff615ef83",
+        "cisco_tier2_4176cc53587d",
+        "cisco_router-ospf_dcbe3908284fd95d",
+        "cisco_interface_613bc1d200e39715",
+        "cisco_tier2_3be4e2c435b9",
+        "cisco_hostname_916147f76f11df55"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: cisco_router-ospf_dcbe3908284fd95d]\nCLI_SYNTAX:\nrouter ospf 109 redistribute eigrp 108 metric 100 subnets default-information originate metric 100 metric-type 1\n---\n[SOURCE_ID: cisco_hostname_916147f76f11df55]\nCLI_SYNTAX:\nhostname device123\n\nhostname Switch\n\n- 1. enable\n- 2. configure terminal\n- 3. username name privilege level password password\n- 4. aaa new-model\n- 5. aaa authentication login default local\n---\n[SOURCE_ID: cisco_interface_613bc1d200e39715]\nCLI_SYNTAX:\ninterface GigabitEthernet1/2/0 no ip address negotiation auto no cdp enable service-policy output Port-channel_1_main_policy channel-group 1\n\nno ip address negotiation auto service-policy output Port-channel_1_main_policy channel-group 1\n---\n[SOURCE_ID: cisco_tier2_4176cc53587d]\nCLI_SYNTAX:\n\nInterface parameters\n\nArea\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_094138_tiered_e778dc20.json",
+    "timestamp": "2026-05-16T10:43:35.450341",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable OSPF process 10 on all active interfaces for Juniper": {
+    "scenario": "Enable OSPF process 10 on all active interfaces for Juniper",
+    "configs": {
+      "Device": "set protocols ospf process-id 10 area 0.0.0.0 interface ge-0/0/0.0\nset protocols ospf process-id 10 area 0.0.0.0 interface ae1.0\nset protocols ospf process-id 10 area 0.0.0.0 interface ae2.0\nset protocols ospf process-id 10 area 0.0.0.0 interface lo0.0"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 10.410794496536255,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "juniper_ospf_b43598db014be851",
+        "juniper_interface_edcaa1cc593a0739"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "juniper_tier2_06cff4471d33",
+        "juniper_tier2_f61d96d3e268",
+        "juniper_interface_edcaa1cc593a0739",
+        "juniper_tier2_e8f33bb9aa41",
+        "juniper_ospf_b43598db014be851",
+        "juniper_interface_995c11aec0f0cbfd"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: juniper_interface_edcaa1cc593a0739]\nCLI_SYNTAX:\nset interfaces ae1 aggregated-ether-options minimum-links 1 set interfaces ae1 aggregated-ether-options lacp active set interfaces ae1 unit 0 vlan-id 16 set interfaces ae1 unit 0 family inet address 10.0.1.2/24 set interfaces ae2 vlan-tagging set interfaces ae2 aggregated-ether-options minimum-links 2 set interfaces ae2 aggregated-ether-options lacp active set interfaces ae2 unit 0 vlan-id 26\n\n- set interfaces ae2 unit 0 family inet address 10.2.2.2/24 set interfaces lo0 unit 0 family inet address 10.1.255.2/32 set routing-options router-id 10.1.255.2\n\n\n\n\n- set protocols ospf area 0.0.0.0 interface ae0.0\n- set protocols ospf area 0.0.0.0 interface ae1.0\n- set protocols ospf area 0.0.0.0 interface ae2.0 set protocols ospf area 0.0.0.0 interface lo0.0\nUSAGE_RULES:\n###### Example: Dynamically Adjusting OSPF Interface Metrics Based on Bandwidth\n---\n[SOURCE_ID: juniper_ospf_b43598db014be851]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.6 passive\n\nset policy-options policy-statement send-direct term 1 from protocol direct\n\nset policy-options policy-statement send-direct term 1 then accept\n\nset routing-options router-id 192.168.0.6\n\n- set routing-options autonomous-system 3\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_tier2_f61d96d3e268]\nCLI_SYNTAX:\ninterface all; interface fxp0.0 {\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_094257_tiered_60aaac4d.json",
+    "timestamp": "2026-05-16T10:43:36.386642",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6": {
+    "scenario": "Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6",
+    "configs": {
+      "Device": "router ospf 1\nrouter-id 1.1.1.1"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 6.729254722595215,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_tier2_a062187bab3f",
         "cisco_router-ospf_dcbe3908284fd95d"
       ]
     ],
@@ -84,544 +141,27 @@
     "retrieved_texts": [
       "[SOURCE_ID: cisco_tier2_87e63502e0d0]\nCLI_SYNTAX:\nrouter-id\n---\n[SOURCE_ID: cisco_router-bgp_5c33986062eca94f]\nCLI_SYNTAX:\nrouter bgp 577 bgp router-id 1.1.1.1 bgp log-neighbor-changes neighbor 203.0.113.1 remote-as 223 neighbor 203.0.113.1 description PEERING to PTNR neighbor 10.4.4.1 remote-as 577 neighbor 10.4.4.1 description PEEERING to VASI VRFA interface\n\nnetwork 203.0.113.1 mask 255.255.255.240 network 10.4.0.0 mask 255.255.0.0 network 209.165.200.224 mask 255.255.255.224 neighbor 203.0.113.1 activate neighbor 10.4.4.1 activate neighbor 10.4.4.1 next-hop-self exit-address-family\n\nbgp router-id 4.4.4.4 network 192.168.0.0 mask 255.255.255.248 network 10.4.0.0 mask 255.255.0.0 redistribute connected redistribute static neighbor 192.168.0.2 remote-as 65004 neighbor 192.168.0.2 fall-over bfd neighbor 192.168.0.2 activate neighbor 10.4.4.2 remote-as 577 neighbor 10.4.4.2 description PEERING to VASI Global intf neighbor 10.4.4.2 activate exit-address-family\n---\n[SOURCE_ID: cisco_interface_ef93d5f2de67641a]\nCLI_SYNTAX:\ninterface GigabitEthernet1/1/0 ser out ? % Unrecognized command ser ? % Unrecognized command\n---\n[SOURCE_ID: cisco_router-ospf_dcbe3908284fd95d]\nCLI_SYNTAX:\nrouter ospf 109 redistribute eigrp 108 metric 100 subnets default-information originate metric 100 metric-type 1\n---\n[SOURCE_ID: cisco_tier2_a062187bab3f]\nCLI_SYNTAX:\n\nrouter ospf process-id [vrf vrf-name] no router ospf process-id [vrf vrf-name]\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_101654_tiered_b7a5d38f.json",
-    "timestamp": "2026-05-15T11:00:00.445351",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
-    "scenario": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source",
-    "configs": {
-      "Device": "access-list BLOCK_WEB deny tcp any any eq 80"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 7.546877145767212,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101702_tiered_d0627600.json",
-    "timestamp": "2026-05-15T11:00:00.376114",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
-    "scenario": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8",
-    "configs": {
-      "Device": "set firewall family inet filter ft term 1 from protocol icmp\nset firewall family inet filter ft term 1 then discard",
-      "Juniper": "set firewall family inet filter ft term 1 from protocol icmp\nset firewall family inet filter ft term 1 then discard"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65001",
-          "id": "Device-1",
-          "ip_address": "10.0.0.1/24"
-        },
-        "Juniper": {
-          "as_number": "65001",
-          "id": "Juniper-1",
-          "ip_address": "10.0.0.2/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols",
-        "4. Firewall filter configuration"
-      ],
-      "rationale": "To ensure consistent IP addresses, AS numbers, and IDs for all devices, we propose the above parameters. Peer interfaces on the same link are in the same subnet (e.g. .1 and .2). The deployment sequence is defined to ensure functional correctness."
-    },
-    "latency": 44.07180571556091,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      },
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "juniper_firewall_d73d8d54751b4ca0"
-      ],
-      [
-        "juniper_firewall_d73d8d54751b4ca0"
-      ]
-    ],
-    "valid_source_ids": [
-      [
-        "juniper_tier2_bada8284ab0a",
-        "juniper_interface_28009ef7017e1c6f",
-        "juniper_tier2_f3c7c8814083",
-        "juniper_firewall_620c711e46147866",
-        "juniper_tier2_832ca60eebb7",
-        "juniper_firewall_d73d8d54751b4ca0"
-      ],
-      [
-        "juniper_tier2_bada8284ab0a",
-        "juniper_interface_28009ef7017e1c6f",
-        "juniper_tier2_f3c7c8814083",
-        "juniper_firewall_620c711e46147866",
-        "juniper_tier2_832ca60eebb7",
-        "juniper_firewall_d73d8d54751b4ca0"
-      ]
-    ],
-    "retrieved_texts": [
-      "[SOURCE_ID: juniper_tier2_832ca60eebb7]\nCLI_SYNTAX:\n\n- 1. Confirm the configuration of the firewall filter by entering the show firewall configuration mode command. If the command output does not display the intended configuration, repeat the instructions in this example to correct the configuration.\n---\n[SOURCE_ID: juniper_firewall_d73d8d54751b4ca0]\nCLI_SYNTAX:\nset firewall family inet filter ft term 1 from gtp-header gtp-teid 105\n\n- \u2022 firewall\u2014To view this statement in the configuration.\n- \u2022 firewall-control\u2014To add this statement to the configuration.\n---\n[SOURCE_ID: juniper_firewall_620c711e46147866]\nCLI_SYNTAX:\nset firewall family inet filter ip_options_filter term match_strict_source from ip-options strict-source-route set firewall family inet filter ip_options_filter term match_strict_source then count strict_source_route set firewall family inet filter ip_options_filter term match_strict_source then log set firewall family inet filter ip_options_filter term match_strict_source then accept set firewall family inet filter ip_options_filter term match_loose_source from ip-options loosesource-route set firewall family inet filter ip_options_filter term match_loose_source then count loose_source_route set firewall family inet filter ip_options_filter term match_loose_source then log set firewall family inet filter ip_options_filter term match_loose_source then accept set firewall family inet filter ip_options_filter term match_record from ip-options record-route set firewall family inet filter ip_options_filter term match_record then count record_route set firewall family inet filter ip_options_filter term match_record then accept set firewall family inet filter ip_options_filter term match_timestamp from ip-options timestamp set firewall family inet filter ip_options_filter term match_timestamp then count timestamp set firewall family inet filter ip_options_filter term match_timestamp then accept set firewall family inet filter ip_options_filter term match_router_alert from ip-options routeralert set firewall family inet filter ip_options_filter term match_router_alert then count router_alert set firewall family inet filter ip_options_filter term match_router_alert then accept set firewall family inet filter ip_options_filter term match_all then accept set interfaces ge-0/0/1 unit 0 family inet address 10.1.2.3/30 set interfaces ge-0/0/1 unit 0 family inet filter input ip_options_filter\n---\n[SOURCE_ID: juniper_interface_28009ef7017e1c6f]\nCLI_SYNTAX:\nset interfaces ge-0/1/0 description \"filter at egress router to\n---\n",
-      "[SOURCE_ID: juniper_tier2_832ca60eebb7]\nCLI_SYNTAX:\n\n- 1. Confirm the configuration of the firewall filter by entering the show firewall configuration mode command. If the command output does not display the intended configuration, repeat the instructions in this example to correct the configuration.\n---\n[SOURCE_ID: juniper_firewall_d73d8d54751b4ca0]\nCLI_SYNTAX:\nset firewall family inet filter ft term 1 from gtp-header gtp-teid 105\n\n- \u2022 firewall\u2014To view this statement in the configuration.\n- \u2022 firewall-control\u2014To add this statement to the configuration.\n---\n[SOURCE_ID: juniper_firewall_620c711e46147866]\nCLI_SYNTAX:\nset firewall family inet filter ip_options_filter term match_strict_source from ip-options strict-source-route set firewall family inet filter ip_options_filter term match_strict_source then count strict_source_route set firewall family inet filter ip_options_filter term match_strict_source then log set firewall family inet filter ip_options_filter term match_strict_source then accept set firewall family inet filter ip_options_filter term match_loose_source from ip-options loosesource-route set firewall family inet filter ip_options_filter term match_loose_source then count loose_source_route set firewall family inet filter ip_options_filter term match_loose_source then log set firewall family inet filter ip_options_filter term match_loose_source then accept set firewall family inet filter ip_options_filter term match_record from ip-options record-route set firewall family inet filter ip_options_filter term match_record then count record_route set firewall family inet filter ip_options_filter term match_record then accept set firewall family inet filter ip_options_filter term match_timestamp from ip-options timestamp set firewall family inet filter ip_options_filter term match_timestamp then count timestamp set firewall family inet filter ip_options_filter term match_timestamp then accept set firewall family inet filter ip_options_filter term match_router_alert from ip-options routeralert set firewall family inet filter ip_options_filter term match_router_alert then count router_alert set firewall family inet filter ip_options_filter term match_router_alert then accept set firewall family inet filter ip_options_filter term match_all then accept set interfaces ge-0/0/1 unit 0 family inet address 10.1.2.3/30 set interfaces ge-0/0/1 unit 0 family inet filter input ip_options_filter\n---\n[SOURCE_ID: juniper_interface_28009ef7017e1c6f]\nCLI_SYNTAX:\nset interfaces ge-0/1/0 description \"filter at egress router to\n---\n"
-    ],
-    "deep_trace_file": "results/traces/20260515_101746_tiered_4776275e.json",
-    "timestamp": "2026-05-15T11:00:00.531016",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
-    "scenario": "Apply access-list 101 inbound on interface GigabitEthernet0/1",
-    "configs": {
-      "Device": "access-list 101 permit ip any any\ninterface GigabitEthernet0/1\nip access-group 101 in"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 8.328366041183472,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101755_tiered_ea6b1776.json",
-    "timestamp": "2026-05-15T11:00:00.755604",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
-    "scenario": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco",
-    "configs": {
-      "Device": "ip access-list extended SSH_ACCESS\npermit ip 192.168.1.0 0.0.0.255\naccess-list 100 permit ip 192.168.1.0 0.0.0.255 255.255.255.0\nip ssh version 2\nip ssh source-interface loopback 0\nip ssh authentication-retries 3\nip ssh timeout authentication 60\nip ssh timeout idle 300\nip ssh timeout connection 60\nip ssh encryption aes 256\nip ssh key-exchange group dh-group14-sha1\nip ssh authentication-type password\nip ssh v2-compatible password\nip ssh server enable\nip ssh server address 192.168.1.1\naccess-list 100 deny ip any any\naccess-list 100 permit ip 192.168.1.0 0.0.0.255 255.255.255.0\nip access-group 100 in\nip access-group 100 out",
-      "Cisco": "ERROR"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "error": null,
-    "issues": [
-      {
-        "type": "PARSE_ISSUE",
-        "severity": "HIGH",
-        "details": "File unknown: This syntax is unrecognized at line: <EOF>"
-      },
-      {
-        "type": "EMPTY_CONFIG",
-        "severity": "HIGH",
-        "details": "Device Cisco produced no valid commands after cleaning"
-      }
-    ],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Cisco": {
-          "as_number": "65001",
-          "id": "Cisco-1",
-          "ip_address": "192.168.1.2/24"
-        },
-        "Device": {
-          "as_number": "65001",
-          "id": "Device-1",
-          "ip_address": "192.168.1.1/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure peer interfaces on the same link are in the same subnet, we assign IP addresses with a subnet mask. The deployment sequence is logical and ensures functional correctness by enabling interfaces, configuring IPs, and then routing protocols. SSH access is restricted to the 192.168.1.0/24 subnet on Cisco devices."
-    },
-    "latency": 37.984126806259155,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ip ssh source-interface loopback 0', 'ip ssh timeout idle 300', 'ip ssh timeout connection 60', 'ip ssh key-exchange group dh-group14-sha1', 'ip ssh authentication-type password', 'ip ssh v2-compatible password']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ip ssh source-interface loopback 0",
-          "ip ssh timeout idle 300",
-          "ip ssh timeout connection 60",
-          "ip ssh key-exchange group dh-group14-sha1",
-          "ip ssh authentication-type password",
-          "ip ssh v2-compatible password"
-        ],
-        "unauthorized_parameters": []
-      },
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ERROR']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ERROR"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ],
-      []
-    ],
-    "valid_source_ids": [
-      [],
-      []
-    ],
-    "retrieved_texts": [
-      "",
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101834_tiered_2afb886d.json",
-    "timestamp": "2026-05-15T11:00:00.976257",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Create a standard ACL 10 to permit only 10.1.1.0/24": {
-    "scenario": "Create a standard ACL 10 to permit only 10.1.1.0/24",
-    "configs": {
-      "Device": "access-list 10 permit 10.1.1.0 0.0.0.255"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 11.659117937088013,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101846_tiered_02398b42.json",
-    "timestamp": "2026-05-15T11:00:00.912103",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set description 'Uplink to Core' on interface Gig0/0": {
-    "scenario": "Set description 'Uplink to Core' on interface Gig0/0",
-    "configs": {
-      "Device": "interface Gig0/0\ndescription Uplink to Core"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65000",
-          "description": "Uplink to Core",
-          "device_id": "Device-1",
-          "interface": "Gig0/0",
-          "ip_address": "10.1.1.1/24",
-          "subnet_mask": "255.255.255.0"
-        },
-        "Device-2": {
-          "as_number": "65000",
-          "description": "Uplink to Core",
-          "device_id": "Device-2",
-          "interface": "Gig0/0",
-          "ip_address": "10.1.1.2/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. IP Configuration",
-        "3. Routing Protocols"
-      ],
-      "rationale": "To ensure consistent IP addresses, AS numbers, and IDs for all involved devices, and to follow the intent of setting the description on interface Gig0/0, the proposed parameters and deployment sequence are defined as above."
-    },
-    "latency": 39.292399883270264,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101925_tiered_af41623f.json",
-    "timestamp": "2026-05-15T11:00:01.444991",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure VLAN 100 named 'DATABASE' on Cisco switch": {
-    "scenario": "Configure VLAN 100 named 'DATABASE' on Cisco switch",
-    "configs": {
-      "Device": "set protocols vlan database 100"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 4.2442357540130615,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101930_tiered_fd389403.json",
-    "timestamp": "2026-05-15T11:00:01.288761",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Enable LLDP globally on a Juniper EX switch": {
-    "scenario": "Enable LLDP globally on a Juniper EX switch",
-    "configs": {
-      "Device": "set protocols lldp interface all\nset protocols lldp enable"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 7.08652138710022,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101937_tiered_2bd6e9e8.json",
-    "timestamp": "2026-05-15T11:00:01.352639",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
-    "scenario": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE",
-    "configs": {
-      "Device": "interface GigabitEthernet0/0\nmtu 9000"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 9.932043075561523,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE: Cisco IOS-XE interface configuration"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_101948_tiered_c9030ee0.json",
-    "timestamp": "2026-05-15T11:00:01.668562",
+    "deep_trace_file": "results/traces/20260516_094328_tiered_b7a5d38f.json",
+    "timestamp": "2026-05-16T10:43:36.441226",
     "mode_tag": "tiered"
   },
   "2.4.0:tiered:Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco": {
     "scenario": "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
     "configs": {
-      "Cisco": "hostname CISCO-01\nip domain-name cisco.com\nip name-server 8.8.8.8\nip name-server 8.8.4.4\ninterface GigabitEthernet0/0\nip address 192.168.50.2 255.255.255.0\nip ospf 1 area 0.0.0.0\nrouter bgp 65001\nneighbor 192.168.50.1 remote-as 65000\nneighbor 192.168.50.1 timers 10 30 3 10",
-      "Device": "hostname Device\ninterface GigabitEthernet0/0\nip address 192.168.50.3 255.255.255.0\nrouter bgp 65000\nneighbor 192.168.50.1 remote-as 65000\nnetwork 192.168.50.0 mask 255.255.255.0\nneighbor 192.168.50.1 activate"
+      "Cisco": "router bgp 5\nneighbor 192.168.50.1 remote-as 65000"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
     "car": 0.0,
     "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Cisco": {
-          "as_number": "65001",
-          "id": "CISCO-01",
-          "ip": "192.168.50.2/24"
-        },
-        "Device": {
-          "as_number": "65000",
-          "id": "DEVICE-01",
-          "ip": "192.168.50.3/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure peer interfaces on the same link are in the same subnet, we assign IP addresses with a subnet mask of /24. The AS numbers are assigned based on the intent to set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco. IDs are assigned to uniquely identify each device."
-    },
-    "latency": 249.38624572753906,
+    "master_plan": null,
+    "latency": 36.64242219924927,
     "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ip domain-name cisco.com', 'ip name-server 8.8.8.8', 'ip name-server 8.8.4.4']; Unauthorized parameters: ['8.8.4.4', '8.8.8.8']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ip domain-name cisco.com",
-          "ip name-server 8.8.8.8",
-          "ip name-server 8.8.4.4"
-        ],
-        "unauthorized_parameters": [
-          "8.8.4.4",
-          "8.8.8.8"
-        ]
-      },
       {
         "is_hallucinated": false,
         "reason": null,
@@ -633,16 +173,12 @@
     ],
     "cfr_failure": false,
     "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ],
       [
         "cisco_router-bgp_5c33986062eca94f",
         "cisco_router-bgp_f8c781f08cef4f12"
       ]
     ],
     "valid_source_ids": [
-      [],
       [
         "cisco_router-bgp_f8c781f08cef4f12",
         "cisco_router-bgp_1059c6f4692d149c",
@@ -653,109 +189,26 @@
       ]
     ],
     "retrieved_texts": [
-      "",
       "[SOURCE_ID: cisco_router-bgp_f8c781f08cef4f12]\nCLI_SYNTAX:\nrouter bgp 5 address-family ipv4 multicast neighbor 172.16.70.24 route-map internal-map in route-map internal-map match as-path 1 set local-preference 100\n\nneighbor remote-as Creates a BGP peer group.\n---\n[SOURCE_ID: cisco_router-bgp_5c33986062eca94f]\nCLI_SYNTAX:\nrouter bgp 577 bgp router-id 1.1.1.1 bgp log-neighbor-changes neighbor 203.0.113.1 remote-as 223 neighbor 203.0.113.1 description PEERING to PTNR neighbor 10.4.4.1 remote-as 577 neighbor 10.4.4.1 description PEEERING to VASI VRFA interface\n\nnetwork 203.0.113.1 mask 255.255.255.240 network 10.4.0.0 mask 255.255.0.0 network 209.165.200.224 mask 255.255.255.224 neighbor 203.0.113.1 activate neighbor 10.4.4.1 activate neighbor 10.4.4.1 next-hop-self exit-address-family\n\nbgp router-id 4.4.4.4 network 192.168.0.0 mask 255.255.255.248 network 10.4.0.0 mask 255.255.0.0 redistribute connected redistribute static neighbor 192.168.0.2 remote-as 65004 neighbor 192.168.0.2 fall-over bfd neighbor 192.168.0.2 activate neighbor 10.4.4.2 remote-as 577 neighbor 10.4.4.2 description PEERING to VASI Global intf neighbor 10.4.4.2 activate exit-address-family\n---\n[SOURCE_ID: cisco_tier2_7d024df4cb6d]\nUSAGE_RULES:\nRelated Commands Command Description neighbor remote-as Adds an entry to the BGP or multiprotocol BGP neighbor table. network (BGP and multiprotocol BGP) Specifies the list of networks for the BGP routing process.\n---\n[SOURCE_ID: cisco_router-bgp_1059c6f4692d149c]\nCLI_SYNTAX:\nrouter bgp 100 neighbor internal peer-group neighbor internal remote-as 100 neighbor internal update-source loopback 0 neighbor internal route-map set-med out neighbor internal filter-list 1 out neighbor internal filter-list 2 in neighbor 172.16.232.53 peer-group internal neighbor 172.16.232.54 peer-group internal neighbor 172.16.232.55 peer-group internal neighbor 172.16.232.55 filter-list 3 in\nUSAGE_RULES:\nThe following example defines the peer group named external-peers without the neighbor remote-as command. By definition, this is an eBGP peer group because each individual member of the peer group is configured with its respective autonomous system number separately. Thus the peer group consists of members from autonomous systems 200, 300, and 400. All the peer group members have the set-metric route map as an outbound route map and filter list 99 as an outbound filter list. Except for neighbor 172.16.232.110, all of them have 101 as the inbound filter list.\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_102028_tiered_1adb01e8.json",
-    "timestamp": "2026-05-15T10:59:59.833896",
+    "deep_trace_file": "results/traces/20260516_094342_tiered_1adb01e8.json",
+    "timestamp": "2026-05-16T10:43:35.969640",
     "mode_tag": "tiered"
   },
-  "2.4.0:tiered:Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
-    "scenario": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30",
+  "2.4.0:tiered:Apply access-list 101 inbound on interface GigabitEthernet0/1": {
+    "scenario": "Apply access-list 101 inbound on interface GigabitEthernet0/1",
     "configs": {
-      "Device": "interface GigabitEthernet1/0/24\nswitchport mode trunk\nswitchport trunk allowed vlan 10,20,30"
+      "Device": "ip access-list standard 101"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
+    "functional_status": "PASS",
     "functional_errors": [],
-    "car": 0.0,
+    "car": 1.0,
     "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65000",
-          "device_id": "Device-2",
-          "ip_address": "192.168.1.2/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure consistent IP addresses, AS numbers, and IDs for all devices, we will assign the same subnet to peer interfaces on the same link. The deployment sequence is designed to ensure functional correctness by first enabling interfaces, then configuring IPs, and finally configuring routing protocols."
-    },
-    "latency": 58.6161789894104,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Invalid citations: ['BASE_CLI_KNOWLEDGE:interface_configuration']",
-        "suspicious_commands": [],
-        "invalid_citations": [
-          "BASE_CLI_KNOWLEDGE:interface_configuration"
-        ],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE:interface_configuration"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102047_tiered_0980fbe8.json",
-    "timestamp": "2026-05-15T11:00:01.890037",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
-    "scenario": "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002",
-    "configs": {
-      "Device": ""
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "error": null,
-    "issues": [
-      {
-        "type": "PARSE_ISSUE",
-        "severity": "HIGH",
-        "details": "File unknown: This syntax is unrecognized at line: <EOF>"
-      },
-      {
-        "type": "EMPTY_CONFIG",
-        "severity": "HIGH",
-        "details": "Device Device produced no valid commands after cleaning"
-      }
-    ],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as": "65002",
-          "id": "Device-2",
-          "ip": "10.0.0.2/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure consistent IP addresses, AS numbers, and IDs for all involved devices, we propose the above parameters. Peer interfaces on the same link are in the same subnet (e.g. .1 and .2)."
-    },
-    "latency": 73.25219511985779,
+    "master_plan": null,
+    "latency": 9.179295539855957,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -769,562 +222,41 @@
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "juniper_bgp_88a2eaf4007e3bb2",
-        "juniper_bgp_90fdde967488bd25",
-        "juniper_bgp_4fa1fce74afc080f",
-        "juniper_bgp_8a4dfd4d77a982f4",
-        "juniper_tier2_1112b9f0007b"
+        "cisco_tier2_5170476ef23f",
+        "cisco_tier2_50f4dc9e093a"
       ]
     ],
     "valid_source_ids": [
       [
-        "juniper_bgp_4fa1fce74afc080f",
-        "juniper_tier2_1112b9f0007b",
-        "juniper_bgp_90fdde967488bd25",
-        "juniper_bgp_8a4dfd4d77a982f4",
-        "juniper_tier2_c03c28da9ab5",
-        "juniper_bgp_88a2eaf4007e3bb2"
+        "cisco_tier2_5170476ef23f",
+        "cisco_tier2_50f4dc9e093a",
+        "cisco_tier2_bb4e0ade66b3",
+        "cisco_router-bgp_5c33986062eca94f",
+        "cisco_acl-named_9cf736446e1b6bea",
+        "cisco_acl-named_cda3e3ee888d04be"
       ]
     ],
     "retrieved_texts": [
-      "[SOURCE_ID: juniper_bgp_4fa1fce74afc080f]\nCLI_SYNTAX:\nset protocols bgp group ext type external set protocols bgp group ext export send-direct set protocols bgp group ext export send-static set protocols bgp group ext peer-as 100 set protocols bgp group ext neighbor 192.168.10.10 set policy-options policy-statement send-direct term 1 from protocol direct set policy-options policy-statement send-direct term 1 then accept set policy-options policy-statement send-static term 1 from protocol static set policy-options policy-statement send-static term 1 then accept set routing-options static route 192.168.20.0/24 next-hop 192.168.10.10 set routing-options autonomous-system 65530\n---\n[SOURCE_ID: juniper_bgp_90fdde967488bd25]\nCLI_SYNTAX:\nset protocols bgp group core family inet unicast set protocols bgp group core family inet flow set protocols bgp group core export p1 set protocols bgp group core peer-as 65000 set protocols bgp group core neighbor 10.12.99.5 set policy-options policy-statement p1 term a then accept set routing-options autonomous-system 65001\n---\n[SOURCE_ID: juniper_bgp_88a2eaf4007e3bb2]\nCLI_SYNTAX:\nset protocols bgp group core family inet unicast set protocols bgp group core family inet flow set protocols bgp group core export p1 set protocols bgp group core peer-as 65000 set protocols bgp group core neighbor 10.12.99.5 set policy-options policy-statement p1 term a from rib inetflow.0 set policy-options policy-statement p1 term a from route-filter 10.13.0.0/16 orlonger set policy-options policy-statement p1 term a then accept set policy-options policy-statement p1 term b then reject set routing-options autonomous-system 65001\n\n- 1. Configure the BGP group.\n---\n[SOURCE_ID: juniper_bgp_8a4dfd4d77a982f4]\nCLI_SYNTAX:\nset protocols bgp group ebgp-1 type external set protocols bgp group ebgp-1 import as-list-match set protocols bgp group ebgp-1 family inet unicast set protocols bgp group ebgp-1 neighbor 192.168.1.2 peer-as 101 set protocols bgp group ebgp-1 neighbor 192.168.1.6 peer-as 102\n---\n[SOURCE_ID: juniper_tier2_1112b9f0007b]\nCLI_SYNTAX:\n- set interfaces fe-1/2/1 unit 0 description to_Exchange-2 set interfaces fe-1/2/1 unit 0 family inet address 10.3.0.50/30 set interfaces lo0 unit 0 family inet address 192.168.0.5/32 set protocols bgp group ext type external set protocols bgp group ext export outbound-routes set protocols bgp group ext peer-as 64510 set protocols bgp group ext neighbor 10.3.0.6 set protocols bgp group to-64512 type external set protocols bgp group to-64512 peer-as 64512 set protocols bgp group to-64512 neighbor\n---\n"
+      "[SOURCE_ID: cisco_tier2_5170476ef23f]\nUSAGE_RULES:\ninterfaceHundredGigErack/slot/module/port Example:\nDefines the criteria for which the access list will permit or deny packets. Match criteria can\n---\n[SOURCE_ID: cisco_acl-named_9cf736446e1b6bea]\nCLI_SYNTAX:\nip access-list extended AutoQos-4.0-wlan-Acl-Transactional-Data permit tcp any any eq 443 permit tcp any any eq 1521 permit udp any any eq 1521\n\n- permit tcp any any eq 1526 permit udp any any eq 1526 permit tcp any any eq 1575 permit udp any any eq 1575 permit tcp any any eq 1630 permit udp any any eq 1630\n- permit tcp any any eq 1527 permit tcp any any eq 6200 permit tcp any any eq 3389 permit tcp any any eq 5985 permit tcp any any eq 8080\n---\n[SOURCE_ID: cisco_acl-named_cda3e3ee888d04be]\nCLI_SYNTAX:\nip access-list extended AutoQos-4.0-wlan-Acl-Transactional-Data permit tcp any any eq 443 permit tcp any any eq 1521 permit udp any any eq 1521\n\n- permit tcp any any eq 1526 permit udp any any eq 1526 permit tcp any any eq 1575 permit udp any any eq 1575 permit tcp any any eq 1630 permit udp any any eq 1630\n- permit tcp any any eq 1527 permit tcp any any eq 6200 permit tcp any any eq 3389 permit tcp any any eq 5985 permit tcp any any eq 8080\n---\n[SOURCE_ID: cisco_router-bgp_5c33986062eca94f]\nCLI_SYNTAX:\nrouter bgp 577 bgp router-id 1.1.1.1 bgp log-neighbor-changes neighbor 203.0.113.1 remote-as 223 neighbor 203.0.113.1 description PEERING to PTNR neighbor 10.4.4.1 remote-as 577 neighbor 10.4.4.1 description PEEERING to VASI VRFA interface\n\nnetwork 203.0.113.1 mask 255.255.255.240 network 10.4.0.0 mask 255.255.0.0 network 209.165.200.224 mask 255.255.255.224 neighbor 203.0.113.1 activate neighbor 10.4.4.1 activate neighbor 10.4.4.1 next-hop-self exit-address-family\n\nbgp router-id 4.4.4.4 network 192.168.0.0 mask 255.255.255.248 network 10.4.0.0 mask 255.255.0.0 redistribute connected redistribute static neighbor 192.168.0.2 remote-as 65004 neighbor 192.168.0.2 fall-over bfd neighbor 192.168.0.2 activate neighbor 10.4.4.2 remote-as 577 neighbor 10.4.4.2 description PEERING to VASI Global intf neighbor 10.4.4.2 activate exit-address-family\n---\n[SOURCE_ID: cisco_tier2_50f4dc9e093a]\nCLI_SYNTAX:\n\n\naccess-list standard-acl-number permit source-address wildcard-bits\nUSAGE_RULES:\nend Example:\nDefines a standard access list for the inside addresses that are to be translated.\nExample:\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_102201_tiered_34ce8c23.json",
-    "timestamp": "2026-05-15T11:00:02.052531",
+    "deep_trace_file": "results/traces/20260516_094415_tiered_ea6b1776.json",
+    "timestamp": "2026-05-16T10:43:37.535542",
     "mode_tag": "tiered"
   },
-  "2.4.0:tiered:Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
-    "scenario": "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers",
+  "2.4.0:tiered:Restrict SSH access to only 192.168.1.0/24 subnet on Cisco": {
+    "scenario": "Restrict SSH access to only 192.168.1.0/24 subnet on Cisco",
     "configs": {
-      "Device": "router ospf 1\ninterface loopback0\nip address 10.0.0.2/24\ninterface GigabitEthernet1/2/0\nip address 10.0.0.14/30\ninterface GigabitEthernet1/2/1\nip address 10.0.0.18/30\naccess-list 1 permit 10.0.0.0/24\nip access-group 1 in\nrouter ospf 1\nnetwork 10.0.0.0/24 area 0.0.0.0"
+      "Device": "ip access-list standard ssh_acl"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
+    "functional_status": "PASS",
     "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65001",
-          "id": "Device-2",
-          "ip": "10.0.0.2/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Enable interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure consistent IP addresses, AS numbers, and IDs for all devices, and to align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers."
-    },
-    "latency": 97.92167568206787,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Unauthorized parameters: ['10.0.0.14', '10.0.0.18']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": [
-          "10.0.0.14",
-          "10.0.0.18"
-        ]
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "juniper_ospf_d517389ac7a1e3b9",
-        "juniper_ospf_1ebd61feeaa519c1",
-        "juniper_interface_995c11aec0f0cbfd"
-      ]
-    ],
-    "valid_source_ids": [
-      [
-        "juniper_tier2_18df01b19ab5",
-        "juniper_tier2_b1ce6c5b4df9",
-        "juniper_ospf_1ebd61feeaa519c1",
-        "juniper_ospf_d517389ac7a1e3b9",
-        "juniper_tier2_e8f33bb9aa41",
-        "juniper_interface_995c11aec0f0cbfd"
-      ]
-    ],
-    "retrieved_texts": [
-      "[SOURCE_ID: juniper_ospf_1ebd61feeaa519c1]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.8 passive\n\nset policy-options policy-statement send-direct term 1 from protocol direct\n\nset policy-options policy-statement send-direct term 1 then accept\n\nset routing-options router-id 192.168.0.8\n\nset routing-options autonomous-system 3\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_ospf_d517389ac7a1e3b9]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.2 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set policy-options policy-statement send-static from protocol static set policy-options policy-statement send-static then accept\n\n- set routing-options static route 10.1.0.2/32 next-hop 10.0.0.1 set routing-options static route 10.1.0.1/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.3/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.4/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.5/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.6/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.7/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.8/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.9/32 next-hop 10.0.0.1 set routing-options autonomous-system 65500\n\n\nset interfaces fe-1/2/0 unit 14 family inet address 10.0.0.14/30 set interfaces fe-1/2/1 unit 18 family inet address 10.0.0.18/30 set interfaces fe-1/2/2 unit 21 family inet set interfaces lo0 unit 3 family inet address 10.2.2.2/32 set protocols bgp export send-local set protocols bgp group int type internal set protocols bgp group int local-address 10.2.2.2 set protocols bgp group int family inet unicast set protocols bgp group int family inet-vpn unicast set protocols bgp group int neighbor 10.1.1.1 set protocols ospf area 0.0.0.0 interface fe-1/2/0.14 set protocols ospf area 0.0.0.0 interface fe-1/2/1.18 set protocols ospf area 0.0.0.0 interface lo0.3 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set routing-options autonomous-system 65500 set routing-options forwarding-table indirect-next-hop\n---\n"
-    ],
-    "deep_trace_file": "results/traces/20260515_102339_tiered_62a9d1a3.json",
-    "timestamp": "2026-05-15T11:00:02.355056",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set system hostname to CORE-RTR-01": {
-    "scenario": "Set system hostname to CORE-RTR-01",
-    "configs": {
-      "Device": "hostname CORE-RTR-01"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
+    "car": 1.0,
     "is_multi_vendor": false,
     "master_plan": null,
-    "latency": 10.309292793273926,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102350_tiered_753231f2.json",
-    "timestamp": "2026-05-15T11:00:02.267955",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
-    "scenario": "Configure NTP server 10.1.1.100 on Cisco IOS-XE",
-    "configs": {
-      "Device": "enable\nconfigure terminal\nhostname Device\nntp server 10.1.1.100\ninterface GigabitEthernet0/0\nswitchport mode access\nauthentication port-control auto\ndot1x pae authenticator\nspanning-tree portfast\nip access-list extended ntp_access\nremark Allow NTP access\npermit udp any any eq ntp"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 15.86649775505066,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "cisco_tier2_5a6736120484",
-        "cisco_switchport_939e5e1d8b9a05b7",
-        "cisco_tier2_586265b445cc",
-        "cisco_acl-named_953eae1e7c28ba61",
-        "cisco_hostname_916147f76f11df55"
-      ]
-    ],
-    "valid_source_ids": [
-      [
-        "cisco_tier2_586265b445cc",
-        "cisco_tier2_5a6736120484",
-        "cisco_acl-named_953eae1e7c28ba61",
-        "cisco_switchport_939e5e1d8b9a05b7",
-        "cisco_hostname_916147f76f11df55",
-        "cisco_tier2_78562d8c952d"
-      ]
-    ],
-    "retrieved_texts": [
-      "[SOURCE_ID: cisco_tier2_586265b445cc]\nCLI_SYNTAX:\n\ninterface interface-id Example:\nUSAGE_RULES:\n- Step 1 enable Enables privileged EXEC mode. Example: Enter your password, if prompted.\nconfigure terminal Enters global configuration mode. Example:\nSpecifies the Layer 3 interface to be associated with the VRF, and enters the interface configuration mode.\ninterface interface-id Example:\n---\n[SOURCE_ID: cisco_acl-named_953eae1e7c28ba61]\nCLI_SYNTAX:\nip access-list extended access-list-name Example:\n\nserver by denying access from the Marketing network\n\nnetwork administrator that the subsequent entry denies the Marketing network access to the interface.\n\ndeny protocol source [source-wildcard] destination [destination-wildcard] [option\n\n- 209.165.200.244 255.255.255.224 host\n- 209.165.200.245 log\n\n209.165.200.245 Router(config-network-group)# exit Router(config)# ip access-list extended mask of 0.0.0.0 is assumed, which matches\nUSAGE_RULES:\nip access-list extended access-list-name Example:\nremark remark Example:\nargument as a substitute for the protocol. Example: argument\n---\n[SOURCE_ID: cisco_hostname_916147f76f11df55]\nCLI_SYNTAX:\nhostname device123\n\nhostname Switch\n\n- 1. enable\n- 2. configure terminal\n- 3. username name privilege level password password\n- 4. aaa new-model\n- 5. aaa authentication login default local\n---\n[SOURCE_ID: cisco_tier2_78562d8c952d]\nCLI_SYNTAX:\n\n*Server: 10.0.1.6, port 1812, A-ID 1100E046659D4275B644BF946EFA49CD Status = ALIVE auto-test = TRUE, idle-time = 60 mins, deadtime = 20 secs\n---\n[SOURCE_ID: cisco_switchport_939e5e1d8b9a05b7]\nCLI_SYNTAX:\nswitchport mode access Sets the port mode to access. Example:\n\n\ninterface interface-id Example:\nUSAGE_RULES:\nswitchport mode access Sets the port mode to access. Example:\nauthentication port-control auto Sets the port-authentication mode to auto. Example:\ndot1x pae authenticator Example:\nspanning-tree portfast Example:\nend Example:\n---\n[SOURCE_ID: cisco_tier2_5a6736120484]\nUSAGE_RULES:\n- Step 1 enable Enables privileged EXEC mode. Example: \u2022 Enter your password if prompted.\nconfigure terminal Enters global configuration mode. Example:\n---\n"
-    ],
-    "deep_trace_file": "results/traces/20260515_102406_tiered_df3e47df.json",
-    "timestamp": "2026-05-15T11:00:02.582071",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up local user 'admin' with secret 'Cisco123' and level 15": {
-    "scenario": "Set up local user 'admin' with secret 'Cisco123' and level 15",
-    "configs": {
-      "Device": "enable secret Cisco123\nusername admin privilege 15 secret Cisco123"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 10.796479940414429,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102439_tiered_acdd699e.json",
-    "timestamp": "2026-05-15T11:00:02.876480",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure logging buffer size to 100000": {
-    "scenario": "Configure logging buffer size to 100000",
-    "configs": {
-      "Device": "logging buffered 100000"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 8.94057035446167,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['logging buffered 100000']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "logging buffered 100000"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102449_tiered_a24953e0.json",
-    "timestamp": "2026-05-15T11:00:02.955381",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
-    "scenario": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2",
-    "configs": {
-      "Device": "interface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 10.732091188430786,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102500_tiered_fa593c9e.json",
-    "timestamp": "2026-05-15T11:00:03.024227",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE": {
-    "scenario": "Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE",
-    "configs": {
-      "Device": "router ospfv3 1\narea 0.0.0.0 0.0.0.0"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 11.644027948379517,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102512_tiered_4d4892c4.json",
-    "timestamp": "2026-05-15T11:00:03.255177",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Enable SNMP community 'public' with RO access": {
-    "scenario": "Enable SNMP community 'public' with RO access",
-    "configs": {
-      "Device": "snmp-server community public RO\nsnmp-server host 192.168.1.2 public"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "asn": "65000",
-          "device_id": "Device-2",
-          "ip_address": "192.168.1.2/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols",
-        "4. SNMP configuration"
-      ],
-      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IPs, followed by routing protocols, and finally SNMP configuration. Peer interfaces on the same link are in the same subnet, and consistent IP addresses, AS numbers, and IDs are proposed for all involved devices."
-    },
-    "latency": 85.62356209754944,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['snmp-server host 192.168.1.2 public']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "snmp-server host 192.168.1.2 public"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102532_tiered_ed0c14c9.json",
-    "timestamp": "2026-05-15T11:00:02.642478",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
-    "scenario": "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'",
-    "configs": {
-      "Device": "ERROR"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "error": null,
-    "issues": [
-      {
-        "type": "PARSE_ISSUE",
-        "severity": "HIGH",
-        "details": "File unknown: This syntax is unrecognized at line: <EOF>"
-      },
-      {
-        "type": "EMPTY_CONFIG",
-        "severity": "HIGH",
-        "details": "Device Device produced no valid commands after cleaning"
-      }
-    ],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {},
-      "deployment_sequence": [],
-      "rationale": "Fallback: Plan generation failed."
-    },
-    "latency": 41.99553608894348,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ERROR']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ERROR"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      []
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102614_tiered_bd501a26.json",
-    "timestamp": "2026-05-15T11:00:03.408407",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco": {
-    "scenario": "Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco",
-    "configs": {
-      "Device": "class-map match-all CS6\nmatch ip dscp 46\npolicy-map QoS-OSPF\nclass CS6\npriority level 5\ninterface GigabitEthernet0/0\nservice-policy output QoS-OSPF"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 12.181647062301636,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['class-map match-all CS6', 'policy-map QoS-OSPF', 'service-policy output QoS-OSPF']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "class-map match-all CS6",
-          "policy-map QoS-OSPF",
-          "service-policy output QoS-OSPF"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102627_tiered_aa3ebf5d.json",
-    "timestamp": "2026-05-15T11:00:03.804451",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
-    "scenario": "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper",
-    "configs": {
-      "Device": "set protocols vrrp group 10 virtual-address 10.1.1.254\nset protocols vrrp group 10 interface ge-0/0/0\nset protocols vrrp group 10 preempt"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 12.583073139190674,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102640_tiered_82e0d3f6.json",
-    "timestamp": "2026-05-15T11:00:04.019139",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
-    "scenario": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",
-    "configs": {
-      "Device": "ip dhcp snooping vlan 10\nip dhcp snooping vlan 20"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 12.032440185546875,
+    "latency": 8.149087905883789,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -1338,351 +270,42 @@
     "cfr_failure": true,
     "retrieved_sources": [
       [
-        "BASE_CLI_KNOWLEDGE"
+        "cisco_tier2_de2388f8353a",
+        "cisco_tier2_8268a440b46d"
       ]
     ],
     "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102652_tiered_d0ddaadc.json",
-    "timestamp": "2026-05-15T11:00:04.255920",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
-    "scenario": "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco",
-    "configs": {
-      "Device": "interface GigabitEthernet1/0/1\nchannel-group 1 mode active\ninterface GigabitEthernet1/0/2\nchannel-group 1 mode active\nlacp system-priority 100\nlacp port-priority 100\ninterface Port-channel1\nswitchport mode trunk"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65001",
-          "device_id": "Device-2",
-          "ip_address": "10.1.1.2/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Enable interfaces",
-        "2. Configure IPs",
-        "3. Configure LACP etherchannel",
-        "4. Configure routing protocols"
-      ],
-      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IPs, followed by LACP etherchannel configuration, and finally routing protocols. Peer interfaces on the same link are in the same subnet (e.g. .1 and .2)."
-    },
-    "latency": 30.191895246505737,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Invalid citations: ['BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/1', 'BASE_CLI_KNOWLEDGE:lacp system-priority', 'BASE_CLI_KNOWLEDGE:interface Port-channel1', 'BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/2']; Ungrounded commands: ['lacp system-priority 100', 'lacp port-priority 100']",
-        "suspicious_commands": [],
-        "invalid_citations": [
-          "BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/1",
-          "BASE_CLI_KNOWLEDGE:lacp system-priority",
-          "BASE_CLI_KNOWLEDGE:interface Port-channel1",
-          "BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/2"
-        ],
-        "ungrounded_commands": [
-          "lacp system-priority 100",
-          "lacp port-priority 100"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
       [
-        "BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/1",
-        "BASE_CLI_KNOWLEDGE:lacp system-priority",
-        "BASE_CLI_KNOWLEDGE:interface Port-channel1",
-        "BASE_CLI_KNOWLEDGE:interface GigabitEthernet1/0/2"
+        "cisco_tier2_8268a440b46d",
+        "cisco_tier2_de2388f8353a",
+        "cisco_acl-named_9cf736446e1b6bea",
+        "cisco_acl-named_cda3e3ee888d04be",
+        "cisco_tier2_3be4e2c435b9",
+        "cisco_hostname_916147f76f11df55"
       ]
     ],
-    "valid_source_ids": [
-      []
-    ],
     "retrieved_texts": [
-      ""
+      "[SOURCE_ID: cisco_tier2_8268a440b46d]\nUSAGE_RULES:\nExample:\nend Example:\n---\n[SOURCE_ID: cisco_acl-named_9cf736446e1b6bea]\nCLI_SYNTAX:\nip access-list extended AutoQos-4.0-wlan-Acl-Transactional-Data permit tcp any any eq 443 permit tcp any any eq 1521 permit udp any any eq 1521\n\n- permit tcp any any eq 1526 permit udp any any eq 1526 permit tcp any any eq 1575 permit udp any any eq 1575 permit tcp any any eq 1630 permit udp any any eq 1630\n- permit tcp any any eq 1527 permit tcp any any eq 6200 permit tcp any any eq 3389 permit tcp any any eq 5985 permit tcp any any eq 8080\n---\n[SOURCE_ID: cisco_hostname_916147f76f11df55]\nCLI_SYNTAX:\nhostname device123\n\nhostname Switch\n\n- 1. enable\n- 2. configure terminal\n- 3. username name privilege level password password\n- 4. aaa new-model\n- 5. aaa authentication login default local\n---\n[SOURCE_ID: cisco_acl-named_cda3e3ee888d04be]\nCLI_SYNTAX:\nip access-list extended AutoQos-4.0-wlan-Acl-Transactional-Data permit tcp any any eq 443 permit tcp any any eq 1521 permit udp any any eq 1521\n\n- permit tcp any any eq 1526 permit udp any any eq 1526 permit tcp any any eq 1575 permit udp any any eq 1575 permit tcp any any eq 1630 permit udp any any eq 1630\n- permit tcp any any eq 1527 permit tcp any any eq 6200 permit tcp any any eq 3389 permit tcp any any eq 5985 permit tcp any any eq 8080\n---\n[SOURCE_ID: cisco_tier2_de2388f8353a]\nCLI_SYNTAX:\n\n- 1. enable\n- 2. configure terminal\n- 3. \u2022 ip access-list {standard | extended} access-list-name\n\n\u2022 ipv6 access-list access-list-name\n\n- 4. permit {host-address | host-name | any} [wildcard]\n- 5. deny {host-address | host-name | any} [wildcard]\n- 6. exit\n- 7. netconf-yang ssh {{ipv4 | ipv6 }access-list name access-list-name} | port port-number}\n- 8. end\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_102800_tiered_b50ba2ef.json",
-    "timestamp": "2026-05-15T11:00:04.785663",
+    "deep_trace_file": "results/traces/20260516_094447_tiered_2afb886d.json",
+    "timestamp": "2026-05-16T10:43:37.689271",
     "mode_tag": "tiered"
   },
-  "2.4.0:tiered:Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco": {
-    "scenario": "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco",
+  "2.4.0:tiered:Create a standard ACL 10 to permit only 10.1.1.0/24": {
+    "scenario": "Create a standard ACL 10 to permit only 10.1.1.0/24",
     "configs": {
-      "Device": "ip flow-export destination 10.1.1.50 2055\nip flow-export version 5\nip flow-export source Loopback0"
+      "Router1": "access-list 10 permit 10.1.1.0 0.0.0.255"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
+    "functional_status": "PASS",
     "functional_errors": [],
-    "car": 0.0,
+    "car": 1.0,
     "is_multi_vendor": false,
     "master_plan": null,
-    "latency": 14.894881963729858,
+    "latency": 5.134436845779419,
     "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Invalid citations: ['BASE_CLI_KNOWLEDGE:ip_flow_export_source', 'BASE_CLI_KNOWLEDGE:ip_flow_export_version', 'BASE_CLI_KNOWLEDGE:ip_flow_export_destination']",
-        "suspicious_commands": [],
-        "invalid_citations": [
-          "BASE_CLI_KNOWLEDGE:ip_flow_export_source",
-          "BASE_CLI_KNOWLEDGE:ip_flow_export_version",
-          "BASE_CLI_KNOWLEDGE:ip_flow_export_destination"
-        ],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE:ip_flow_export_source",
-        "BASE_CLI_KNOWLEDGE:ip_flow_export_version",
-        "BASE_CLI_KNOWLEDGE:ip_flow_export_destination"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102815_tiered_feed493c.json",
-    "timestamp": "2026-05-15T11:00:05.165303",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Restrict console access with an execution timeout of 5 minutes on Juniper": {
-    "scenario": "Restrict console access with an execution timeout of 5 minutes on Juniper",
-    "configs": {
-      "Device": "set system login user * idle-timeout 5\nset system login class super-user idle-timeout 5"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65001",
-          "id": "Device-2",
-          "ip_address": "10.0.0.2/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Routing",
-        "3. Configure IPs"
-      ],
-      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IPs, and finally routing protocols. Peer interfaces on the same link are in the same subnet. We restrict console access with an execution timeout of 5 minutes on Juniper devices."
-    },
-    "latency": 34.440443992614746,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['set system login user * idle-timeout 5']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "set system login user * idle-timeout 5"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102850_tiered_b1c1b623.json",
-    "timestamp": "2026-05-15T11:00:05.510187",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco": {
-    "scenario": "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
-    "configs": {
-      "Router1": "router bgp 109\nnetwork 172.16.0.0\nneighbor 172.16.2.3 remote-as 200\nneighbor 172.16.2.3 default-originate\nneighbor 172.16.2.3 route-map default-map out\nneighbor 172.16.2.3 ebgp-multihop\nrouter bgp 577\nneighbor 203.0.113.1 remote-as 223\nneighbor 203.0.113.1 description PEERING to PTNR\nneighbor 10.4.4.1 remote-as 577\nneighbor 10.4.4.1 description PEEERING to VASI VRFA interface\nnetwork 203.0.113.1 mask 255.255.255.240\nnetwork 10.4.0.0 mask 255.255.0.0\nnetwork 209.165.200.224 mask 255.255.255.224\nneighbor 203.0.113.1 activate\nneighbor 10.4.4.1 activate\nneighbor 10.4.4.1 next-hop-self\nnetwork 192.168.0.0 mask 255.255.255.248\nnetwork 10.4.0.0 mask 255.255.0.0\nredistribute connected\nredistribute static\nneighbor 192.168.0.2 remote-as 65004\nneighbor 192.168.0.2 fall-over bfd\nneighbor 192.168.0.2 activate\nneighbor 10.4.4.2 remote-as 577\nneighbor 10.4.4.2 description PEERING to VASI Global intf\nneighbor 10.4.4.2 activate\nrouter bgp 5\naddress-family ipv4 multicast\nneighbor 172.16.70.24 route-map internal-map in\nroute-map default-map permit 10\nroute-map internal-map permit 10\nset local-preference 100"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 32.407763719558716,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Unauthorized parameters: ['10.4.0.0', '172.16.70.24', '209.165.200.224', '172.16.2.3', '10.4.4.2', '255.255.0.0', '10.4.4.1', '192.168.0.0', '65004', '192.168.0.2', '172.16.0.0', '203.0.113.1']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": [
-          "10.4.0.0",
-          "172.16.70.24",
-          "209.165.200.224",
-          "172.16.2.3",
-          "10.4.4.2",
-          "255.255.0.0",
-          "10.4.4.1",
-          "192.168.0.0",
-          "65004",
-          "192.168.0.2",
-          "172.16.0.0",
-          "203.0.113.1"
-        ]
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "cisco_router-bgp_5c33986062eca94f",
-        "cisco_router-bgp_f8c781f08cef4f12",
-        "cisco_router-bgp_baecaaab1366f3dc"
-      ]
-    ],
-    "valid_source_ids": [
-      [
-        "cisco_tier2_2c953b85f19e",
-        "cisco_router-bgp_f8c781f08cef4f12",
-        "cisco_router-bgp_baecaaab1366f3dc",
-        "cisco_router-bgp_5c33986062eca94f",
-        "cisco_tier2_b86d666c4de4",
-        "cisco_tier2_3bc2f7ffa941"
-      ]
-    ],
-    "retrieved_texts": [
-      "[SOURCE_ID: cisco_router-bgp_baecaaab1366f3dc]\nCLI_SYNTAX:\nrouter bgp 109 network 172.16.0.0 neighbor 172.16.2.3 remote-as 200 neighbor 172.16.2.3 default-originate route-map default-map\n\nneighbor ebgp-multihop\n---\n[SOURCE_ID: cisco_router-bgp_5c33986062eca94f]\nCLI_SYNTAX:\nrouter bgp 577 bgp router-id 1.1.1.1 bgp log-neighbor-changes neighbor 203.0.113.1 remote-as 223 neighbor 203.0.113.1 description PEERING to PTNR neighbor 10.4.4.1 remote-as 577 neighbor 10.4.4.1 description PEEERING to VASI VRFA interface\n\nnetwork 203.0.113.1 mask 255.255.255.240 network 10.4.0.0 mask 255.255.0.0 network 209.165.200.224 mask 255.255.255.224 neighbor 203.0.113.1 activate neighbor 10.4.4.1 activate neighbor 10.4.4.1 next-hop-self exit-address-family\n\nbgp router-id 4.4.4.4 network 192.168.0.0 mask 255.255.255.248 network 10.4.0.0 mask 255.255.0.0 redistribute connected redistribute static neighbor 192.168.0.2 remote-as 65004 neighbor 192.168.0.2 fall-over bfd neighbor 192.168.0.2 activate neighbor 10.4.4.2 remote-as 577 neighbor 10.4.4.2 description PEERING to VASI Global intf neighbor 10.4.4.2 activate exit-address-family\n---\n[SOURCE_ID: cisco_router-bgp_f8c781f08cef4f12]\nCLI_SYNTAX:\nrouter bgp 5 address-family ipv4 multicast neighbor 172.16.70.24 route-map internal-map in route-map internal-map match as-path 1 set local-preference 100\n\nneighbor remote-as Creates a BGP peer group.\n---\n"
-    ],
-    "deep_trace_file": "results/traces/20260515_102923_tiered_0f14037b.json",
-    "timestamp": "2026-05-15T11:00:05.928192",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper": {
-    "scenario": "Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper",
-    "configs": {
-      "Juniper Router": "ERROR"
-    },
-    "status": "REJECT_FOR_MANUAL_REVIEW",
-    "error": null,
-    "issues": [
-      {
-        "type": "PARSE_ISSUE",
-        "severity": "HIGH",
-        "details": "File unknown: This syntax is unrecognized at line: <EOF>"
-      },
-      {
-        "type": "EMPTY_CONFIG",
-        "severity": "HIGH",
-        "details": "Device Juniper Router produced no valid commands after cleaning"
-      }
-    ],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 176.5791049003601,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Ungrounded commands: ['ERROR']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [
-          "ERROR"
-        ],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      []
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_102949_tiered_1e2c1123.json",
-    "timestamp": "2026-05-15T11:00:04.515704",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Enable OSPF process 10 on all active interfaces for Juniper": {
-    "scenario": "Enable OSPF process 10 on all active interfaces for Juniper",
-    "configs": {
-      "Juniper": "set interfaces ae1 aggregated-ether-options minimum-links 1\nset interfaces ae1 aggregated-ether-options lacp active\nset interfaces ae1 unit 0 vlan-id 16\nset interfaces ae1 unit 0 family inet address 10.0.1.2/24\nset interfaces ae2 vlan-tagging\nset interfaces ae2 aggregated-ether-options minimum-links 2\nset interfaces ae2 aggregated-ether-options lacp active\nset interfaces ae2 unit 0 vlan-id 26\nset interfaces ae2 unit 0 family inet address 10.2.2.2/24\nset interfaces lo0 unit 0 family inet address 10.1.255.2/32\nset routing-options router-id 10.1.255.2\nset protocols ospf area 0.0.0.0 interface ae0.0\nset protocols ospf area 0.0.0.0 interface ae1.0\nset protocols ospf area 0.0.0.0 interface ae2.0\nset protocols ospf area 0.0.0.0 interface lo0.0",
-      "Device": "set protocols ospf area 0.0.0.0 interface ae0.0\nset protocols ospf area 0.0.0.0 interface ae1.0\nset protocols ospf area 0.0.0.0 interface ae2.0\nset protocols ospf area 0.0.0.0 interface lo0.0\nset protocols ospf area 0.0.0.0 interface lo0.0 passive"
-    },
-    "status": "PASS",
-    "error": null,
-    "issues": [],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "AS_number": "65010",
-          "device_id": "Device-1",
-          "ip_address": "10.0.0.2/24",
-          "subnet_mask": "255.255.255.0"
-        },
-        "Juniper": {
-          "AS_number": "65010",
-          "device_id": "Juniper-1",
-          "ip_address": "10.0.0.1/24",
-          "subnet_mask": "255.255.255.0"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. OSPF process configuration",
-        "3. Routing"
-      ],
-      "rationale": "To ensure functional correctness, we first enable interfaces, then configure OSPF process 10 on all active interfaces, and finally configure routing protocols. We assign consistent IP addresses, AS numbers, and IDs to all devices to simplify management and troubleshooting."
-    },
-    "latency": 96.96549725532532,
-    "hallucinations": [
-      {
-        "is_hallucinated": true,
-        "reason": "Unauthorized parameters: ['10.1.255.2', '10.0.1.2', '10.2.2.2']",
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": [
-          "10.1.255.2",
-          "10.0.1.2",
-          "10.2.2.2"
-        ]
-      },
       {
         "is_hallucinated": false,
         "reason": null,
@@ -1695,68 +318,367 @@
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "juniper_ospf_b43598db014be851",
-        "juniper_interface_edcaa1cc593a0739"
-      ],
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094516_tiered_02398b42.json",
+    "timestamp": "2026-05-16T10:43:38.220383",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Create an ACL named BLOCK_WEB to deny TCP port 80 from any source": {
+    "scenario": "Create an ACL named BLOCK_WEB to deny TCP port 80 from any source",
+    "configs": {
+      "Device": "ip access-list extended BLOCK_WEB\ndeny tcp any any eq 80"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 7.123218774795532,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
       [
-        "juniper_ospf_b43598db014be851",
-        "juniper_interface_edcaa1cc593a0739"
+        "cisco_tier2_9b77b7cc1b34",
+        "cisco_acl-named_953eae1e7c28ba61"
       ]
     ],
     "valid_source_ids": [
       [
-        "juniper_tier2_06cff4471d33",
-        "juniper_tier2_f61d96d3e268",
-        "juniper_interface_edcaa1cc593a0739",
-        "juniper_tier2_e8f33bb9aa41",
-        "juniper_ospf_b43598db014be851",
-        "juniper_interface_995c11aec0f0cbfd"
-      ],
-      [
-        "juniper_tier2_06cff4471d33",
-        "juniper_tier2_f61d96d3e268",
-        "juniper_interface_edcaa1cc593a0739",
-        "juniper_tier2_e8f33bb9aa41",
-        "juniper_ospf_b43598db014be851",
-        "juniper_interface_995c11aec0f0cbfd"
+        "cisco_acl-named_953eae1e7c28ba61",
+        "cisco_tier2_1dd827ddede7",
+        "cisco_tier2_9b77b7cc1b34",
+        "cisco_acl-named_9cf736446e1b6bea",
+        "cisco_tier2_b51123f2bbac",
+        "cisco_hostname_916147f76f11df55"
       ]
     ],
     "retrieved_texts": [
-      "[SOURCE_ID: juniper_interface_edcaa1cc593a0739]\nCLI_SYNTAX:\nset interfaces ae1 aggregated-ether-options minimum-links 1 set interfaces ae1 aggregated-ether-options lacp active set interfaces ae1 unit 0 vlan-id 16 set interfaces ae1 unit 0 family inet address 10.0.1.2/24 set interfaces ae2 vlan-tagging set interfaces ae2 aggregated-ether-options minimum-links 2 set interfaces ae2 aggregated-ether-options lacp active set interfaces ae2 unit 0 vlan-id 26\n\n- set interfaces ae2 unit 0 family inet address 10.2.2.2/24 set interfaces lo0 unit 0 family inet address 10.1.255.2/32 set routing-options router-id 10.1.255.2\n\n\n\n\n- set protocols ospf area 0.0.0.0 interface ae0.0\n- set protocols ospf area 0.0.0.0 interface ae1.0\n- set protocols ospf area 0.0.0.0 interface ae2.0 set protocols ospf area 0.0.0.0 interface lo0.0\nUSAGE_RULES:\n###### Example: Dynamically Adjusting OSPF Interface Metrics Based on Bandwidth\n---\n[SOURCE_ID: juniper_ospf_b43598db014be851]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.6 passive\n\nset policy-options policy-statement send-direct term 1 from protocol direct\n\nset policy-options policy-statement send-direct term 1 then accept\n\nset routing-options router-id 192.168.0.6\n\n- set routing-options autonomous-system 3\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_tier2_f61d96d3e268]\nCLI_SYNTAX:\ninterface all; interface fxp0.0 {\n---\n",
-      "[SOURCE_ID: juniper_interface_edcaa1cc593a0739]\nCLI_SYNTAX:\nset interfaces ae1 aggregated-ether-options minimum-links 1 set interfaces ae1 aggregated-ether-options lacp active set interfaces ae1 unit 0 vlan-id 16 set interfaces ae1 unit 0 family inet address 10.0.1.2/24 set interfaces ae2 vlan-tagging set interfaces ae2 aggregated-ether-options minimum-links 2 set interfaces ae2 aggregated-ether-options lacp active set interfaces ae2 unit 0 vlan-id 26\n\n- set interfaces ae2 unit 0 family inet address 10.2.2.2/24 set interfaces lo0 unit 0 family inet address 10.1.255.2/32 set routing-options router-id 10.1.255.2\n\n\n\n\n- set protocols ospf area 0.0.0.0 interface ae0.0\n- set protocols ospf area 0.0.0.0 interface ae1.0\n- set protocols ospf area 0.0.0.0 interface ae2.0 set protocols ospf area 0.0.0.0 interface lo0.0\nUSAGE_RULES:\n###### Example: Dynamically Adjusting OSPF Interface Metrics Based on Bandwidth\n---\n[SOURCE_ID: juniper_ospf_b43598db014be851]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.6 passive\n\nset policy-options policy-statement send-direct term 1 from protocol direct\n\nset policy-options policy-statement send-direct term 1 then accept\n\nset routing-options router-id 192.168.0.6\n\n- set routing-options autonomous-system 3\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_tier2_f61d96d3e268]\nCLI_SYNTAX:\ninterface all; interface fxp0.0 {\n---\n"
+      "[SOURCE_ID: cisco_acl-named_953eae1e7c28ba61]\nCLI_SYNTAX:\nip access-list extended access-list-name Example:\n\nserver by denying access from the Marketing network\n\nnetwork administrator that the subsequent entry denies the Marketing network access to the interface.\n\ndeny protocol source [source-wildcard] destination [destination-wildcard] [option\n\n- 209.165.200.244 255.255.255.224 host\n- 209.165.200.245 log\n\n209.165.200.245 Router(config-network-group)# exit Router(config)# ip access-list extended mask of 0.0.0.0 is assumed, which matches\nUSAGE_RULES:\nip access-list extended access-list-name Example:\nremark remark Example:\nargument as a substitute for the protocol. Example: argument\n---\n[SOURCE_ID: cisco_tier2_9b77b7cc1b34]\nUSAGE_RULES:\nRelated Commands Command Description deny Sets conditions in a named IP access list or OGACL that will deny packets. ip access-group Applies an ACL or OGACL to an interface or a service policy map. ip access-list Defines an IP access list or OGACL by name or number. object-group network Defines network object groups for use in OGACLs. object-group service Defines service object groups for use in OGACLs. permit Sets conditions in a named IP access list or OGACL that will permit packets. show\n---\n[SOURCE_ID: cisco_hostname_916147f76f11df55]\nCLI_SYNTAX:\nhostname device123\n\nhostname Switch\n\n- 1. enable\n- 2. configure terminal\n- 3. username name privilege level password password\n- 4. aaa new-model\n- 5. aaa authentication login default local\n---\n[SOURCE_ID: cisco_acl-named_9cf736446e1b6bea]\nCLI_SYNTAX:\nip access-list extended AutoQos-4.0-wlan-Acl-Transactional-Data permit tcp any any eq 443 permit tcp any any eq 1521 permit udp any any eq 1521\n\n- permit tcp any any eq 1526 permit udp any any eq 1526 permit tcp any any eq 1575 permit udp any any eq 1575 permit tcp any any eq 1630 permit udp any any eq 1630\n- permit tcp any any eq 1527 permit tcp any any eq 6200 permit tcp any any eq 3389 permit tcp any any eq 5985 permit tcp any any eq 8080\n---\n[SOURCE_ID: cisco_tier2_1dd827ddede7]\nCLI_SYNTAX:\n\nip access-group Applies an ACL or an object-group ACL to an interface or a service policy map. object-group network Defines network object groups for use in object-group ACLs. object-group service Defines service object groups for use in object-group ACLs.\nUSAGE_RULES:\nip access-group Applies an ACL or an object-group ACL to an interface or a service policy map. object-group network Defines network object groups for use in object-group ACLs. object-group service Defines service object groups for use in object-group ACLs.\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_103614_tiered_60aaac4d.json",
-    "timestamp": "2026-05-15T10:59:59.992612",
+    "deep_trace_file": "results/traces/20260516_094535_tiered_d0627600.json",
+    "timestamp": "2026-05-16T10:43:36.870924",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8": {
+    "scenario": "Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8",
+    "configs": {
+      "Device": "set firewall family inet filter block_icmp term 10 from protocol icmp\nset firewall family inet filter block_icmp term 10 from source-address 10.0.0.0/8\nset firewall family inet filter block_icmp term 10 then discard\nset interfaces ge-0/0/1 unit 0 family inet filter input block_icmp"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 7.638952255249023,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "juniper_tier2_f0484a386fa8",
+        "juniper_firewall_9f3893621f0cc0c0",
+        "juniper_interface_e0468052337f64dc"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "juniper_firewall_9f3893621f0cc0c0",
+        "juniper_tier2_8abef6b1f8e1",
+        "juniper_tier2_f0484a386fa8",
+        "juniper_firewall_620c711e46147866",
+        "juniper_tier2_790c648b3fce",
+        "juniper_interface_e0468052337f64dc"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: juniper_firewall_9f3893621f0cc0c0]\nCLI_SYNTAX:\nset firewall family inet filter block_ip_options term 10 from ip-options any set firewall family inet filter block_ip_options term 10 then count option_any set firewall family inet filter block_ip_options term 10 then discard set firewall family inet filter block_ip_options term 999 then accept set interfaces ge-0/0/1 unit 0 family inet filter input block_ip_options set interfaces ge-0/0/1 unit 0 family inet address 10.1.2.3/30\n\n- 1. Create the stateless firewall filter block_ip_options.\n---\n[SOURCE_ID: juniper_tier2_f0484a386fa8]\nCLI_SYNTAX:\n\n- 4. In each firewall filter term, specify the actions to take if the packet matches all the conditions in that term. You can specify an action and action modifiers:\nUSAGE_RULES:\n\u2022 To specify a filter action, for example, to discard packets that match the conditions of the filter term:\n---\n[SOURCE_ID: juniper_tier2_790c648b3fce]\nCLI_SYNTAX:\n\n0.0.0.0/0 *[BGP/170] 22:44:26, localpref 100, from 192.168.0.2\n\n10.0.0.0/30 *[Direct/0] 23:52:01 > via fe-1/2/0.0 10.0.0.2/32 *[Local/0] 23:52:01 Local via fe-1/2/0.0\n\n- 10.0.0.4/30 *[OSPF/10] 23:51:06, metric 2 to 10.1.0.1 via fe-1/2/1.0\n---\n[SOURCE_ID: juniper_interface_e0468052337f64dc]\nCLI_SYNTAX:\nset interfaces et-0/0/0 unit 0 description \"CONNECTED TO R1\" set interfaces et-0/0/0 unit 0 family inet address 10.100.102.2/30 set interfaces et-0/0/0 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.4.4.4/32 set routing-options router-id 10.4.4.4 set routing-options autonomous-system 64496 set protocols rsvp interface all set protocols rsvp interface fxp0.0 disable set protocols mpls interface all set protocols mpls interface fxp0.0 disable set protocols bgp group Client type internal set protocols bgp group Client local-address 10.4.4.4 set protocols bgp group Client advertise-inactive set protocols bgp group Client family inet unicast add-path receive set protocols bgp group Client family inet unicast add-path send path-count 6 set protocols bgp group Client family inet labeled-unicast rib inet.3 set protocols bgp group Client cluster 10.4.4.4 set protocols bgp group Client neighbor 10.1.1.1 set protocols bgp group Client neighbor 10.6.6.6 set protocols bgp group Client neighbor 10.7.7.7 set protocols ospf area 0.0.0.0 interface et-0/0/0.0 set protocols ospf area 0.0.0.0 interface fxp0.0 disable set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ldp interface all set protocols ldp interface fxp0.0 disable\n\n- set interfaces ge-1/1/0 unit 0 description \"CONNECTED TO R1\" set interfaces ge-1/1/0 unit 0 family inet address 10.100.104.2/30 set interfaces ge-1/1/0 unit 0 family mpls set interfaces ge-2/2/5 unit 0 description \"CONNECTED TO R5\" set interfaces ge-2/2/5 unit 0 family inet address 10.200.203.1/28\n- set interfaces ge-2/2/8 unit 0 description \"CONNECTED TO R5\" set interfaces ge-2/2/8 unit 0 family inet address 10.200.202.1/30 set interfaces lo0 unit 0 family inet address 10.6.6.6/32 set policy-options prefix-list server_v4_pre 10.1.1.1/32 set policy-options policy-statement exp-arp-to-rrs term 1 from protocol arp set policy-options policy-statement exp-arp-to-rrs term 1 from rib inet.3\n---\n[SOURCE_ID: juniper_firewall_620c711e46147866]\nCLI_SYNTAX:\nset firewall family inet filter ip_options_filter term match_strict_source from ip-options strict-source-route set firewall family inet filter ip_options_filter term match_strict_source then count strict_source_route set firewall family inet filter ip_options_filter term match_strict_source then log set firewall family inet filter ip_options_filter term match_strict_source then accept set firewall family inet filter ip_options_filter term match_loose_source from ip-options loosesource-route set firewall family inet filter ip_options_filter term match_loose_source then count loose_source_route set firewall family inet filter ip_options_filter term match_loose_source then log set firewall family inet filter ip_options_filter term match_loose_source then accept set firewall family inet filter ip_options_filter term match_record from ip-options record-route set firewall family inet filter ip_options_filter term match_record then count record_route set firewall family inet filter ip_options_filter term match_record then accept set firewall family inet filter ip_options_filter term match_timestamp from ip-options timestamp set firewall family inet filter ip_options_filter term match_timestamp then count timestamp set firewall family inet filter ip_options_filter term match_timestamp then accept set firewall family inet filter ip_options_filter term match_router_alert from ip-options routeralert set firewall family inet filter ip_options_filter term match_router_alert then count router_alert set firewall family inet filter ip_options_filter term match_router_alert then accept set firewall family inet filter ip_options_filter term match_all then accept set interfaces ge-0/0/1 unit 0 family inet address 10.1.2.3/30 set interfaces ge-0/0/1 unit 0 family inet filter input ip_options_filter\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_094541_tiered_4776275e.json",
+    "timestamp": "2026-05-16T10:43:37.060231",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set description 'Uplink to Core' on interface Gig0/0": {
+    "scenario": "Set description 'Uplink to Core' on interface Gig0/0",
+    "configs": {
+      "Device": "interface Gig0/0\ndescription Uplink to Core"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 4.990812063217163,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094544_tiered_af41623f.json",
+    "timestamp": "2026-05-16T10:43:38.325807",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE": {
+    "scenario": "Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE",
+    "configs": {
+      "Device": "interface GigabitEthernet0/1\nmtu 9000"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 5.119133710861206,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_interface_5db6aa3d3415588e",
+        "cisco_interface_ef93d5f2de67641a"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "cisco_tier2_5013cf254c3c",
+        "cisco_tier2_b37a18c17073",
+        "cisco_interface_ef93d5f2de67641a",
+        "cisco_interface_5db6aa3d3415588e",
+        "cisco_tier2_b94eb7c3659d",
+        "cisco_hostname_b1023a098bef931b"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: cisco_interface_ef93d5f2de67641a]\nCLI_SYNTAX:\ninterface GigabitEthernet1/1/0 ser out ? % Unrecognized command ser ? % Unrecognized command\n---\n[SOURCE_ID: cisco_hostname_b1023a098bef931b]\nCLI_SYNTAX:\nhostname | address\n\ninterface-id (Optional) Interface ID.\n\n192.31.7.37 (barrnet-gw.cisco.com) [version cisco 11.1] [flags: PMSA]: 192.31.7.37 -> 192.31.7.34 (sj-wall-2.cisco.com) [1/0/pim] 192.31.7.37 -> 192.31.7.47 (dirtylab-gw-2.cisco.com) [1/0/pim] 192.31.7.37 -> 192.31.7.44 (dirtylab-gw-1.cisco.com) [1/0/pim]\n---\n[SOURCE_ID: cisco_interface_5db6aa3d3415588e]\nCLI_SYNTAX:\ninterface Serial5/0 description to qos1-75a ip address 200.200.14.250 255.255.255.252 random-detect\n\nRouter# show interfaces serial 5/0 Serial5/0 is up, line protocol is up\n\n594 packets input, 37115 bytes, 0 no buffer Received 5 broadcasts, 0 runts, 0 giants, 0 throttles 0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored, 0 abort 37525 packets output, 4428684 bytes, 0 underruns 0 output errors, 0 collisions, 0 interface resets 0 output buffer failures, 0 output buffers swapped out 0 carrier transitions DCD=up DSR=up DTR=up RTS=up CTS=up\n\nRouter# show queue serial 5/0\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_094613_tiered_c9030ee0.json",
+    "timestamp": "2026-05-16T10:43:39.457105",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30": {
+    "scenario": "Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30",
+    "configs": {
+      "Device": "interface Gig1/0/24\nswitchport mode trunk\nswitchport trunk allowed vlan 10,20,30"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 4.771755695343018,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094641_tiered_0980fbe8.json",
+    "timestamp": "2026-05-16T10:43:39.492493",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure VLAN 100 named 'DATABASE' on Cisco switch": {
+    "scenario": "Configure VLAN 100 named 'DATABASE' on Cisco switch",
+    "configs": {
+      "Cisco switch": "vlan 100\nname DATABASE"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 4.291113615036011,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094743_tiered_fd389403.json",
+    "timestamp": "2026-05-16T10:43:38.846115",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable LLDP globally on a Juniper EX switch": {
+    "scenario": "Enable LLDP globally on a Juniper EX switch",
+    "configs": {
+      "Juniper EX switch": "set protocols lldp enable"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.2846510410308838,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094747_tiered_2bd6e9e8.json",
+    "timestamp": "2026-05-16T10:43:38.793298",
     "mode_tag": "tiered"
   },
   "2.4.0:tiered:Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link": {
     "scenario": "Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link",
     "configs": {
-      "Device": "set protocols ospf area 0.0.0.0 interface ge-0/0/1.0\nset protocols ospf area 0.0.0.0 interface lo0.0 passive"
+      "Device": "set interfaces ge-0/0/0 unit 0 family inet address 10.1.1.2/24\nset protocols ospf area 0.0.0.0 interface ge-0/0/0.0\nset routing-options router-id 10.1.1.2"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
+    "functional_status": "PASS",
     "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
+    "car": 1.0,
+    "is_multi_vendor": true,
     "master_plan": {
       "proposed_parameters": {
-        "Device": {
-          "as_number": "65001",
-          "id": "Device-2",
-          "ip": "192.168.1.2/24"
+        "Device-cisco": {
+          "AS": 65001,
+          "id": 1,
+          "ip": "10.1.1.1/24"
+        },
+        "Device-juniper": {
+          "AS": 65002,
+          "id": 2,
+          "ip": "10.1.1.2/24"
         }
       },
       "deployment_sequence": [
-        "1. Interfaces",
+        "1. Enable interfaces",
         "2. Configure IPs",
-        "3. Routing protocols"
+        "3. Configure OSPF"
       ],
-      "rationale": "To ensure functional correctness, we first enable interfaces, then configure IP addresses, and finally configure OSPF routing protocols. We use the same subnet for peer interfaces on the shared link."
+      "rationale": "Configure OSPF area 0 between Cisco and Juniper devices on their shared link with IP addresses 10.1.1.1/24 and 10.1.1.2/24 respectively."
     },
-    "latency": 120.39778780937195,
+    "latency": 13.576900720596313,
     "hallucinations": [
       {
         "is_hallucinated": false,
@@ -1771,7 +693,8 @@
     "retrieved_sources": [
       [
         "juniper_tier2_20300db3c7b9",
-        "juniper_tier2_6c1e60a1a4e7"
+        "juniper_ospf_d517389ac7a1e3b9",
+        "juniper_interface_995c11aec0f0cbfd"
       ]
     ],
     "valid_source_ids": [
@@ -1780,50 +703,686 @@
         "juniper_ospf_c60a6bb2db5d13b5",
         "juniper_tier2_20300db3c7b9",
         "juniper_ospf_d517389ac7a1e3b9",
-        "juniper_interface_995c11aec0f0cbfd",
-        "juniper_tier2_e8f33bb9aa41"
+        "juniper_tier2_e8f33bb9aa41",
+        "juniper_interface_995c11aec0f0cbfd"
       ]
     ],
     "retrieved_texts": [
-      "[SOURCE_ID: juniper_tier2_6c1e60a1a4e7]\nCLI_SYNTAX:\n2. Configure OSPF.\n---\n[SOURCE_ID: juniper_tier2_20300db3c7b9]\nCLI_SYNTAX:\n\n- 1. Configure the router ID.\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_ospf_d517389ac7a1e3b9]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.2 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set policy-options policy-statement send-static from protocol static set policy-options policy-statement send-static then accept\n\n- set routing-options static route 10.1.0.2/32 next-hop 10.0.0.1 set routing-options static route 10.1.0.1/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.3/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.4/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.5/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.6/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.7/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.8/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.9/32 next-hop 10.0.0.1 set routing-options autonomous-system 65500\n\n\nset interfaces fe-1/2/0 unit 14 family inet address 10.0.0.14/30 set interfaces fe-1/2/1 unit 18 family inet address 10.0.0.18/30 set interfaces fe-1/2/2 unit 21 family inet set interfaces lo0 unit 3 family inet address 10.2.2.2/32 set protocols bgp export send-local set protocols bgp group int type internal set protocols bgp group int local-address 10.2.2.2 set protocols bgp group int family inet unicast set protocols bgp group int family inet-vpn unicast set protocols bgp group int neighbor 10.1.1.1 set protocols ospf area 0.0.0.0 interface fe-1/2/0.14 set protocols ospf area 0.0.0.0 interface fe-1/2/1.18 set protocols ospf area 0.0.0.0 interface lo0.3 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set routing-options autonomous-system 65500 set routing-options forwarding-table indirect-next-hop\n---\n"
+      "[SOURCE_ID: juniper_tier2_6c1e60a1a4e7]\nCLI_SYNTAX:\n2. Configure OSPF.\n---\n[SOURCE_ID: juniper_tier2_20300db3c7b9]\nCLI_SYNTAX:\n\n- 1. Configure the router ID.\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n[SOURCE_ID: juniper_ospf_d517389ac7a1e3b9]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.0 interface lo0.2 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set policy-options policy-statement send-static from protocol static set policy-options policy-statement send-static then accept\n\n- set routing-options static route 10.1.0.2/32 next-hop 10.0.0.1 set routing-options static route 10.1.0.1/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.3/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.4/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.5/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.6/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.7/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.8/32 next-hop 10.0.0.1\n- set routing-options static route 10.1.0.9/32 next-hop 10.0.0.1 set routing-options autonomous-system 65500\n\n\nset interfaces fe-1/2/0 unit 14 family inet address 10.0.0.14/30 set interfaces fe-1/2/1 unit 18 family inet address 10.0.0.18/30 set interfaces fe-1/2/2 unit 21 family inet set interfaces lo0 unit 3 family inet address 10.2.2.2/32 set protocols bgp export send-local set protocols bgp group int type internal set protocols bgp group int local-address 10.2.2.2 set protocols bgp group int family inet unicast set protocols bgp group int family inet-vpn unicast set protocols bgp group int neighbor 10.1.1.1 set protocols ospf area 0.0.0.0 interface fe-1/2/0.14 set protocols ospf area 0.0.0.0 interface fe-1/2/1.18 set protocols ospf area 0.0.0.0 interface lo0.3 set policy-options policy-statement send-local from protocol local set policy-options policy-statement send-local from protocol direct set policy-options policy-statement send-local then accept set routing-options autonomous-system 65500 set routing-options forwarding-table indirect-next-hop\n---\n[SOURCE_ID: juniper_ospf_c60a6bb2db5d13b5]\nCLI_SYNTAX:\nset protocols ospf area 0.0.0.3 area-range 10.0.4.0/28 set protocols ospf area 0.0.0.3 nssa set protocols ospf area 0.0.0.3 nssa area-range 3.0.0.0/8\n\n- 1. Configure the interfaces.\n\n\n- 2. Configure the type of OSPF area.\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_103643_tiered_69b63fe2.json",
-    "timestamp": "2026-05-15T11:00:01.824025",
+    "deep_trace_file": "results/traces/20260516_094759_tiered_69b63fe2.json",
+    "timestamp": "2026-05-16T10:43:39.942607",
     "mode_tag": "tiered"
   },
-  "2.4.0:tiered:Configure static route to 172.16.0.0/16 via 10.0.0.1": {
-    "scenario": "Configure static route to 172.16.0.0/16 via 10.0.0.1",
+  "2.4.0:tiered:Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002": {
+    "scenario": "Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002",
     "configs": {
-      "Device": "router bgp 65535\naddress-family ipv4 unicast\nneighbor 10.0.0.100 remote-as 65600\nneighbor 10.0.0.100 activate\nneighbor 10.0.0.100 ebgp-multihop 255\nneighbor 10.0.0.100 next-hop-unchanged\nip route 172.16.0.0 255.240.0.0 10.0.0.1"
+      "Device": "set routing-options autonomous-system 65002\nset protocols bgp group EXTERNAL peer-as 65001\nset protocols bgp group EXTERNAL neighbor 10.1.1.1"
     },
     "status": "PASS",
     "error": null,
     "issues": [],
-    "functional_status": "SKIPPED",
+    "functional_status": "PASS",
     "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": null,
-    "latency": 9.342635869979858,
+    "car": 1.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Device_cisco": {
+          "as_number": "65001",
+          "bgp_id": "10.1.1.1",
+          "ip_address": "10.1.1.1/24"
+        },
+        "Device_juniper": {
+          "as_number": "65002",
+          "bgp_id": "10.1.1.2",
+          "ip_address": "10.1.1.2/24"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Configure BGP peering"
+      ],
+      "rationale": "The proposed plan ensures that peer interfaces are in the same subnet and defines a logical deployment sequence to establish a functional BGP peering between Cisco AS 65001 and Juniper AS 65002."
+    },
+    "latency": 26.578907012939453,
     "hallucinations": [
       {
-        "is_hallucinated": true,
-        "reason": "Unauthorized parameters: ['10.0.0.100', '255.240.0.0', '65600', '65535']",
+        "is_hallucinated": false,
+        "reason": null,
         "suspicious_commands": [],
         "invalid_citations": [],
         "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "juniper_bgp_7d903651cab2a4a8",
+        "juniper_tier2_1112b9f0007b"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "juniper_tier2_172287abd636",
+        "juniper_tier2_b53fcb4b6f47",
+        "juniper_bgp_7d903651cab2a4a8",
+        "juniper_bgp_ff9eb54f7d1d55e2",
+        "juniper_tier2_1112b9f0007b",
+        "juniper_interface_ec3a924629e86a6b"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: juniper_bgp_7d903651cab2a4a8]\nCLI_SYNTAX:\nset protocols bgp group external-peers peer-as 64510 set protocols bgp group external-peers neighbor 10.10.10.1 set protocols ospf area 0.0.0.0 interface fe-1/2/1.0 set protocols ospf area 0.0.0.0 interface lo0.0 passive set policy-options policy-statement local-direct from protocol [local direct] set policy-options policy-statement local-direct then accept set routing-options autonomous-system 64511 set routing-options router-id 192.168.10.2\n\n- 1. Configure the router interfaces.\n\n- 2. Configure an interior gateway protocol (IGP), such as OSPF or IS-IS.\n---\n[SOURCE_ID: juniper_tier2_1112b9f0007b]\nCLI_SYNTAX:\n- set interfaces fe-1/2/1 unit 0 description to_Exchange-2 set interfaces fe-1/2/1 unit 0 family inet address 10.3.0.50/30 set interfaces lo0 unit 0 family inet address 192.168.0.5/32 set protocols bgp group ext type external set protocols bgp group ext export outbound-routes set protocols bgp group ext peer-as 64510 set protocols bgp group ext neighbor 10.3.0.6 set protocols bgp group to-64512 type external set protocols bgp group to-64512 peer-as 64512 set protocols bgp group to-64512 neighbor\n---\n[SOURCE_ID: juniper_interface_ec3a924629e86a6b]\nCLI_SYNTAX:\nset interfaces ge-0/0/1 unit 2 family inet6 address fe80::10/64\n\n- set interfaces lo0 unit 0 family inet address 198.51.100.1/24 primary\n\n- set interfaces lo0 unit 0 family inet address 198.51.100.2/24 primary\n\n\n- 2. Configure routing options to enable BGP on R1 and R2.\n\n- set routing-options autonomous-system 65541\n\nset routing-options router-id 198.51.100.2\n\n- set routing-options autonomous-system 65542\n\n\n\n\n- 3. Configure EBGP on the multiple links on R1 and R2 using the same link-local IPv6 addresses in the set protocols bgp group groupneighbor peeraddress%localinterface.unit format:\n\nset protocols bgp group external peer-as 65542\n\n- set protocols bgp group external local-as 65541 set protocols bgp group external neighbor fe80::20%ge-0/0/1.1 set protocols bgp group external neighbor \"fe80::20%ge-0/0/1.2\n---\n[SOURCE_ID: juniper_bgp_ff9eb54f7d1d55e2]\nCLI_SYNTAX:\nset protocols bgp group internal-peers local-address 192.168.40.4 set protocols bgp group internal-peers export send-direct set protocols bgp group internal-peers neighbor 192.163.6.4 set protocols bgp group internal-peers neighbor 192.168.6.5 set protocols ospf area 0.0.0.0 interface lo0.3 passive set protocols ospf area 0.0.0.0 interface ge-0/1/0.6 set policy-options policy-statement send-direct term 2 from protocol direct set policy-options policy-statement send-direct term 2 then accept set routing-options router-id 192.168.40.4 set routing-options autonomous-system 17\n\n\n- 1. Configure the interfaces.\n\n- 2. Configure BGP.\n---\n[SOURCE_ID: juniper_tier2_b53fcb4b6f47]\nCLI_SYNTAX:\n2. Configure BGP.\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_094914_tiered_34ce8c23.json",
+    "timestamp": "2026-05-16T10:43:40.126149",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure NTP server 10.1.1.100 on Cisco IOS-XE": {
+    "scenario": "Configure NTP server 10.1.1.100 on Cisco IOS-XE",
+    "configs": {
+      "Device": "ntp server 10.1.1.100"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.085423231124878,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_094939_tiered_df3e47df.json",
+    "timestamp": "2026-05-16T10:43:41.006860",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable SNMP community 'public' with RO access": {
+    "scenario": "Enable SNMP community 'public' with RO access",
+    "configs": {
+      "Device": "snmp-server community public RO"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 1.1233816146850586,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_095004_tiered_ed0c14c9.json",
+    "timestamp": "2026-05-16T10:43:41.132336",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers": {
+    "scenario": "Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers",
+    "configs": {
+      "Device": "set protocols ospf area 0.0.0.0 interface ge-0/0/0 hello-interval 5"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Device_cisco": {
+          "AS_number": "100",
+          "hello_interval": "5",
+          "ip_address": "10.1.1.1/24"
+        },
+        "Device_juniper": {
+          "AS_number": "100",
+          "hello_interval": "5",
+          "ip_address": "10.1.1.2/24"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Configure OSPF hello-interval to 5 seconds"
+      ],
+      "rationale": "To align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers, we first enable the interfaces, then configure the IP addresses with a subnet mask of /24, and finally configure the OSPF hello-interval to 5 seconds on both devices."
+    },
+    "latency": 18.822929620742798,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "juniper_tier2_604b52d059bd"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "juniper_tier2_604b52d059bd",
+        "juniper_tier2_b1ce6c5b4df9",
+        "juniper_interface_edcaa1cc593a0739",
+        "juniper_tier2_e8f33bb9aa41",
+        "juniper_interface_1d00173028ea5906",
+        "juniper_interface_995c11aec0f0cbfd"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: juniper_tier2_604b52d059bd]\nCLI_SYNTAX:\n\n- set protocols ospf area 0.0.0.0 interface fe-0/0/1 hello-interval 2 set protocols ospf area 0.0.0.0 interface fe-0/0/1 dead-interval 8 set protocols ospf area 0.0.0.0 interface fe-1/0/1 hello-interval 2\n- set protocols ospf area 0.0.0.0 interface fe-1/0/1 dead-interval 8\n\n- 1. Create an OSPF area.\n---\n[SOURCE_ID: juniper_interface_edcaa1cc593a0739]\nCLI_SYNTAX:\nset interfaces ae1 aggregated-ether-options minimum-links 1 set interfaces ae1 aggregated-ether-options lacp active set interfaces ae1 unit 0 vlan-id 16 set interfaces ae1 unit 0 family inet address 10.0.1.2/24 set interfaces ae2 vlan-tagging set interfaces ae2 aggregated-ether-options minimum-links 2 set interfaces ae2 aggregated-ether-options lacp active set interfaces ae2 unit 0 vlan-id 26\n\n- set interfaces ae2 unit 0 family inet address 10.2.2.2/24 set interfaces lo0 unit 0 family inet address 10.1.255.2/32 set routing-options router-id 10.1.255.2\n\n\n\n\n- set protocols ospf area 0.0.0.0 interface ae0.0\n- set protocols ospf area 0.0.0.0 interface ae1.0\n- set protocols ospf area 0.0.0.0 interface ae2.0 set protocols ospf area 0.0.0.0 interface lo0.0\nUSAGE_RULES:\n###### Example: Dynamically Adjusting OSPF Interface Metrics Based on Bandwidth\n---\n[SOURCE_ID: juniper_interface_1d00173028ea5906]\nCLI_SYNTAX:\nset interfaces fe-1/2/0 unit 0 family inet6 address 2001:db8:9009:6::2/64 set interfaces lo0 unit 0 family inet address 10.6.6.6/32 set interfaces lo0 unit 0 family inet6 address 2001:db8:9009::6/128 set protocols ospf3 area 0.0.0.1 interface lo0.0 passive set protocols ospf3 area 0.0.0.1 interface fe-1/2/0.0\n\n\n- 1. Configure the interfaces.\n\n- 2. Enable OSPFv3 on the interfaces that are in area 0.\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_095011_tiered_62a9d1a3.json",
+    "timestamp": "2026-05-16T10:43:40.417694",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set system hostname to CORE-RTR-01": {
+    "scenario": "Set system hostname to CORE-RTR-01",
+    "configs": {
+      "Device": "hostname CORE-RTR-01"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 10.520267009735107,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_hostname_916147f76f11df55",
+        "cisco_hostname_12c870041407da5e"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "cisco_hostname_12c870041407da5e",
+        "cisco_tier2_1219d979d08c",
+        "cisco_tier2_e4651dcc8e70",
+        "cisco_hostname_916147f76f11df55",
+        "cisco_interface_ef93d5f2de67641a",
+        "cisco_tier2_bfae77fac790"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: cisco_hostname_12c870041407da5e]\nCLI_SYNTAX:\nhostname name Specifies the hostname. Example:\nUSAGE_RULES:\nhostname name Specifies the hostname. Example:\n---\n[SOURCE_ID: cisco_interface_ef93d5f2de67641a]\nCLI_SYNTAX:\ninterface GigabitEthernet1/1/0 ser out ? % Unrecognized command ser ? % Unrecognized command\n---\n[SOURCE_ID: cisco_hostname_916147f76f11df55]\nCLI_SYNTAX:\nhostname device123\n\nhostname Switch\n\n- 1. enable\n- 2. configure terminal\n- 3. username name privilege level password password\n- 4. aaa new-model\n- 5. aaa authentication login default local\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_095014_tiered_753231f2.json",
+    "timestamp": "2026-05-16T10:43:40.744270",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure logging buffer size to 100000": {
+    "scenario": "Configure logging buffer size to 100000",
+    "configs": {
+      "Device": "no logging buffer-size 100000\nlogging buffer-size 16384"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 6.5185546875,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Ungrounded commands: ['no logging buffer-size 100000', 'logging buffer-size 16384']; Unauthorized parameters: ['16384']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [
+          "no logging buffer-size 100000",
+          "logging buffer-size 16384"
+        ],
         "unauthorized_parameters": [
-          "10.0.0.100",
-          "255.240.0.0",
-          "65600",
-          "65535"
+          "16384"
         ]
       }
     ],
     "cfr_failure": false,
     "retrieved_sources": [
       [
-        "cisco_router-bgp_a32529738b6364be",
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_095044_tiered_a24953e0.json",
+    "timestamp": "2026-05-16T10:43:41.521576",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up local user 'admin' with secret 'Cisco123' and level 15": {
+    "scenario": "Set up local user 'admin' with secret 'Cisco123' and level 15",
+    "configs": {
+      "Device": "username admin secret Cisco123 privilege 15"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 5.085348129272461,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_095215_tiered_acdd699e.json",
+    "timestamp": "2026-05-16T10:43:41.406007",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2": {
+    "scenario": "Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2",
+    "configs": {
+      "Device": "interface GigabitEthernet0/2\nipv6 address 2001:db8:acad::1/64"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 4.887621641159058,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_095223_tiered_fa593c9e.json",
+    "timestamp": "2026-05-16T10:43:41.793845",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'": {
+    "scenario": "Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey'",
+    "configs": {
+      "Cisco": "crypto isakmp policy 1\ncrypto isakmp key SecretKey address 2.2.2.2\ncrypto ipsec transform-set ts esp-aes esp-sha512-hmac\ncrypto map cm 1 ipsec-isakmp\nset peer 2.2.2.2\nset transform-set ts\ninterface GigabitEthernet0/1\nip address 1.1.1.1 255.255.255.0\ncrypto map cm",
+      "Juniper": "set security ike policy ike-policy mode main\nset security ike policy ike-policy proposals ike-proposal\nset security ike policy ike-policy pre-shared-key ascii-text SecretKey\nset security ipsec policy ipsec-policy perfect-forward-secrecy keys group2\nset security ipsec policy ipsec-policy proposals ipsec-proposal"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.9230769230769231,
+    "is_multi_vendor": true,
+    "master_plan": {
+      "proposed_parameters": {
+        "Cisco": {
+          "asn": 100,
+          "ip": "1.1.1.1/24",
+          "vpn_peer_ip": "2.2.2.2",
+          "vpn_psk": "SecretKey"
+        },
+        "Juniper": {
+          "asn": 200,
+          "ip": "2.2.2.2/24",
+          "vpn_peer_ip": "1.1.1.1",
+          "vpn_psk": "SecretKey"
+        }
+      },
+      "deployment_sequence": [
+        "1. Enable interfaces",
+        "2. Configure IPs",
+        "3. Configure VPN"
+      ],
+      "rationale": "The proposed parameters ensure that peer interfaces are in the same subnet and the VPN is configured with a pre-shared key for secure site-to-site connectivity."
+    },
+    "latency": 17.102191925048828,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      },
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_interface_af88c25a990f5c56",
+        "cisco_hostname_2bd744089f3bceb7",
+        "cisco_hostname_2e1fe34b5d51fea2",
+        "cisco_tier2_4fb8444e5c08"
+      ],
+      [
+        "juniper_interface_77d70bac23bf1f7a",
+        "juniper_tier2_e0dca497169f",
+        "juniper_interface_fc96d22d90d50809",
+        "juniper_bgp_ee06543db310cf99"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "cisco_hostname_2bd744089f3bceb7",
+        "cisco_interface_af88c25a990f5c56",
+        "cisco_tier2_f53948cddecc",
+        "cisco_tier2_03af7abba589",
+        "cisco_hostname_2e1fe34b5d51fea2",
+        "cisco_tier2_4fb8444e5c08"
+      ],
+      [
+        "juniper_tier2_e0dca497169f",
+        "juniper_interface_77d70bac23bf1f7a",
+        "juniper_interface_fc96d22d90d50809",
+        "juniper_tier2_e8f7ab49304c",
+        "juniper_tier2_acca9f22211a",
+        "juniper_bgp_ee06543db310cf99"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: cisco_hostname_2bd744089f3bceb7]\nCLI_SYNTAX:\nhostname spoke-pe2 boot-start-marker boot-end-marker no aaa new-model resource policy clock timezone EST 0 ip cef no ip domain lookup !This section refers to the forwarding table for VRF blue: ip vrf blue\n\ninterface Tunnel1 ip address 10.0.0.11 255.255.255.0 no ip redirects ip nhrp authentication cisco ip nhrp map multicast dynamic ip nhrp map 10.0.0.1 172.0.0.1 ip nhrp map multicast 172.0.0.1 ip nhrp network-id 1 ip nhrp nhs 10.0.0.1\n\ninterface Loopback0 ip address 10.9.9.11 255.255.255.255\n\n- interface Ethernet0/0 ip address 172.0.0.11 255.255.255.0\n\n- interface Ethernet1/0 ip vrf forwarding red ip address 192.168.11.2 255.255.255.0\n- interface Ethernet2/0 ip vrf forwarding blue ip address 192.168.11.2 255.255.255.0\n---\n[SOURCE_ID: cisco_hostname_2e1fe34b5d51fea2]\nCLI_SYNTAX:\nhostname name Specifies the peer using a hostname. Example:\n\nipv6-address} | fqdn domain domain-name | email domain domain-name | key-id key-id}\nUSAGE_RULES:\nhostname name Specifies the peer using a hostname. Example:\nSpecifies an IPv4 or IPv6 address or range for the peer.\nExample: Note This IP address is the IKE endpoint address and is independent of the identity address.\nenable Example:\n---\n[SOURCE_ID: cisco_tier2_4fb8444e5c08]\nCLI_SYNTAX:\n--\n\n1 1.1.1.99 10.1.1.99 UP 00:00:01 SC\n\n43 (00:01:37 ago) TrustSec Enabled\nUSAGE_RULES:\nExample:\n---\n[SOURCE_ID: cisco_interface_af88c25a990f5c56]\nCLI_SYNTAX:\ninterface Tunnel1 ip address 10.9.9.1 255.255.255.0 no ip redirects ip nhrp authentication cisco ip nhrp map multicast dynamic ip nhrp network-id 1\n---\n",
+      "[SOURCE_ID: juniper_tier2_e0dca497169f]\nCLI_SYNTAX:\n- \u2022 Deny traffic from vpn-A (from GRE MPLS)\n- \u2022 Permit traffic from vpn-B (from GRE MPLS) Configuration\n---\n[SOURCE_ID: juniper_interface_fc96d22d90d50809]\nCLI_SYNTAX:\nset interfaces ge-1/2/0 unit 14 family inet address 10.1.1.14/30 set interfaces ge-1/2/0 unit 14 family mpls set interfaces ge-1/2/1 unit 21 family inet address 10.1.1.21/30 set interfaces ge-1/2/1 unit 21 family mpls set interfaces vt-1/2/0 unit 5 family inet set interfaces lo0 unit 5 family inet address 172.16.1.5/32 set interfaces lo0 unit 105 family inet address 172.16.100.5/32 set protocols mpls interface ge-1/2/0.14 set protocols bgp group ibgp type internal set protocols bgp group ibgp local-address 172.16.1.5 set protocols bgp group ibgp family inet-vpn any set protocols bgp group ibgp family inet-mvpn signaling set protocols bgp group ibgp neighbor 172.16.1.2 set protocols bgp group ibgp neighbor 172.16.1.4 set protocols ospf area 0.0.0.0 interface lo0.5 passive set protocols ospf area 0.0.0.0 interface ge-1/2/0.14 set protocols ldp interface ge-1/2/0.14 set protocols ldp p2mp set policy-options policy-statement parent_vpn_routes from protocol bgp set policy-options policy-statement parent_vpn_routes then accept set routing-instances vpn-1 instance-type vrf set routing-instances vpn-1 interface vt-1/2/0.5 set routing-instances vpn-1 interface ge-1/2/1.21 set routing-instances vpn-1 interface lo0.105 set routing-instances vpn-1 route-distinguisher 100:100 set routing-instances vpn-1 vrf-target target:1:1 set routing-instances vpn-1 protocols ospf export parent_vpn_routes set routing-instances vpn-1 protocols ospf area 0.0.0.0 interface lo0.105 passive set routing-instances vpn-1 protocols ospf area 0.0.0.0 interface ge-1/2/1.21 set routing-instances vpn-1 protocols pim rp static address 172.16.100.2 set routing-instances vpn-1 protocols pim interface ge-1/2/1.21 mode sparse set routing-instances vpn-1 protocols mvpn set routing-options router-id 172.16.1.5 set routing-options autonomous-system 1001\n---\n[SOURCE_ID: juniper_bgp_ee06543db310cf99]\nCLI_SYNTAX:\nset protocols bgp group R1-R2-R3 type internal set protocols bgp group R1-R2-R3 log-updown set protocols bgp group R1-R2-R3 local-address 15.15.15.15 set protocols bgp group R1-R2-R3 neighbor 12.12.12.12 set protocols bgp group R1-R2-R3 neighbor 13.13.13.13 set protocols bgp group Fake type external set protocols bgp group Fake passive set protocols bgp group Fake neighbor 100.100.100.100 peer-as 500\n\n- 1. Configure one or more VPN families.\n\n- 2. Configure the EBGP session.\n\n- 3. Configure the IBGP sessions.\n---\n[SOURCE_ID: juniper_interface_77d70bac23bf1f7a]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 unit 0 family inet address 2.0.0.2/24 set interfaces ge-0/0/0 unit 0 family mpls set interfaces ge-0/0/1 vlan-tagging set interfaces ge-0/0/1 mtu 1600 set interfaces ge-0/0/1 encapsulation vlan-ccc set interfaces ge-0/0/1 unit 300 encapsulation vlan-ccc set interfaces ge-0/0/1 unit 300 vlan-id 600 set interfaces ge-0/0/1 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/1 unit 600 vlan-id 600 set interfaces ge-0/0/1 unit 600 family vpls set interfaces lo0 unit 0 family inet address 10.255.255.4/32 set routing-options router-id 10.255.255.4 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe1 to 10.255.255.1 set protocols mpls interface ge-0/0/0.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.4 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.1 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/0.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe1 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances l2vpn-inst instance-type l2vpn\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_095226_tiered_bd501a26.json",
+    "timestamp": "2026-05-16T10:44:09.186249",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper": {
+    "scenario": "Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper",
+    "configs": {
+      "Device": "set interfaces ge-0/0/0 unit 0 family inet address 10.1.1.1/24\nset protocols vrrp group 10 virtual-address 10.1.1.254"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 11.550673007965088,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['10.1.1.1']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "10.1.1.1"
+        ]
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "juniper_interface_a3acee134fdd2163",
+        "juniper_interface_190a4e0cd838a831"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "juniper_interface_190a4e0cd838a831",
+        "juniper_interface_995c11aec0f0cbfd",
+        "juniper_interface_a3acee134fdd2163",
+        "juniper_tier2_58f4c68a7b2b",
+        "juniper_tier2_1112b9f0007b",
+        "juniper_tier2_565f807d03d7"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: juniper_interface_190a4e0cd838a831]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 unit 0 description to_R1 set interfaces ge-0/0/0 unit 0 family inet address 10.1.0.6/30 set interfaces lo0 unit 0 family inet address 192.168.0.4/32 set routing-options autonomous-system 65001 set protocols bgp group ext type external set protocols bgp group ext peer-as 65000 set protocols bgp group ext neighbor 10.1.0.5\n\n- 1. Configure the interfaces.\n---\n[SOURCE_ID: juniper_interface_a3acee134fdd2163]\nCLI_SYNTAX:\nset interfaces ge-0/0/2 unit 0 family inet address 10.0.45.1/30 set protocols bgp group ext type external set protocols bgp group ext export advertise-default set protocols bgp group ext peer-as 64501 set protocols bgp group ext neighbor 10.0.45.2 set policy-options policy-statement advertise-default term 1 from route-filter 0.0.0.0/0 exact set policy-options policy-statement advertise-default term 1 then accept set routing-options static route 0.0.0.0/0 discard set routing-options autonomous-system 64500\n\n- 1. Configure the interfaces.\n---\n[SOURCE_ID: juniper_tier2_1112b9f0007b]\nCLI_SYNTAX:\n- set interfaces fe-1/2/1 unit 0 description to_Exchange-2 set interfaces fe-1/2/1 unit 0 family inet address 10.3.0.50/30 set interfaces lo0 unit 0 family inet address 192.168.0.5/32 set protocols bgp group ext type external set protocols bgp group ext export outbound-routes set protocols bgp group ext peer-as 64510 set protocols bgp group ext neighbor 10.3.0.6 set protocols bgp group to-64512 type external set protocols bgp group to-64512 peer-as 64512 set protocols bgp group to-64512 neighbor\n---\n[SOURCE_ID: juniper_tier2_565f807d03d7]\nCLI_SYNTAX:\n\n- 1. Create the configuration group re0. The re0 group is a special group designator that RE0 uses, only in a redundant routing platform.\n\n- 2. Navigate to the groups re0 level of the configuration hierarchy.\n\n- 3. Specify the device hostname.\n---\n[SOURCE_ID: juniper_tier2_58f4c68a7b2b]\nCLI_SYNTAX:\n\n- 2. Confirm the configuration of the interface by entering the show interfaces configuration mode command. If the command output does not display the intended configuration, repeat the instructions in this example to correct the configuration.\n\n- 3. If you are done configuring the device, commit your candidate configuration.\n---\n[SOURCE_ID: juniper_interface_995c11aec0f0cbfd]\nCLI_SYNTAX:\nset interfaces ge-0/0/0 vlan-tagging set interfaces ge-0/0/0 mtu 1600 set interfaces ge-0/0/0 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 encapsulation vlan-vpls set interfaces ge-0/0/0 unit 600 vlan-id 600 set interfaces ge-0/0/0 unit 600 family vpls set interfaces ge-0/0/1 unit 0 family inet address 1.0.0.1/24 set interfaces ge-0/0/1 unit 0 family mpls set interfaces lo0 unit 0 family inet address 10.255.255.1/32 set routing-options nonstop-routing set routing-options router-id 10.255.255.1 set routing-options autonomous-system 100 set routing-options forwarding-table export exp-to-frwd set protocols rsvp interface all set protocols rsvp interface ge-0/0/1.0 set protocols rsvp interface lo0.0 set protocols mpls label-switched-path to-pe2 to 10.255.255.4 set protocols mpls interface ge-0/0/1.0 set protocols bgp group vpls-pe type internal set protocols bgp group vpls-pe local-address 10.255.255.1 set protocols bgp group vpls-pe family l2vpn auto-discovery-only set protocols bgp group vpls-pe family l2vpn signaling set protocols bgp group vpls-pe neighbor 10.255.255.4 set protocols bgp group vpls-pe neighbor 10.255.255.2 set protocols ospf traffic-engineering set protocols ospf area 0.0.0.0 interface lo0.0 passive set protocols ospf area 0.0.0.0 interface ge-0/0/1.0 set policy-options policy-statement exp-to-frwd term 0 from community vpls-com set policy-options policy-statement exp-to-frwd term 0 then install-nexthop lsp to-pe2 set policy-options policy-statement exp-to-frwd term 0 then accept set policy-options community vpls-com members target:100:100 set routing-instances vpl1 instance-type vpls set routing-instances vpl1 interface ge-0/0/0.600 set routing-instances vpl1 route-distinguisher 10.255.255.1:100 set routing-instances vpl1 vrf-target target:100:100 set routing-instances vpl1 protocols vpls site-range 10 set routing-instances vpl1 protocols vpls no-tunnel-services set routing-instances vpl1 protocols vpls site vpl1PE1 site-identifier 1\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_095333_tiered_82e0d3f6.json",
+    "timestamp": "2026-05-16T10:46:22.917210",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch": {
+    "scenario": "Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",
+    "configs": {
+      "Device": "ip dhcp snooping vlan 10,20"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "FAIL",
+    "functional_errors": [
+      "GNS3 node initialization failed."
+    ],
+    "car": 0.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 5.777180194854736,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "BASE_CLI_KNOWLEDGE"
+      ]
+    ],
+    "valid_source_ids": [
+      []
+    ],
+    "retrieved_texts": [
+      ""
+    ],
+    "deep_trace_file": "results/traces/20260516_095436_tiered_d0ddaadc.json",
+    "timestamp": "2026-05-16T10:46:23.514520",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco": {
+    "scenario": "Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco",
+    "configs": {
+      "Device": "interface Gig1/0/1\nchannel-group 1 mode active\nno shutdown\ninterface Gig1/0/2\ninterface port-channel 1"
+    },
+    "status": "PASS",
+    "error": null,
+    "issues": [],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 7.078714370727539,
+    "hallucinations": [
+      {
+        "is_hallucinated": false,
+        "reason": null,
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": []
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
+        "cisco_interface_8d13ad50c7538048"
+      ]
+    ],
+    "valid_source_ids": [
+      [
+        "cisco_tier2_2ee3a1f293bd",
+        "cisco_tier2_0e8847633dd1",
+        "cisco_interface_8d13ad50c7538048",
+        "cisco_router-bgp_5c33986062eca94f",
+        "cisco_acl-named_19a9dfbbb8c90c8d",
+        "cisco_tier2_b51123f2bbac"
+      ]
+    ],
+    "retrieved_texts": [
+      "[SOURCE_ID: cisco_interface_8d13ad50c7538048]\nCLI_SYNTAX:\ninterface GigabitEthernet1/1/1 service-policy output aggregate-member-link\n\n- 1. enable\n- 2. configure terminal\n- 3. interface port-channel port-channel-interface-number . port-channel-subinterface-number\n- 4. service-policy output fragment-class-name\n---\n[SOURCE_ID: cisco_acl-named_19a9dfbbb8c90c8d]\nCLI_SYNTAX:\nip access-list extended tunnel1traffic permit ip host 192.168.1.1 host 10.0.0.1\n---\n[SOURCE_ID: cisco_router-bgp_5c33986062eca94f]\nCLI_SYNTAX:\nrouter bgp 577 bgp router-id 1.1.1.1 bgp log-neighbor-changes neighbor 203.0.113.1 remote-as 223 neighbor 203.0.113.1 description PEERING to PTNR neighbor 10.4.4.1 remote-as 577 neighbor 10.4.4.1 description PEEERING to VASI VRFA interface\n\nnetwork 203.0.113.1 mask 255.255.255.240 network 10.4.0.0 mask 255.255.0.0 network 209.165.200.224 mask 255.255.255.224 neighbor 203.0.113.1 activate neighbor 10.4.4.1 activate neighbor 10.4.4.1 next-hop-self exit-address-family\n\nbgp router-id 4.4.4.4 network 192.168.0.0 mask 255.255.255.248 network 10.4.0.0 mask 255.255.0.0 redistribute connected redistribute static neighbor 192.168.0.2 remote-as 65004 neighbor 192.168.0.2 fall-over bfd neighbor 192.168.0.2 activate neighbor 10.4.4.2 remote-as 577 neighbor 10.4.4.2 description PEERING to VASI Global intf neighbor 10.4.4.2 activate exit-address-family\n---\n"
+    ],
+    "deep_trace_file": "results/traces/20260516_095501_tiered_b50ba2ef.json",
+    "timestamp": "2026-05-16T10:46:23.976878",
+    "mode_tag": "tiered"
+  },
+  "2.4.0:tiered:Configure static route to 172.16.0.0/16 via 10.0.0.1": {
+    "scenario": "Configure static route to 172.16.0.0/16 via 10.0.0.1",
+    "configs": {
+      "Device": "no ip route 172.16.0.0 255.255.0.0 10.0.0.1\nip route 172.16.0.0 255.255.255.0 10.0.0.1"
+    },
+    "status": "REJECT_FOR_MANUAL_REVIEW",
+    "error": null,
+    "issues": [
+      {
+        "type": "PARSE_ISSUE",
+        "severity": "HIGH",
+        "details": "File unknown: This syntax is unrecognized at line: no ip route 172.16.0.0 255.255.0.0 10.0.0.1"
+      }
+    ],
+    "functional_status": "PASS",
+    "functional_errors": [],
+    "car": 1.0,
+    "is_multi_vendor": false,
+    "master_plan": null,
+    "latency": 10.00149130821228,
+    "hallucinations": [
+      {
+        "is_hallucinated": true,
+        "reason": "Unauthorized parameters: ['255.255.0.0']",
+        "suspicious_commands": [],
+        "invalid_citations": [],
+        "ungrounded_commands": [],
+        "unauthorized_parameters": [
+          "255.255.0.0"
+        ]
+      }
+    ],
+    "cfr_failure": false,
+    "retrieved_sources": [
+      [
         "cisco_static-route_6d2cb7f5535c4c5d"
       ]
     ],
@@ -1840,68 +1399,8 @@
     "retrieved_texts": [
       "[SOURCE_ID: cisco_router-bgp_a32529738b6364be]\nCLI_SYNTAX:\nrouter bgp 65535 address-family ipv4 neighbor 10.0.0.100 remote-as 65600 neighbor 10.0.0.100 activate neighbor 10.0.0.100 ebgp-multihop 255 neighbor 10.0.0.100 next-hop-unchanged end\n---\n[SOURCE_ID: cisco_static-route_6d2cb7f5535c4c5d]\nCLI_SYNTAX:\nip route 10.10.10.0 255.255.255.0 gigabitethernet1/1/1 ip route 172.22.33.0 255.255.255.0 gigabitethernet1/1/1 no ip http server\n\ninterface BVI10 ip address 192.168.5.56 255.255.255.255.0 no ip redirects ip nat outside standby 10 priority 100 preempt standby 10 name HSRP1 standby 10 ip 192.168.5.30 standby 10 track gigabitethernet0/0/1\n\nip default-gateway 10.0.18.126 ip nat inside source static 192.168.5.33 3.3.3.5 redundancy HSRP1 ip classless ip route 10.0.32.231 255.255.255 gigabitethernet0/0/1 ip route 10.10.10.0 255.255.255.0 gigabitethernet0/0/1 no ip http server\n---\n[SOURCE_ID: cisco_tier2_534258ad16d2]\nCLI_SYNTAX:\n\nipv6-address\n---\n[SOURCE_ID: cisco_acl-named_953eae1e7c28ba61]\nCLI_SYNTAX:\nip access-list extended access-list-name Example:\n\nserver by denying access from the Marketing network\n\nnetwork administrator that the subsequent entry denies the Marketing network access to the interface.\n\ndeny protocol source [source-wildcard] destination [destination-wildcard] [option\n\n- 209.165.200.244 255.255.255.224 host\n- 209.165.200.245 log\n\n209.165.200.245 Router(config-network-group)# exit Router(config)# ip access-list extended mask of 0.0.0.0 is assumed, which matches\nUSAGE_RULES:\nip access-list extended access-list-name Example:\nremark remark Example:\nargument as a substitute for the protocol. Example: argument\n---\n"
     ],
-    "deep_trace_file": "results/traces/20260515_103933_tiered_e01a98d9.json",
-    "timestamp": "2026-05-15T10:59:59.760210",
-    "mode_tag": "tiered"
-  },
-  "2.4.0:tiered:Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1": {
-    "scenario": "Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1",
-    "configs": {
-      "Device": "access-list 100 permit 192.168.10.0 0.0.0.255\nip nat inside source list 100 interface GigabitEthernet0/1 overload\ninterface GigabitEthernet0/1\nip nat outside\ninterface GigabitEthernet0/2\nip nat inside"
-    },
-    "status": "FAIL",
-    "error": null,
-    "issues": [
-      {
-        "type": "UNDEFINED_REFERENCE",
-        "severity": "HIGH",
-        "details": "File configs/Device.cfg: Unknown 'Unknown' is referenced but not defined. Context: ip nat source dynamic access-list"
-      }
-    ],
-    "functional_status": "SKIPPED",
-    "functional_errors": [],
-    "car": 0.0,
-    "is_multi_vendor": false,
-    "master_plan": {
-      "proposed_parameters": {
-        "Device": {
-          "as_number": "65000",
-          "id": "Device-2",
-          "ip_address": "192.168.10.2/24"
-        }
-      },
-      "deployment_sequence": [
-        "1. Interfaces",
-        "2. Configure IPs",
-        "3. Routing protocols"
-      ],
-      "rationale": "To ensure peer interfaces on the same link are in the same subnet, we assign IP addresses with a subnet mask of /24. The AS numbers and IDs are consistent across devices for simplicity."
-    },
-    "latency": 6.981443643569946,
-    "hallucinations": [
-      {
-        "is_hallucinated": false,
-        "reason": null,
-        "suspicious_commands": [],
-        "invalid_citations": [],
-        "ungrounded_commands": [],
-        "unauthorized_parameters": []
-      }
-    ],
-    "cfr_failure": false,
-    "retrieved_sources": [
-      [
-        "BASE_CLI_KNOWLEDGE"
-      ]
-    ],
-    "valid_source_ids": [
-      []
-    ],
-    "retrieved_texts": [
-      ""
-    ],
-    "deep_trace_file": "results/traces/20260515_110010_tiered_0cd5d15b.json",
-    "timestamp": "2026-05-15T11:00:10.312851",
+    "deep_trace_file": "results/traces/20260516_104408_tiered_e01a98d9.json",
+    "timestamp": "2026-05-16T10:44:08.798118",
     "mode_tag": "tiered"
   }
 }
