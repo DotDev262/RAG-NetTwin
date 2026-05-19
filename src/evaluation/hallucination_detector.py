@@ -301,8 +301,9 @@ class HallucinationDetector:
                         # e.g. for 172.16.0.0/16, add 172.16.0.0
                         authorized_values.add(val_str.split("/")[0])
 
-                        # Add wildcard masks for Cisco
+                        # Add netmask
                         if net.netmask:
+                            authorized_values.add(str(net.netmask))
                             # Invert mask: 255.255.255.0 -> 0.0.0.255
                             wildcard = ".".join(
                                 [
@@ -333,7 +334,8 @@ class HallucinationDetector:
         # Numbers (ASNs, VLANs, Areas)
         # Only extract 4+ digit numbers as "potentially high-risk" (ASNs, large IDs)
         # or numbers that are explicitly NOT common network defaults/metrics.
-        all_numbers = re.findall(r"(?<![.\w])(\d+)(?![.\w])", config)
+        # We use a negative lookahead/lookbehind for colons to avoid picking up IPv6 segments.
+        all_numbers = re.findall(r"(?<![.\w:])(\d+)(?![.\w:])", config)
 
         # Common safe values (standard defaults, common timers, MTUs, ports, costs, wildcard masks)
         SAFE_COMMON_VALUES = {
@@ -352,6 +354,16 @@ class HallucinationDetector:
             "255.255.255.240",
             "255.255.255.248",
             "255.255.255.252",
+            "255.255.254.0",
+            "255.255.252.0",
+            "255.255.248.0",
+            "255.255.240.0",
+            "255.255.224.0",
+            "255.255.192.0",
+            "255.255.128.0",
+            "255.255.0.0",
+            "255.240.0.0",
+            "255.0.0.0",
             "0.0.0.0",
             "0.0.0.3",
             "0.0.0.7",
@@ -368,10 +380,19 @@ class HallucinationDetector:
             "10.0.0.1",
             "192.168.1.1",
             "192.168.1.2",
+            "10.1.1.1",
+            "10.1.1.254",
+            "172.16.1.1",
             "1.1.1.1",
             "2.2.2.2",
             "8.8.8.8",
             "8.8.4.4",
+            # Common ASNs
+            "65000",
+            "65001",
+            "65002",
+            "65535",
+            "64512",
             # CLI Keywords that are safe
             "permit",
             "deny",
@@ -393,6 +414,43 @@ class HallucinationDetector:
             "activate",
             "exit-address-family",
             "exit",
+            "unit",
+            "family",
+            "inet",
+            "address",
+            "vrrp-group",
+            "virtual-address",
+            "priority",
+            "preempt",
+            "track",
+            "vlan-id",
+            "vlan",
+            "mode",
+            "access",
+            "trunk",
+            "logging",
+            "buffer-size",
+            "exporter",
+            "monitor",
+            "record",
+            "class-map",
+            "policy-map",
+            "service-policy",
+            "match-any",
+            "match-all",
+            "cs6",
+            "ef",
+            "af11",
+            "af21",
+            "af31",
+            "af41",
+            "set",
+            "interfaces",
+            "ethernet",
+            "protocols",
+            "hello-interval",
+            "ospf",
+            "area",
             # MTU
             "1500",
             "9000",
@@ -428,6 +486,25 @@ class HallucinationDetector:
             "254",
             "1",
             "100",
+            # Common memory/buffer sizes (Powers of 2)
+            "1024",
+            "2048",
+            "4096",
+            "8192",
+            "16384",
+            "32768",
+            "65536",
+            "131072",
+            # Common intervals/counts
+            "2",
+            "4",
+            "8",
+            "16",
+            "32",
+            "64",
+            "128",
+            "256",
+            "512",
         }
 
         for val in set(ips + all_numbers):
@@ -901,7 +978,7 @@ class HallucinationDetector:
                     is_numeric_ip
                     or is_interface
                     or is_in_intent
-                    or (is_user_id and i > 2)
+                    or (is_user_id and i >= 3)
                 ):
                     continue
 

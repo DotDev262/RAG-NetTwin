@@ -1,6 +1,7 @@
 import math
-import pandas as pd
 from typing import List, Dict
+from rich.console import Console
+from rich.table import Table
 
 try:
     from scipy.stats import norm
@@ -14,6 +15,9 @@ class StatsReporter:
     """
     Computes and generates summary tables for evaluation results.
     """
+
+    def __init__(self):
+        self.console = Console()
 
     def compute_wilson_ci(
         self, count: int, total: int, confidence: float = 0.95
@@ -45,7 +49,7 @@ class StatsReporter:
     def generate_summary_table(
         self, results: List[Dict], retrieval_mode: str = "tiered"
     ):
-        summary = []
+        summary: list[dict[str, str]] = []
         mode_counts = {}
         for mode in ["vanilla", "rag_nettwin"]:
             mode_data = []
@@ -113,7 +117,7 @@ class StatsReporter:
             summary.append(
                 {
                     "Mode": display_mode,
-                    "N": n,
+                    "N": str(n),
                     "Strict SV": self.compute_wilson_ci(strict_pass_count, n),
                     "PEA (CFR)": self.compute_wilson_ci(cfr_success, n),
                     "GNS3 CAR": f"{avg_car*100:.1f}%",
@@ -123,12 +127,33 @@ class StatsReporter:
                 }
             )
 
-        print("\n" + "=" * 100)
-        print(f"{'PHASE 1 RESEARCH EVALUATION SUMMARY':^100}")
-        print("=" * 100)
-        df = pd.DataFrame(summary)
-        print(df.to_string(index=False))
-        print("-" * 100)
+        table = Table(
+            title="PHASE 1 RESEARCH EVALUATION SUMMARY", title_style="bold magenta"
+        )
+        table.add_column("Mode", justify="left", style="cyan", no_wrap=True)
+        table.add_column("N", justify="center", style="magenta")
+        table.add_column("Strict SV", justify="center", style="green")
+        table.add_column("PEA (CFR)", justify="center", style="yellow")
+        table.add_column("GNS3 CAR", justify="center", style="blue")
+        table.add_column("GNS3 ISR", justify="center", style="cyan")
+        table.add_column("Functional", justify="center", style="green")
+        table.add_column("Hallucination", justify="center", style="red")
+
+        for s in summary:
+            table.add_row(
+                s["Mode"],
+                str(s["N"]),
+                s["Strict SV"],
+                s["PEA (CFR)"],
+                s["GNS3 CAR"],
+                s["GNS3 ISR"],
+                s["Functional"],
+                s["Hallucination"],
+            )
+
+        self.console.print("\n")
+        self.console.print(table)
+
         if "vanilla" in mode_counts and "rag_nettwin" in mode_counts:
             p_val = self.compute_p_value(
                 mode_counts["rag_nettwin"]["strict_pass"],
@@ -136,12 +161,13 @@ class StatsReporter:
                 mode_counts["vanilla"]["strict_pass"],
                 mode_counts["vanilla"]["n"],
             )
-            print(f"Strict Syntactic Validity Improvement (p-value): {p_val}")
-        print("=" * 100)
-        print(
-            "Note: Strict SV: Batfish Verified (PASS/WARNING). Gap Rate: Tool limitations (REJECT)."
+            self.console.print(
+                f"\n[bold green]Strict Syntactic Validity Improvement (p-value):[/bold green] [white]{p_val}[/white]"
+            )
+
+        self.console.print(
+            "\n[dim]Note: Strict SV: Batfish Verified (PASS/WARNING). Gap Rate: Tool limitations (REJECT).[/dim]"
         )
-        print(
-            "PEA (Parameter Extraction Accuracy): config alignment with intent (CFR)."
+        self.console.print(
+            "[dim]PEA (Parameter Extraction Accuracy): config alignment with intent (CFR).[/dim]\n"
         )
-        print("=" * 100 + "\n")

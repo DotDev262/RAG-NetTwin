@@ -37,7 +37,7 @@ class IntentSignature(dspy.Signature):
         desc="Primary network protocol (e.g., OSPF, BGP). Plain string value only."
     )
     action = dspy.OutputField(
-        desc="Action: one of 'create', 'update', 'delete', 'enable', 'disable', 'configure', 'set', 'show', 'verify', 'monitor', 'apply', 'add', 'remove'. Plain string value only, do NOT wrap in JSON."
+        desc="Action: one of 'create', 'update', 'delete', 'enable', 'disable', 'configure', 'set', 'show', 'verify', 'monitor', 'apply', 'add', 'remove', 'restrict', 'block', 'allow', 'permit', 'deny'. Plain string value only, do NOT wrap in JSON."
     )
     devices = dspy.OutputField(
         desc="JSON array of device objects. CRITICAL: Do NOT use interface names (e.g., Gig0/1, ge-0/0/0) as device names. If no device name is mentioned, use 'Device'. Example: [{'name': 'Router1', 'vendor': 'cisco', 'os_type': 'ios-xe'}]."
@@ -71,9 +71,11 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
 - VENDOR HEURISTICS:
     * If interface starts with 'GigabitEthernet', 'FastEthernet', 'TenGigabitEthernet', 'Serial', 'Gig', 'Fa', 'Te', it is likely "cisco".
     * If interface starts with 'ge-', 'xe-', 'et-', 'fe-', 'ae', it is likely "juniper".
+    * If interface starts with 'eth', 'vtun', it is likely "vyos".
 - Default to "cisco" only if NO other vendor or heuristic is matched.
 - Use "cisco" for IOS, IOS-XE, NX-OS.
-- Use "juniper" for JunOS, MX, EX, QFX.
+- Use "juniper" for JunOS, MX, EX, QFX. (NOTE: If environment implies VyOS, map "juniper" mentions to "vyos").
+- Use "vyos" for VyOS routers.
 """
 
     def __init__(self, model_name: Optional[str] = None):

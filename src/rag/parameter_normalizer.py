@@ -65,7 +65,7 @@ class ParameterNormalizer:
                         hints.append(
                             f"For '{key}': Use IP {ip_base} with wildcard mask {wildcard} (for ACLs/OSPF) or subnet mask {mask} (for interfaces)."
                         )
-                elif vendor == "juniper":
+                elif vendor in ["juniper", "vyos"]:
                     hints.append(
                         f"For '{key}': Use CIDR notation {ip_base}/{prefix} directly."
                     )
@@ -74,7 +74,11 @@ class ParameterNormalizer:
             # Fallback to generic defaults if no specific hints (Fix F17: Generic Defaults)
             if vendor == "cisco":
                 hints.append(
-                    "Defaults: Use 'GigabitEthernet0/1' for interfaces if none specified."
+                    "Defaults: Use 'Ethernet0/0' for interfaces if none specified."
+                )
+            elif vendor == "vyos":
+                hints.append(
+                    "Defaults: Use 'eth1' for interfaces if none specified (eth0 reserved for management)."
                 )
             elif vendor == "juniper":
                 hints.append(
@@ -111,13 +115,92 @@ class ParameterNormalizer:
             )  # Default to /24 if unknown
             return f"{ip} {mask}"
 
-        # Fix 'ip route 10.0.0.0/24 ...' -> 'ip route 10.0.0.0 255.255.255.0 ...'
-        # Matches 'ip route' followed by an IP/CIDR
+        # 1. Fix 'ip route 10.0.0.0/24 ...' -> 'ip route 10.0.0.0 255.255.255.0 ...'
         processed = re.sub(
             r"(ip route \d+\.\d+\.\d+\.\d+)/(\d+)",
             replace_cidr,
             config,
             flags=re.IGNORECASE,
         )
+
+        # 2. Fix interface abbreviations and map to IOU-compatible names (EthernetX/Y)
+        interface_maps = {
+            r"GigabitEthernet": r"Ethernet",
+            r"Gig": r"Ethernet",
+            r"Gi": r"Ethernet",
+            r"TenGigabitEthernet": r"Ethernet",
+            r"Ten": r"Ethernet",
+            r"Te": r"Ethernet",
+            r"FastEthernet": r"Ethernet",
+            r"Fa": r"Ethernet",
+        }
+        # Use a more careful replacement that preserves the slot/port numbers
+        for short, full in interface_maps.items():
+            # Match boundary, then short name, then OPTIONAL space, then digits/slashes
+            pattern = rf"\b{short}(\s*\d+(?:/\d+)*)"
+            processed = re.sub(pattern, rf"{full}\1", processed, flags=re.IGNORECASE)
+
+        # 3. Clean up QoS 'type qos' and 'type traffic' (NX-OS/XR leakage)
+        # Handles: 'class-map type traffic' -> 'class-map', 'no policy-map type qos' -> 'no policy-map'
+        # Improved regex to handle optional space at end of line and 'class' keyword
+        processed = re.sub(
+            r"(class-map|class|policy-map|service-policy)\s+type\s+(traffic|qos)(?:\s+|$)",
+            r"\1 ",
+            processed,
+            flags=re.IGNORECASE,
+        )
+
+        # 4. Normalize DSCP values to numeric (Batfish is picky)
+        dscp_map = {
+            "cs6": "48",
+            "ef": "46",
+            "cs7": "56",
+            "af11": "10",
+            "af21": "18",
+            "af31": "26",
+            "af41": "34",
+        }
+        for name, num in dscp_map.items():
+            processed = re.sub(
+                rf"\bset dscp {name}\b",
+                f"set dscp {num}",
+                processed,
+                flags=re.IGNORECASE,
+            )
+
+        # 5. Structural Repair for Cisco QoS (fixes flat LLM output)
+        if "policy-map" in processed and "set dscp" in processed:
+            # Detect first defined class-map and access-list
+            cm_match = re.search(
+                r"class-map\s+(?:match-all|match-any|)\s*(\S+)", processed
+            )
+            acl_match = re.search(
+                r"(?:ip\s+access-list\s+\S+\s+|access-list\s+)(\d+|\S+)", processed
+            )
+
+            if cm_match:
+                cm_name = cm_match.group(1)
+                # Repair class-map if it's missing a 'match' line
+                if (
+                    cm_name in processed
+                    and "match" not in processed.split(cm_name)[1].split("\n")[1]
+                ):
+                    match_val = acl_match.group(1) if acl_match else "101"
+                    match_type = (
+                        "access-group" if match_val.isdigit() else "access-group name"
+                    )
+                    processed = re.sub(
+                        rf"(class-map\s+\S+\s+{cm_name})",
+                        rf"\1\n match {match_type} {match_val}",
+                        processed,
+                    )
+
+                # Repair policy-map if 'set dscp' is flat (not inside a class block)
+                if "class" not in processed.split("policy-map")[1].split("set dscp")[0]:
+                    processed = re.sub(
+                        r"(policy-map\s+\S+)\n(\s*set dscp\s+\d+)",
+                        rf"\1\n class {cm_name}\n  \2",
+                        processed,
+                    )
 
         return processed

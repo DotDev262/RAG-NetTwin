@@ -33,6 +33,11 @@ class ActionType(str, Enum):
     APPLY = "apply"
     ADD = "add"
     REMOVE = "remove"
+    RESTRICT = "restrict"
+    BLOCK = "block"
+    ALLOW = "allow"
+    PERMIT = "permit"
+    DENY = "deny"
 
 
 class StructuredIntent(BaseModel):
@@ -44,7 +49,7 @@ class StructuredIntent(BaseModel):
         default="Unknown",
     )
     action: ActionType = Field(
-        description="Specific operation: create, update, delete, enable, disable, configure, apply, add, remove, show, verify, monitor",
+        description="Specific operation: create, update, delete, enable, disable, configure, apply, add, remove, show, verify, monitor, restrict, block, allow, permit, deny",
         default=ActionType.CONFIGURE,
     )
     devices: List[DeviceIntent] = Field(

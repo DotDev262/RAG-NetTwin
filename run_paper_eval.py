@@ -8,13 +8,25 @@ import threading
 import numpy as np
 from pathlib import Path
 from typing import List, Optional, Dict, Any, cast
-from tqdm import tqdm  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from rich.console import Console
+from rich.table import Table
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TimeElapsedColumn,
+    MofNCompleteColumn,
+)
+from rich.panel import Panel
 
 # Add src to path for imports
 
 from src.parser.intent_parser import IntentParser
 from src.rag.config_generator import ConfigGenerator, CONFIG_GENERATOR_VERSION
+from src.rag.parameter_normalizer import ParameterNormalizer
 from src.validation.batfish_validator import BatfishValidator
 from src.validation.gns3_validator import GNS3Validator
 from src.llm import LLMProvider
@@ -49,6 +61,7 @@ class PaperQualityEvaluator:
         hallucination_detector: Optional[HallucinationDetector] = None,
         token_counter: Optional[TokenCounter] = None,
     ):
+        self.console = Console()
         self.parser = parser or IntentParser()
         self.generator = generator or ConfigGenerator()
         self.validator = validator or BatfishValidator()
@@ -65,6 +78,7 @@ class PaperQualityEvaluator:
         self.cfr_checker = CFRChecker()
         self.stats_reporter = StatsReporter()
         self.evaluation_lock = threading.Lock()
+        self.gns3_lock = threading.Lock()
 
         self.gns3 = None
         if self.run_gns3 and not self.cache_only:
@@ -159,48 +173,54 @@ class PaperQualityEvaluator:
         all_results_map = {}
 
         # Parallelize the evaluation loop
-        # We use a small number of workers to avoid hitting rate limits too aggressively
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            future_to_intent = {
-                executor.submit(
-                    self.evaluate_intent, intent, retrieval_mode=retrieval_mode
-                ): (i, intent)
-                for i, intent in enumerate(parsed_intents)
-            }
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=self.console,
+        ) as progress:
+            task = progress.add_task(
+                f"[cyan]Evaluating ({retrieval_mode})", total=len(parsed_intents)
+            )
 
-            for future in tqdm(
-                as_completed(future_to_intent),
-                total=len(parsed_intents),
-                desc=f"Evaluating ({retrieval_mode})",
-            ):
-                idx, intent = future_to_intent[future]
-                try:
-                    res = future.result()
-                    if res:
-                        # Real-time failure reporting
-                        rag_res = res.get("rag_nettwin", {})
-                        status = rag_res.get("status")
-                        if status in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]:
-                            self._print_failure_report(idx, intent, res)
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                future_to_intent = {
+                    executor.submit(
+                        self.evaluate_intent, intent, retrieval_mode=retrieval_mode
+                    ): (i, intent)
+                    for i, intent in enumerate(parsed_intents)
+                }
 
-                        all_results_map[idx] = res
-                except Exception as e:
-                    err_str = str(e)
-                    if "429" in err_str or "rate_limit" in err_str.lower():
-                        original_text = intent.original_text or "Unknown"
-                        logger.error(
-                            f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx + 1}: {original_text[:50]}..."
-                        )
+                for future in as_completed(future_to_intent):
+                    idx, intent = future_to_intent[future]
+                    try:
+                        res = future.result()
+                        if res:
+                            # Real-time failure reporting
+                            rag_res = res.get("rag_nettwin", {})
+                            status = rag_res.get("status")
+                            if status in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]:
+                                self._print_failure_report(idx, intent, res)
 
-                        logger.error(f"Error Details: {err_str}")
-                    else:
-                        # Print failure report for unexpected exceptions
-                        self._print_failure_report(
-                            idx,
-                            intent,
-                            {"rag_nettwin": {"status": "ERROR", "error": err_str}},
-                        )
-                    continue
+                            all_results_map[idx] = res
+                    except Exception as e:
+                        err_str = str(e)
+                        if "429" in err_str or "rate_limit" in err_str.lower():
+                            original_text = intent.original_text or "Unknown"
+                            logger.error(
+                                f"\n🛑 RATE LIMIT EXCEEDED at Intent #{idx + 1}: {original_text[:50]}..."
+                            )
+                            logger.error(f"Error Details: {err_str}")
+                        else:
+                            self._print_failure_report(
+                                idx,
+                                intent,
+                                {"rag_nettwin": {"status": "ERROR", "error": err_str}},
+                            )
+
+                    progress.update(task, advance=1)
 
         # Sort results back into original order
         all_results = [
@@ -283,6 +303,45 @@ class PaperQualityEvaluator:
                     except Exception as e:
                         logger.error(f"Re-validation failed: {e}")
 
+            # RE-RUN GNS3 even if cached (to verify environment stability)
+            if self.run_gns3 and self.gns3 and not self.cache_only:
+                logger.info(f"RAG cache hit - Re-running GNS3: {intent_key[:20]}...")
+                device_configs = cached_rag.get("configs", {})
+
+                # Apply post-processing even to cached configs to benefit from latest regex improvements
+                processed_configs = {}
+                for dev_name, config in device_configs.items():
+                    vendor = "cisco"  # Default for normalization if unknown
+                    processed_configs[dev_name] = (
+                        ParameterNormalizer.post_process_config(config, vendor=vendor)
+                    )
+
+                if processed_configs:
+                    try:
+                        with self.gns3_lock:
+                            g_res = self.gns3.validate(processed_configs, intent)
+                            cached_rag["functional_status"] = g_res.get(
+                                "status", "FAIL"
+                            )
+                            cached_rag["functional_errors"] = [
+                                g_res.get("summary")
+                                or g_res.get("error")
+                                or "GNS3 node initialization failed."
+                            ]
+                            cached_rag["car"] = g_res.get("car", 0.0)
+                            cached_rag["telnet_logs"] = g_res.get("telnet_logs", {})
+
+                            # Update cache with functional results
+                            with self.evaluation_lock:
+                                self.cache_manager.set(
+                                    self.rag_cache,
+                                    cache_key,
+                                    cached_rag,
+                                    mode=retrieval_mode,
+                                )
+                    except Exception as e:
+                        logger.error(f"GNS3 verification failed for cached entry: {e}")
+
             results["rag_nettwin"] = cached_rag
             configs = cached_rag.get("configs", {})
             all_hal_reports = []
@@ -348,6 +407,9 @@ class PaperQualityEvaluator:
                 deep_trace = rag_output.pop("_trace", {})
                 master_plan = deep_trace.get("master_plan")
 
+                # Force re-run of GNS3 if run_gns3 is enabled, even if RAG was cached
+                # (handled by not having 'eval_res' yet in this block)
+
                 all_hal_reports = []
                 for dev_name, dev_data in rag_output.items():
                     if dev_name and dev_name.startswith("_"):
@@ -373,55 +435,65 @@ class PaperQualityEvaluator:
 
                 if self.run_gns3 and self.gns3:
                     try:
-                        g_res = self.gns3.validate(device_configs, intent)
-                        gns3_car = g_res.get("car", 0.0)
-                        is_multi_vendor = g_res.get("is_multi_vendor", False)
+                        with self.gns3_lock:
+                            g_res = self.gns3.validate(device_configs, intent)
+                            gns3_car = g_res.get("car", 0.0)
+                            is_multi_vendor = g_res.get("is_multi_vendor", False)
 
-                        if g_res.get("status") == "PASS":
-                            v_cmds = {
-                                k: v.get("verification_commands", [])
-                                for k, v in rag_output.items()
-                                if k is None or not k.startswith("_")
-                            }
-                            v_res = self.gns3.verify_functional(
-                                g_res.get("nodes", {}), v_cmds
-                            )
-                            has_functional_error = False
-                            functional_errors = []
-                            for dev_name, cmd_outputs in v_res.items():
-                                outputs_to_check = (
-                                    list(cmd_outputs.values())
-                                    if isinstance(cmd_outputs, dict)
-                                    else cmd_outputs
+                            if g_res.get("status") == "PASS":
+                                v_cmds = {
+                                    k: v.get("verification_commands", [])
+                                    for k, v in rag_output.items()
+                                    if k is None or not k.startswith("_")
+                                }
+                                v_res = self.gns3.verify_functional(
+                                    g_res.get("nodes", {}), v_cmds
                                 )
+                                has_functional_error = False
+                                functional_errors = []
+                                for dev_name, cmd_outputs in v_res.items():
+                                    outputs_to_check = (
+                                        list(cmd_outputs.values())
+                                        if isinstance(cmd_outputs, dict)
+                                        else cmd_outputs
+                                    )
 
-                                # Process raw outputs from verify_functional
-                                if isinstance(outputs_to_check, list):
-                                    for entry in outputs_to_check:
-                                        out = (
-                                            entry.get("output", "")
-                                            if isinstance(entry, dict)
-                                            else str(entry)
-                                        )
-                                        if (
-                                            "ERROR:" in out
-                                            or "TIMEOUT:" in out
-                                            or "Invalid input" in out
-                                        ):
-                                            has_functional_error = True
-                                            functional_errors.append(
-                                                f"{dev_name}: {out[:100]}..."
+                                    # Process raw outputs from verify_functional
+                                    if isinstance(outputs_to_check, list):
+                                        for entry in outputs_to_check:
+                                            out = (
+                                                entry.get("output", "")
+                                                if isinstance(entry, dict)
+                                                else str(entry)
                                             )
-                                            break
-                                if has_functional_error:
-                                    break
+                                            if (
+                                                "ERROR:" in out
+                                                or "TIMEOUT:" in out
+                                                or "Invalid input" in out
+                                            ):
+                                                has_functional_error = True
+                                                functional_errors.append(
+                                                    f"{dev_name}: {out[:100]}..."
+                                                )
+                                                break
+                                    if has_functional_error:
+                                        break
 
-                            functional_status = (
-                                "PASS" if not has_functional_error else "FAIL"
-                            )
-                        else:
-                            functional_status = "FAIL"
-                            functional_errors = ["GNS3 node initialization failed."]
+                                functional_status = (
+                                    "PASS" if not has_functional_error else "FAIL"
+                                )
+                                if has_functional_error:
+                                    functional_errors = (
+                                        functional_errors  # Already populated above
+                                    )
+                            else:
+                                functional_status = g_res.get("status", "FAIL")
+                                # Fallback chain for summary: summary -> error -> default
+                                functional_errors = [
+                                    g_res.get("summary")
+                                    or g_res.get("error")
+                                    or "GNS3 node initialization failed."
+                                ]
                     except Exception as ge:
                         logger.error(f"GNS3 validation failed: {ge}")
                         functional_status = "ERROR"
@@ -625,7 +697,7 @@ class PaperQualityEvaluator:
 
     def _print_failure_report(self, idx: int, intent: Any, res: Dict[str, Any]):
         """
-        Prints a detailed failure report to the console without breaking tqdm.
+        Prints a detailed failure report to the console using rich.
         """
         rag_res = res.get("rag_nettwin", {})
         status = rag_res.get("status", "UNKNOWN")
@@ -633,57 +705,61 @@ class PaperQualityEvaluator:
             intent.original_text if hasattr(intent, "original_text") else str(intent)
         )
 
-        # Determine icon
-        icon = (
-            "❌"
-            if status == "ERROR"
-            else "⚠️"
-            if status == "REJECT_FOR_MANUAL_REVIEW"
-            else "🛑"
-        )
+        # Determine color and icon
+        color = "red"
+        icon = "❌"
+        if status == "REJECT_FOR_MANUAL_REVIEW":
+            color = "yellow"
+            icon = "⚠️"
+        elif status == "FAIL":
+            color = "orange3"
+            icon = "🛑"
 
-        report = []
-        report.append(f"\n{icon} FAILURE at Intent #{idx + 1}")
-        report.append(f"   Intent: {intent_text}")
-        report.append(f"   Status: {status}")
+        content = []
+        content.append(f"[bold {color}]Intent:[/bold {color}] {intent_text}")
+        content.append(f"[bold {color}]Status:[/bold {color}] {status}")
 
-        if "error" in rag_res:
-            report.append(f"   Error: {rag_res['error']}")
+        if "error" in rag_res and rag_res["error"]:
+            content.append(f"[bold red]Error:[/bold red] {rag_res['error']}")
 
-        # Extract Batfish issues if present
-        # Note: We don't have direct access to val_report here unless it's in rag_res
-        # In evaluate_intent, we only save status, latency, etc.
-        # Let's check if we can add 'issues' to eval_res in evaluate_intent.
-
-        if "issues" in rag_res:
-            report.append("   Issues Found (Tier 1):")
+        if "issues" in rag_res and rag_res["issues"]:
+            content.append("\n[bold]Issues Found (Tier 1):[/bold]")
             for issue in rag_res["issues"]:
-                report.append(f"     - [{issue.get('type')}] {issue.get('details')}")
+                content.append(
+                    f"  • [[bold cyan]{issue.get('type')}[/bold cyan]] {issue.get('details')}"
+                )
 
         if rag_res.get("functional_status") in ["FAIL", "ERROR"]:
-            report.append(
-                f"   Functional Status (Tier 3): {rag_res.get('functional_status')}"
+            content.append(
+                f"\n[bold]Functional Status (Tier 3):[/bold] [bold red]{rag_res.get('functional_status')}[/bold red]"
             )
             if "functional_errors" in rag_res:
                 for f_err in rag_res["functional_errors"]:
-                    report.append(f"     - {f_err}")
+                    content.append(f"  • {f_err}")
 
         if "configs" in rag_res:
-            report.append("   Generated Configs (Preview):")
+            content.append("\n[bold]Generated Configs (Preview):[/bold]")
             retrieved_sources = rag_res.get("retrieved_sources", [])
-            for idx, (dev, cfg) in enumerate(rag_res["configs"].items()):
+            for i, (dev, cfg) in enumerate(rag_res["configs"].items()):
                 snippet = cfg[:200] + "..." if len(cfg) > 200 else cfg
-                report.append(f"     {dev}:\n{snippet}")
-                if idx < len(retrieved_sources) and retrieved_sources[idx]:
-                    report.append(
-                        f"     🔗 Citations: {', '.join(retrieved_sources[idx])}"
+                content.append(f"[underline]{dev}:[/underline]\n[dim]{snippet}[/dim]")
+                if i < len(retrieved_sources) and retrieved_sources[i]:
+                    sources = ", ".join(retrieved_sources[i])
+                    content.append(
+                        f"[italic]🔗 Citations:[/italic] [blue]{sources}[/blue]"
                     )
 
-        tqdm.write("\n".join(report))
+        panel = Panel(
+            "\n".join(content),
+            title=f"{icon} [bold {color}]FAILURE at Intent #{idx + 1}[/bold {color}]",
+            border_style=color,
+            expand=False,
+        )
+        self.console.print(panel)
 
     def _print_final_failure_summary(self, results: List[Dict[str, Any]]):
         """
-        Groups and prints all failures from the evaluation run.
+        Groups and prints all failures from the evaluation run using rich tables.
         """
         batfish_issues = {}  # type: Dict[str, List[str]]
         gns3_issues = []
@@ -706,7 +782,7 @@ class PaperQualityEvaluator:
                 norm_details = (
                     details.split(" at line:")[0] if " at line:" in details else details
                 )
-                key = f"[{i_type}] {norm_details}"
+                key = f"[[bold cyan]{i_type}[/bold cyan]] {norm_details}"
                 if key not in batfish_issues:
                     batfish_issues[key] = []
                 batfish_issues[key].append(scenario)
@@ -714,7 +790,7 @@ class PaperQualityEvaluator:
             # GNS3 issues
             if rag.get("functional_status") in ["FAIL", "ERROR"]:
                 for f_err in rag.get("functional_errors", []):
-                    gns3_issues.append(f"({scenario}) {f_err}")
+                    gns3_issues.append(f"[italic]{scenario}[/italic]\n{f_err}")
 
             # Hallucination issues
             for hal in rag.get("hallucinations", []):
@@ -722,55 +798,82 @@ class PaperQualityEvaluator:
                     reason = hal.get("reason", "")
                     if "Invalid citations" in reason:
                         hallucination_issues["Invalid citations"].append(
-                            f"({scenario}) {hal.get('invalid_citations')}"
+                            f"[italic]{scenario}[/italic]\n{hal.get('invalid_citations')}"
                         )
                     if "Ungrounded commands" in reason:
                         hallucination_issues["Ungrounded commands"].append(
-                            f"({scenario}) {hal.get('ungrounded_commands')}"
+                            f"[italic]{scenario}[/italic]\n{hal.get('ungrounded_commands')}"
                         )
                     if "Placeholders" in reason:
                         hallucination_issues["Placeholders"].append(
-                            f"({scenario}) {hal.get('suspicious_commands')}"
+                            f"[italic]{scenario}[/italic]\n{hal.get('suspicious_commands')}"
                         )
                     if "Unauthorized parameters" in reason:
                         hallucination_issues["Unauthorized parameters"].append(
-                            f"({scenario}) {hal.get('unauthorized_parameters')}"
+                            f"[italic]{scenario}[/italic]\n{hal.get('unauthorized_parameters')}"
                         )
 
-        print("\n" + "=" * 100)
-        print(f"{'COMPREHENSIVE FAILURE SUMMARY':^100}")
-        print("=" * 100)
+        self.console.print("\n")
 
-        print("\n[TIER 1] Batfish Static Analysis Failures:")
-        if not batfish_issues:
-            print("  ✅ No major issues found.")
-        else:
+        # 1. Batfish Table
+        if batfish_issues:
+            table = Table(
+                title="[bold red]TIER 1: Batfish Static Analysis Failures[/bold red]",
+                show_header=True,
+                header_style="bold red",
+            )
+            table.add_column("Issue Pattern", style="white")
+            table.add_column("Affected Scenarios (First 3)", style="dim")
             for issue_key, scenarios in batfish_issues.items():
-                print(f"  🔴 {issue_key}")
-                for s in list(set(scenarios))[:5]:  # Show first 5 scenarios
-                    print(f"     - {s}")
-                if len(set(scenarios)) > 5:
-                    print(f"     ... and {len(set(scenarios)) - 5} more")
+                unique_scenarios = list(set(scenarios))
+                preview = "\n".join([f"• {s[:50]}..." for s in unique_scenarios[:3]])
+                if len(unique_scenarios) > 3:
+                    preview += f"\n[italic]+ {len(unique_scenarios) - 3} more[/italic]"
+                table.add_row(issue_key, preview)
+            self.console.print(table)
+            self.console.print("\n")
 
-        print("\n[TIER 3] GNS3 / Functional Failures:")
-        if not gns3_issues:
-            print("  ✅ No functional failures found.")
-        else:
+        # 2. GNS3 Table
+        if gns3_issues:
+            table = Table(
+                title="[bold orange3]TIER 3: GNS3 Functional Failures[/bold orange3]",
+                show_header=True,
+                header_style="bold orange3",
+            )
+            table.add_column("Scenario & Error Detail", style="white")
             for g_issue in list(set(gns3_issues))[:10]:
-                print(f"  🛑 {g_issue}")
+                table.add_row(g_issue)
+            if len(set(gns3_issues)) > 10:
+                table.add_row(
+                    f"[italic]+ {len(set(gns3_issues)) - 10} more functional failures[/italic]"
+                )
+            self.console.print(table)
+            self.console.print("\n")
 
-        print("\n[AUDIT] Hallucination Patterns Detected:")
-        found_any_hal = False
-        for h_type, items in hallucination_issues.items():
-            if items:
-                found_any_hal = True
-                print(f"  ⚠️ {h_type}:")
-                for item in list(set(items))[:5]:
-                    print(f"     - {item}")
-        if not found_any_hal:
-            print("  ✅ No hallucinations detected.")
-
-        print("\n" + "=" * 100 + "\n")
+        # 3. Hallucination Table
+        found_any_hal = any(items for items in hallucination_issues.values())
+        if found_any_hal:
+            table = Table(
+                title="[bold yellow]AUDIT: Hallucination Patterns Detected[/bold yellow]",
+                show_header=True,
+                header_style="bold yellow",
+            )
+            table.add_column("Category", style="yellow")
+            table.add_column("Scenario & Detail", style="white")
+            for h_type, items in hallucination_issues.items():
+                if items:
+                    for item in list(set(items))[:3]:
+                        table.add_row(h_type, item)
+                    if len(set(items)) > 3:
+                        table.add_row(
+                            h_type, f"[italic]+ {len(set(items)) - 3} more[/italic]"
+                        )
+            self.console.print(table)
+            self.console.print("\n")
+        else:
+            self.console.print(
+                "[bold green]✅ No hallucinations detected in this run.[/bold green]\n"
+            )
 
 
 if __name__ == "__main__":

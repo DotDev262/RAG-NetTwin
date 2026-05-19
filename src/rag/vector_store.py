@@ -113,7 +113,7 @@ class VectorStore:
             )
             # Use retrieval task for Jina models to improve recall
             if "jina" in settings.embedding_model_name.lower():
-                self.model.default_task = "retrieval"
+                self.model.default_task = "retrieval"  # type: ignore[assignment]
             logger.info(f"Loaded embedding model: {settings.embedding_model_name}")
         except Exception as e:
             logger.error(f"Failed to load SentenceTransformer: {e}")
@@ -130,35 +130,35 @@ class VectorStore:
         self.collection = self.client.get_or_create_collection(
             name=settings.collection_name,
             metadata={"hnsw:space": "cosine"},
-            embedding_function=self.chroma_embedding_function,
+            embedding_function=self.chroma_embedding_function,  # type: ignore[arg-type]
         )
 
         # Get or create collection for few-shot intent parsing examples (Recommendation 2)
         self.few_shot_collection = self.client.get_or_create_collection(
             name="intent_few_shot",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=self.chroma_embedding_function,
+            embedding_function=self.chroma_embedding_function,  # type: ignore[arg-type]
         )
 
         # Get or create collection for Semantic Cache (Recommendation 5)
         self.cache_collection = self.client.get_or_create_collection(
             name="intent_cache",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=self.chroma_embedding_function,
+            embedding_function=self.chroma_embedding_function,  # type: ignore[arg-type]
         )
 
         # Get or create collection for Gold Standard Configs (Recommendation 3 - Phase 2)
         self.gold_configs_collection = self.client.get_or_create_collection(
             name="gold_configs",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=self.chroma_embedding_function,
+            embedding_function=self.chroma_embedding_function,  # type: ignore[arg-type]
         )
 
         # Get or create collection for Intent Parsing Cache (Efficiency Phase 1)
         self.intent_parsing_cache_collection = self.client.get_or_create_collection(
             name="intent_parsing_cache",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=self.chroma_embedding_function,
+            embedding_function=self.chroma_embedding_function,  # type: ignore[arg-type]
         )
 
         # Hybrid Search: BM25 components

@@ -75,6 +75,6 @@
         "policy-map QoS-OSPF",
         "class-map match-all CS6",
         "ERROR",
-        "File unknown: This syntax is unrecognized at line: <EOF>",
+        "File unknown: This syntax is unrecognized at line: <EOF>"
     ]
 }

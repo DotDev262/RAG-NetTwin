@@ -99,30 +99,58 @@ class GNS3Validator(NetworkValidator):
             nodes = self._create_nodes(devices)
             logger.info(f"Created {len(nodes)} nodes")
 
+            if not nodes and devices:
+                err_msg = (
+                    f"Failed to create any nodes for {len(devices)} requested devices."
+                )
+                if hasattr(self, "last_errors") and self.last_errors:
+                    err_msg += f" Details: {'; '.join(self.last_errors[:3])}"
+                return {
+                    "status": "FAIL",
+                    "tier": 3,
+                    "summary": err_msg,
+                }
+
             if len(nodes) > 1 and intent:
                 self._create_links(nodes, intent)
                 logger.info("Created links")
 
             # 3. Start Topology
             logger.info("Starting nodes...")
-            requests.post(
+            start_resp = requests.post(
                 f"{self.base_url}/projects/{self.project_id}/nodes/start",
                 json={},
                 auth=self.auth,
             )
+            if start_resp.status_code not in [200, 204]:
+                err = (
+                    f"Failed to start nodes: {start_resp.status_code} {start_resp.text}"
+                )
+                logger.error(err)
+                return {
+                    "status": "FAIL",
+                    "tier": 3,
+                    "summary": err,
+                    "project_id": self.project_id,
+                }
 
-            # Intelligent Polling: Wait for nodes to reach a ready state (max 120s)
+            # Intelligent Polling: Wait for nodes to reach a ready state (max 300s)
             boot_success = self._wait_for_nodes_boot(nodes)
             if not boot_success:
                 logger.warning(
                     "Some nodes may not have booted fully, proceeding with config push anyway."
                 )
 
+            # Explicit convergence wait (Recommendation 5)
+            logger.info("Nodes ready. Waiting 10s for OS stabilization...")
+            time.sleep(10)
+
             # 4. Push Configs & Track Stats (Recommendation CAR)
             results = {}
             total_commands = 0
             accepted_commands = 0
             telnet_logs = {}
+            push_errors = []
 
             for device_name, config in configs.items():
                 if device_name in nodes:
@@ -140,6 +168,9 @@ class GNS3Validator(NetworkValidator):
                     )
                     telnet_logs[device_name] = node_stats.get("telnet_log", [])
 
+                    if node_stats.get("error"):
+                        push_errors.append(f"{device_name}: {node_stats['error']}")
+
                     if node_stats["total"] > 0:
                         results[device_name] = (
                             "Success"
@@ -151,8 +182,22 @@ class GNS3Validator(NetworkValidator):
                     else:
                         results[device_name] = "Failed"
 
-            status = "PASS" if all(v == "Success" for v in results.values()) else "FAIL"
-            car = (accepted_commands / total_commands) if total_commands > 0 else 0.0
+            if not results and configs:
+                status = "FAIL"
+                summary = "No nodes were available to receive configurations."
+            else:
+                status = (
+                    "PASS" if all(v == "Success" for v in results.values()) else "FAIL"
+                )
+                car = (
+                    (accepted_commands / total_commands) if total_commands > 0 else 0.0
+                )
+                summary = f"Tier 3 GNS3 validation complete. CAR: {car*100:.1f}%"
+                if status == "FAIL":
+                    failed_nodes = [k for k, v in results.items() if v != "Success"]
+                    summary = f"GNS3 Validation failed for: {', '.join(failed_nodes)}. "
+                    if push_errors:
+                        summary += f"Errors: {'; '.join(push_errors)}"
 
             # Check for Interoperability (Multi-vendor)
             vendors = (
@@ -163,7 +208,7 @@ class GNS3Validator(NetworkValidator):
             return {
                 "status": status,
                 "tier": 3,
-                "car": car,
+                "car": car if "car" in locals() else 0.0,
                 "total_commands": total_commands,
                 "accepted_commands": accepted_commands,
                 "telnet_logs": telnet_logs,
@@ -171,12 +216,17 @@ class GNS3Validator(NetworkValidator):
                 "project_id": self.project_id,
                 "nodes": nodes,
                 "config_results": results,
-                "summary": f"Tier 3 GNS3 validation complete. CAR: {car*100:.1f}%",
+                "summary": summary,
             }
 
         except Exception as e:
             logger.error(f"Tier 3 validation failed: {e}")
-            return {"status": "ERROR", "tier": 3, "error": str(e)}
+            return {
+                "status": "ERROR",
+                "tier": 3,
+                "error": str(e),
+                "summary": f"Tier 3 GNS3 validation error: {str(e)}",
+            }
 
     def push_configs(
         self, nodes: Dict[str, str], configs: Dict[str, str]
@@ -315,7 +365,7 @@ class GNS3Validator(NetworkValidator):
 
         return state
 
-    def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 120) -> bool:
+    def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 300) -> bool:
         """
         Polls the console of all nodes until a prompt is detected.
         Returns True if all nodes are ready, False if timeout reached.
@@ -323,7 +373,9 @@ class GNS3Validator(NetworkValidator):
         start_time = time.time()
         pending_nodes = list(nodes.keys())
 
-        logger.info(f"Polling console for {len(pending_nodes)} nodes...")
+        logger.info(
+            f"Polling console for {len(pending_nodes)} nodes (timeout: {timeout}s)..."
+        )
 
         while time.time() - start_time < timeout and pending_nodes:
             for node_name in list(pending_nodes):
@@ -352,16 +404,37 @@ class GNS3Validator(NetworkValidator):
                     ):
                         tn = telnetlib.Telnet(console_host, console_port, timeout=2)
                         tn.write(b"\r\n")
-                        # Look for common prompts: Router>, Router#, Switch>, user:
-                        # We use expect with a short timeout
+                        # Look for common prompts: Router>, Router#, Switch>, user:, login:
+                        # Also handle Cisco "initial configuration dialog" [yes/no]
                         idx, match, text = tn.expect(
-                            cast(Any, [b">", b"#", b"login:", b"user:"]), timeout=2
+                            cast(
+                                Any,
+                                [
+                                    b">",
+                                    b"#",
+                                    b"login:",
+                                    b"user:",
+                                    b"initial configuration dialog\? \[yes/no\]:",
+                                ],
+                            ),
+                            timeout=5,
                         )
-                        tn.close()
 
-                        if idx != -1:
+                        if idx == 4:
+                            # Cisco Initial Config Dialog - say 'no'
+                            logger.info(
+                                f"Node {node_name} is in initial config dialog. Sending 'no'..."
+                            )
+                            tn.write(b"no\r\n")
+                            time.sleep(1)
+                            tn.write(b"\r\n")
+                            # Don't remove from pending yet, wait for real prompt in next poll
+
+                        elif idx != -1:
                             logger.info(f"Node {node_name} is READY (detected prompt)")
                             pending_nodes.remove(node_name)
+
+                        tn.close()
                 except (ConnectionRefusedError, socket.timeout, EOFError):
                     # Still booting
                     continue
@@ -403,12 +476,12 @@ class GNS3Validator(NetworkValidator):
                 json={},
                 auth=self.auth,
             )
-            time.sleep(2)  # Give them a moment to stop
+            time.sleep(5)  # Increased wait for nodes to stop
         except Exception:
             pass
 
-        # 2. Delete nodes with retries
-        max_retries = 3
+        # 2. Delete nodes with more retries and longer backoff
+        max_retries = 5
         for attempt in range(max_retries):
             nodes_resp = requests.get(
                 f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth
@@ -432,7 +505,7 @@ class GNS3Validator(NetworkValidator):
                     )
 
             if attempt < max_retries - 1:
-                time.sleep(1 * (attempt + 1))  # Exponential-ish backoff
+                time.sleep(2 * (attempt + 1))  # More aggressive backoff
 
         # 3. Final verification
         verify = requests.get(
@@ -490,6 +563,7 @@ class GNS3Validator(NetworkValidator):
     def _create_nodes(self, devices: List[Any]) -> Dict[str, str]:
         """Creates nodes and returns a map of name -> node_id"""
         node_map = {}
+        self.last_errors = []
 
         for i, device in enumerate(devices):
             template = self._find_template_for_vendor(device.vendor)
@@ -510,47 +584,94 @@ class GNS3Validator(NetworkValidator):
                 if resp.status_code == 201:
                     node_map[device.name] = resp.json()["node_id"]
                 else:
-                    logger.error(f"Failed to create node {device.name}: {resp.text}")
+                    err = f"Failed to create node {device.name}: {resp.status_code} {resp.text}"
+                    logger.error(err)
+                    self.last_errors.append(err)
             else:
-                logger.warning(
-                    f"No {device.vendor} images found in GNS3. Skipping node {device.name}."
-                )
+                err = f"No {device.vendor} images found in GNS3. Skipping node {device.name}."
+                logger.warning(err)
+                self.last_errors.append(err)
 
         return node_map
 
     def _create_links(self, node_map: Dict[str, str], intent: StructuredIntent) -> None:
-        """Linear linking using PortManager."""
+        """Linear linking using PortManager. Handles IOU (port-based) and Qemu (adapter-based)."""
         device_names = list(node_map.keys())
         for i in range(len(device_names) - 1):
             node_a_id = node_map[device_names[i]]
             node_b_id = node_map[device_names[i + 1]]
 
-            port_a = self.port_manager.get_free_port(node_a_id)
-            port_b = self.port_manager.get_free_port(node_b_id)
+            # Fetch node info to determine link strategy
+            try:
+                node_a_info = requests.get(
+                    f"{self.base_url}/projects/{self.project_id}/nodes/{node_a_id}",
+                    auth=self.auth,
+                ).json()
+                node_b_info = requests.get(
+                    f"{self.base_url}/projects/{self.project_id}/nodes/{node_b_id}",
+                    auth=self.auth,
+                ).json()
 
-            payload = {
-                "nodes": [
-                    {"node_id": node_a_id, "adapter_number": 0, "port_number": port_a},
-                    {"node_id": node_b_id, "adapter_number": 0, "port_number": port_b},
-                ]
-            }
-            requests.post(
-                f"{self.base_url}/projects/{self.project_id}/links",
-                json=payload,
-                auth=self.auth,
-            )
+                # Strategy: IOU uses port_number on adapter 0.
+                # Qemu/VyOS uses adapter_number with port_number 0.
+                is_a_iou = node_a_info.get("node_type") == "iou"
+                is_b_iou = node_b_info.get("node_type") == "iou"
+
+                port_a = self.port_manager.get_free_port(node_a_id)
+                port_b = self.port_manager.get_free_port(node_b_id)
+
+                adapter_a = 0 if is_a_iou else port_a
+                p_num_a = port_a if is_a_iou else 0
+
+                adapter_b = 0 if is_b_iou else port_b
+                p_num_b = port_b if is_b_iou else 0
+
+                payload = {
+                    "nodes": [
+                        {
+                            "node_id": node_a_id,
+                            "adapter_number": adapter_a,
+                            "port_number": p_num_a,
+                        },
+                        {
+                            "node_id": node_b_id,
+                            "adapter_number": adapter_b,
+                            "port_number": p_num_b,
+                        },
+                    ]
+                }
+                resp = requests.post(
+                    f"{self.base_url}/projects/{self.project_id}/links",
+                    json=payload,
+                    auth=self.auth,
+                )
+                if resp.status_code not in [200, 201]:
+                    err = f"Failed to create link between {device_names[i]} and {device_names[i+1]}: {resp.text}"
+                    logger.error(err)
+                    if hasattr(self, "last_errors"):
+                        self.last_errors.append(err)
+            except Exception as e:
+                logger.error(
+                    f"Error creating link between {device_names[i]} and {device_names[i+1]}: {e}"
+                )
 
     def _push_config_to_node(
         self, node_id: str, config: str, vendor: str = "cisco"
     ) -> Dict[str, Any]:
         """Pushes configuration via Telnet and tracks command acceptance."""
-        stats: Dict[str, Any] = {"total": 0, "accepted": 0, "telnet_log": []}
+        stats: Dict[str, Any] = {
+            "total": 0,
+            "accepted": 0,
+            "telnet_log": [],
+            "error": None,
+        }
         try:
             resp = requests.get(
                 f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
                 auth=self.auth,
             )
             if resp.status_code != 200:
+                stats["error"] = f"Failed to get node info: {resp.status_code}"
                 return stats
 
             node_info = resp.json()
@@ -560,6 +681,7 @@ class GNS3Validator(NetworkValidator):
                 console_host = self.host
 
             if not console_port:
+                stats["error"] = "Console port not assigned"
                 return stats
 
             error_keywords = [
@@ -578,15 +700,27 @@ class GNS3Validator(NetworkValidator):
 
             # Vendor-specific navigation
             if vendor == "juniper":
-                tn.write(b"cli\r\n")
-                time.sleep(0.5)
+                # Check if we are already in CLI
+                idx, match, text = tn.expect([b">", b"#", b"%"], timeout=5)  # type: ignore
+                if idx == 2:  # at shell %
+                    tn.write(b"cli\r\n")
+                    tn.expect([b">"], timeout=5)  # type: ignore
+
                 tn.write(b"configure\r\n")
                 tn.expect([b"Entering configuration mode", b"#"], timeout=5)  # type: ignore
             else:
                 # Cisco/Default
-                tn.write(b"enable\r\n")
-                tn.write(b"configure terminal\r\n")
-                tn.expect([b"(config)#", b"#"], timeout=5)  # type: ignore
+                # Try to wake up and see where we are
+                tn.write(b"\r\n")
+                idx, match, text = tn.expect([b">", b"#", b"(config)#"], timeout=5)  # type: ignore
+
+                if idx == 0:  # at >
+                    tn.write(b"enable\r\n")
+                    tn.expect([b"#"], timeout=5)  # type: ignore
+
+                if idx != 2:  # not in config mode
+                    tn.write(b"configure terminal\r\n")
+                    tn.expect([b"(config)#", b"#"], timeout=10)  # type: ignore
 
             for line in config.splitlines():
                 cmd = line.strip()
@@ -598,7 +732,7 @@ class GNS3Validator(NetworkValidator):
 
                 # Check for errors after each command
                 # Junos uses # as prompt in config mode, Cisco uses (config)#
-                idx, match, text = tn.expect([b"#", b">"], timeout=5)  # type: ignore
+                idx, match, text = tn.expect([b"(config)#", b"#", b">"], timeout=10)  # type: ignore
                 output = text.decode("ascii", errors="ignore")
 
                 accepted = not any(
@@ -607,10 +741,14 @@ class GNS3Validator(NetworkValidator):
                 if accepted:
                     stats["accepted"] += 1
                 else:
-                    logger.warning(
-                        f"GNS3 Reject ({vendor}): {cmd} | Output: {output.strip()}"
-                    )
-
+                    err_msg = f"Rejected: {cmd} | Output: {output.strip()}"
+                    logger.warning(f"GNS3 Reject ({vendor}): {err_msg}")
+                    if stats["error"] is None:
+                        stats["error"] = err_msg
+                    else:
+                        # Keep only first few errors to avoid bloated summary
+                        if stats["error"].count(";") < 3:
+                            stats["error"] += f"; {err_msg}"
                 # Deep Trace: Log everything
                 stats["telnet_log"].append(
                     {"command": cmd, "output": output.strip(), "accepted": accepted}
@@ -618,15 +756,16 @@ class GNS3Validator(NetworkValidator):
 
             if vendor == "juniper":
                 tn.write(b"commit and-quit\r\n")
-                tn.expect([b"commit complete", b">"], timeout=20)  # type: ignore
+                tn.expect([b"commit complete", b">"], timeout=30)  # type: ignore
             else:
                 tn.write(b"end\r\n")
                 tn.write(b"write memory\r\n")
-                tn.expect([b"[OK]", b"#"], timeout=10)  # type: ignore
+                tn.expect([b"[OK]", b"#"], timeout=15)  # type: ignore
 
             tn.close()
 
             return stats
         except Exception as e:
             logger.error(f"Config push failed for {vendor} node {node_id}: {e}")
+            stats["error"] = str(e)
             return stats
