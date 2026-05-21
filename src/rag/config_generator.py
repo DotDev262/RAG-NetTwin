@@ -129,6 +129,8 @@ class ConfigGenerator:
         self.hallucination_detector = HallucinationDetector()
         self.query_expander = QueryExpander(model_name=model_name)
         self._sanity_lock = threading.Lock()
+        # Cache for query expansions to avoid repeated LLM calls
+        self._query_expansion_cache: dict[str, list[str]] = {}
 
     def generate(
         self, structured_intent: StructuredIntent, retrieval_mode: str = "tiered"
@@ -203,6 +205,10 @@ class ConfigGenerator:
         expansion_triggered: bool = False
         trace["expanded_queries"] = queries
 
+        # Cache for query expansions to avoid repeated LLM calls
+        if not hasattr(self, "_query_expansion_cache"):
+            self._query_expansion_cache = {}
+
         full_context_map: Dict[str, Dict[str, Any]] = {}
 
         # 2. Retrieval Phase
@@ -237,12 +243,20 @@ class ConfigGenerator:
                         os_version=search_version,
                         n_results=1,
                     )
-                    # If distance > 0.55, documentation match is weak, trigger LLM expansion (Recommendation 4)
-                    if not pilot or pilot[0].get("distance", 1.0) > 0.55:
+                    # If distance > 0.60, documentation match is weak, trigger LLM expansion (Recommendation 4)
+                    # Increased threshold to reduce unnecessary expansions
+                    if not pilot or pilot[0].get("distance", 1.0) > 0.60:
                         logger.info(
                             f"Low confidence pilot search for {vendor}. Triggering Multi-Query Expansion..."
                         )
-                        queries = self.query_expander.expand(base_query)
+                        # Use cached expansion if available
+                        cache_key = f"{base_query}:{vendor}:{search_version}"
+                        if cache_key in self._query_expansion_cache:
+                            queries = self._query_expansion_cache[cache_key]
+                            logger.info(f"Using cached query expansion for {vendor}")
+                        else:
+                            queries = self.query_expander.expand(base_query)
+                            self._query_expansion_cache[cache_key] = queries
                         trace["expanded_queries"] = queries
                         expansion_triggered = True
                     else:
@@ -662,7 +676,8 @@ class ConfigGenerator:
 
             validator = BatfishValidator()
 
-            max_refinements = 3
+            # Determine refinement limit based on intent complexity
+            max_refinements = self._get_refinement_limit(structured_intent)
             current_config = config_text
 
             for i in range(max_refinements):
@@ -920,6 +935,108 @@ class ConfigGenerator:
             return True
 
         return False
+
+    def _get_refinement_limit(self, intent: StructuredIntent) -> int:
+        """
+        Determine appropriate refinement limit based on intent complexity.
+        Simple intents get fewer refinements to save API calls.
+        Complex intents get more refinements to ensure quality.
+
+        Returns:
+            int: Number of refinement attempts allowed (0-2)
+        """
+        # Simple intents: minimal or no refinement needed
+        simple_protocols = [
+            "hostname",
+            "description",
+            "banner",
+            "ntp",
+            "logging",
+            "timezone",
+            "clock",
+            "alias",
+            "snmp",
+            "lldp",
+        ]
+
+        # Check if it's a simple administrative task
+        if intent.protocol and str(intent.protocol).lower() in simple_protocols:
+            return 0
+
+        # Check for simple actions with minimal parameters
+        if hasattr(intent.action, "value"):
+            action_value = intent.action.value
+        else:
+            action_value = str(intent.action)
+
+        if action_value in ["enable", "disable", "show", "verify"]:
+            # Only allow refinement if there are complex parameters
+            complex_params = [
+                "bgp",
+                "ospf",
+                "vrrp",
+                "dhcp",
+                "nat",
+                "vpn",
+                "qos",
+                "netflow",
+            ]
+            if not any(
+                param in str(intent.parameters).lower() for param in complex_params
+            ):
+                return 1  # Limited refinement for basic actions
+
+        # Complex intents that benefit from refinement
+        complex_protocols = [
+            "qos",
+            "netflow",
+            "ipfix",
+            "bgp",
+            "vrrp",
+            "vpn",
+            "ospf",
+            "isis",
+            "mpls",
+            "pim",
+        ]
+
+        # Check for complex protocols or multi-device scenarios
+        if intent.protocol and any(
+            proto in str(intent.protocol).lower() for proto in complex_protocols
+        ):
+            return 2
+
+        # Multiple devices often need more refinement for consistency
+        if len(intent.devices) > 1:
+            return 2
+
+        # Check for complex parameters that often need refinement
+        param_str = str(intent.parameters).lower()
+        complex_indicators = [
+            "access-list",
+            "policy-map",
+            "class-map",
+            "route-map",
+            "flow",
+            "exporter",
+            "monitor",
+            "record",
+            "bgp",
+            "as-number",
+            "neighbor",
+            "vrrp",
+            "vrf",
+            "vrrp",
+            "vrf",
+            "multicast",
+            "anycast",
+        ]
+
+        if any(indicator in param_str for indicator in complex_indicators):
+            return 2
+
+        # Default to 1 refinement for most cases
+        return 1
 
     @with_retry(max_retries=5)
     def refine(

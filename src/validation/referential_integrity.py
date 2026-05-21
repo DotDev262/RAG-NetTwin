@@ -25,9 +25,19 @@ class ReferentialIntegrityValidator:
             # 2. ACL checks
             used_acls: set[str] = set()
             defined_acls: set[str] = set()
-            # 3. Policy-map checks
+            # 3. Class-map checks (for QoS)
+            used_class_maps: set[str] = set()
+            defined_class_maps: set[str] = set()
+            # 4. Policy-map checks
             used_policies: set[str] = set()
             defined_policies: set[str] = set()
+            # 5. NetFlow checks
+            used_flow_records: set[str] = set()
+            defined_flow_records: set[str] = set()
+            used_flow_exporters: set[str] = set()
+            defined_flow_exporters: set[str] = set()
+            used_flow_monitors: set[str] = set()
+            defined_flow_monitors: set[str] = set()
 
             for line in lines:
                 l_strip = line.strip()
@@ -48,9 +58,32 @@ class ReferentialIntegrityValidator:
                 if old_acl_def:
                     defined_acls.add(old_acl_def.group(1))
 
+                # Class-map definitions (QoS)
+                cm_def = re.match(
+                    r"^class-map\s+(?:match-any|match-all)?\s*([^\s]+)", l_strip
+                )
+                if cm_def:
+                    defined_class_maps.add(cm_def.group(1))
+
+                # Policy-map definitions
                 pol_def = re.match(r"^policy-map\s+([^\s]+)", l_strip)
                 if pol_def:
                     defined_policies.add(pol_def.group(1))
+
+                # NetFlow record definitions
+                fr_def = re.match(r"^flow\s+record\s+([^\s]+)", l_strip)
+                if fr_def:
+                    defined_flow_records.add(fr_def.group(1))
+
+                # NetFlow exporter definitions
+                fe_def = re.match(r"^flow\s+exporter\s+([^\s]+)", l_strip)
+                if fe_def:
+                    defined_flow_exporters.add(fe_def.group(1))
+
+                # NetFlow monitor definitions
+                fm_def = re.match(r"^flow\s+monitor\s+([^\s]+)", l_strip)
+                if fm_def:
+                    defined_flow_monitors.add(fm_def.group(1))
 
                 # Usages
                 rm_use = re.search(r"route-map\s+([^\s!]+)", line)
@@ -61,11 +94,29 @@ class ReferentialIntegrityValidator:
                 if acl_use:
                     used_acls.add(acl_use.group(1))
 
+                # Class-map usages (QoS)
+                cm_use = re.search(r"class\s+([^\s]+)", line)
+                if cm_use:
+                    used_class_maps.add(cm_use.group(1))
+
                 pol_use = re.search(
                     r"service-policy\s+(?:input|output)\s+([^\s]+)", line
                 )
                 if pol_use:
                     used_policies.add(pol_use.group(1))
+
+                # NetFlow usages
+                fr_use = re.search(r"record\s+([^\s]+)", line)
+                if fr_use:
+                    used_flow_records.add(fr_use.group(1))
+
+                fe_use = re.search(r"exporter\s+([^\s]+)", line)
+                if fe_use:
+                    used_flow_exporters.add(fe_use.group(1))
+
+                fm_use = re.search(r"ip\s+flow\s+monitor\s+([^\s]+)\s+input", line)
+                if fm_use:
+                    used_flow_monitors.add(fm_use.group(1))
 
                 nat_list_use = re.search(
                     r"ip\s+nat\s+inside\s+source\s+list\s+([^\s]+)", line
@@ -80,6 +131,7 @@ class ReferentialIntegrityValidator:
                 if bgp_rm_use:
                     used_route_maps.add(bgp_rm_use.group(1))
 
+            # Check for undefined references
             for rm in used_route_maps:
                 if rm not in defined_route_maps:
                     issues.append(
@@ -94,10 +146,34 @@ class ReferentialIntegrityValidator:
                             f"Cisco Warning: Access-group/List '{acl}' is referenced but not defined."
                         )
 
+            for cm in used_class_maps:
+                if cm not in defined_class_maps:
+                    issues.append(
+                        f"Cisco Error: Class-map '{cm}' is referenced but not defined."
+                    )
+
             for pol in used_policies:
                 if pol not in defined_policies:
                     issues.append(
                         f"Cisco Error: Policy-map '{pol}' is referenced but not defined."
+                    )
+
+            for fr in used_flow_records:
+                if fr not in defined_flow_records:
+                    issues.append(
+                        f"Cisco Error: Flow record '{fr}' is referenced but not defined."
+                    )
+
+            for fe in used_flow_exporters:
+                if fe not in defined_flow_exporters:
+                    issues.append(
+                        f"Cisco Error: Flow exporter '{fe}' is referenced but not defined."
+                    )
+
+            for fm in used_flow_monitors:
+                if fm not in defined_flow_monitors:
+                    issues.append(
+                        f"Cisco Error: Flow monitor '{fm}' is referenced but not defined."
                     )
 
         elif vendor == "juniper":

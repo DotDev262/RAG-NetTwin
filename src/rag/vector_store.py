@@ -744,14 +744,19 @@ class VectorStore:
         parameters: Dict[str, Any],
         vendor: str,
         retrieval_mode: str = "tiered",
-        threshold: float = 0.01,
+        threshold: float = 0.02,
     ) -> Optional[Dict[str, Any]]:
         """
         Checks the semantic cache for a matching intent, specific to retrieval mode.
-        Threshold: 0.01 is highly restrictive (near identical).
+        Threshold: 0.02 allows for slightly more variation while maintaining specificity.
         """
+        # Normalize intent text for better cache matching
+        normalized_intent = intent_text.lower().strip()
+        # Sort parameters for order-independent matching
+        sorted_params = json.dumps(parameters, sort_keys=True)
+
         # We include parameters and mode in the query to increase specificity
-        query: str = f"Mode: {retrieval_mode} | {intent_text} {json.dumps(parameters)}"
+        query: str = f"Mode: {retrieval_mode} | {normalized_intent} {sorted_params}"
 
         results = self.cache_collection.query(
             query_texts=[query],
@@ -787,7 +792,10 @@ class VectorStore:
         """
         Adds a successfully generated configuration to the semantic cache.
         """
-        query: str = f"Mode: {retrieval_mode} | {intent_text} {json.dumps(parameters)}"
+        # Normalize intent text and sort parameters for consistency with check_cache
+        normalized_intent = intent_text.lower().strip()
+        sorted_params = json.dumps(parameters, sort_keys=True)
+        query: str = f"Mode: {retrieval_mode} | {normalized_intent} {sorted_params}"
         # Include version in the ID to force invalidation on logic changes
         cache_id: str = hashlib.md5(f"v{version}:{vendor}:{query}".encode()).hexdigest()
 
