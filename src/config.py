@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash-lite-preview-02-05"
     temperature: float = 0.0
     llm_max_retries: int = 10
+    enable_self_correction: bool = True
+    use_live_llm: bool = False
 
     # GNS3 Settings (Tier 3 validation)
     gns3_host: str = "localhost"
@@ -108,6 +110,9 @@ class Settings(BaseSettings):
         elif provider == "llamacpp":
             if not self.llama_cpp_model_path:
                 raise ValueError("LLAMA_CPP_MODEL_PATH is required for llamacpp.")
+        elif provider == "ollama":
+            # Ollama runs locally, no key verification required
+            pass
         else:
             raise ValueError(f"Unsupported LLM provider: '{self.llm_provider}'")
         return self

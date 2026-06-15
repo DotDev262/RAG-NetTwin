@@ -109,7 +109,7 @@ class MultiVendorCoordinator:
                 prompt += "\n### DEPLOYMENT SEQUENCE ###\n"
                 prompt += "Follow this logical order of operations in your generated commands:\n"
                 for i, step in enumerate(master_plan.deployment_sequence):
-                    prompt += f"{i+1}. {step}\n"
+                    prompt += f"{i + 1}. {step}\n"
 
             prompt += f"\nPLANNING RATIONALE: {master_plan.rationale}\n"
 

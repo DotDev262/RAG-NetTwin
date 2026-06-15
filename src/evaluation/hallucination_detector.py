@@ -120,13 +120,12 @@ class HallucinationDetector:
             if matches:
                 suspicious.extend(list(set(matches)))
 
-        # Step 3: Check citation validity
+        # Step 3: Check citation validity strictly against retrieved session chunk IDs
         for cite in citations:
             # Clean 'ID: ' prefix if LLM included it
             clean_cite = cite.replace("ID:", "").replace("id:", "").strip()
             clean_cite_lower = clean_cite.lower()
 
-            # Flexible citation check: ID match, ID is substring, or clean_cite is known guide
             found_valid = False
 
             # 1. Exact match first (most robust) - case-insensitive
@@ -135,71 +134,8 @@ class HallucinationDetector:
                     found_valid = True
                     break
 
-            # 2. Substring match with strict safeguards
-            if not found_valid:
-                # Vague keywords that are common in documentation but should NOT be used as citations
-                VAGUE_KEYWORDS = {
-                    "interface",
-                    "ip",
-                    "address",
-                    "ospf",
-                    "bgp",
-                    "vlan",
-                    "router",
-                    "set",
-                    "protocols",
-                    "area",
-                    "network",
-                    "system",
-                    "hostname",
-                    "description",
-                    "logging",
-                    "snmp",
-                    "vty",
-                    "line",
-                    "access-list",
-                    "prefix-list",
-                    "route-map",
-                    "policy-map",
-                    "class-map",
-                    "etherchannel",
-                    "channel-group",
-                    "trunk",
-                    "mode",
-                    "description",
-                    "name",
-                    "vlan-id",
-                }
-
-                # Recommendation 1: Project-specific ID patterns (Always authorize if they look real)
-                # Matches: cisco_ospf_..., juniper_interface_..., juniper_tier2_..., etc.
-                if re.match(r"^(?:cisco|juniper)_[a-z0-9\-_]{5,}", clean_cite_lower):
-                    found_valid = True
-
-                if not found_valid:
-                    for auth in full_authorized:
-                        auth_lower = auth.lower()
-                        if clean_cite_lower in auth_lower:
-                            if clean_cite_lower in VAGUE_KEYWORDS:
-                                continue
-                            if len(clean_cite_lower) > 8:
-                                found_valid = True
-                                break
-
-            # Recommendation 1: Always authorize common guide titles if they look real
-            if not found_valid:
-                COMMON_GUIDE_KEYWORDS = [
-                    "Configuration Guide",
-                    "Command Reference",
-                    "Release",
-                    "Cisco IOS",
-                    "Junos OS",
-                ]
-                if any(kw.lower() in clean_cite_lower for kw in COMMON_GUIDE_KEYWORDS):
-                    found_valid = True
-
             if not found_valid and cite:
-                if len(clean_cite) > 3:
+                if len(clean_cite) > 0:
                     invalid_cites.append(cite)
 
         # Step 4: Command Grounding Check (Recommendation 2)
@@ -598,6 +534,31 @@ class HallucinationDetector:
             "remote-as",
             "area",
             "permit",
+            "port-channel",
+            "port-channels",
+            "etherchannel",
+            "etherchannels",
+            "lacp",
+            "qos",
+            "netflow",
+            "ipfix",
+            "pat",
+            "vpn",
+            "ipsec",
+            "isakmp",
+            "loopback",
+            "subinterface",
+            "subinterfaces",
+            "match-all",
+            "match-any",
+            "record",
+            "exporter",
+            "monitor",
+            "flow",
+            "access-group",
+            "class-map",
+            "policy-map",
+            "service-policy",
             "deny",
             "sequence",
             "overload",
@@ -940,6 +901,23 @@ class HallucinationDetector:
                     "bandwidth",
                     "encapsulation",
                     "timeout",
+                    "port-channel",
+                    "port-channels",
+                    "etherchannel",
+                    "etherchannels",
+                    "lacp",
+                    "pat",
+                    "ipsec",
+                    "loopback",
+                    "subinterface",
+                    "subinterfaces",
+                    "match-all",
+                    "match-any",
+                    "record",
+                    "exporter",
+                    "class-map",
+                    "service-policy",
+                    "access-group",
                 ]
 
                 # 1. IPs, numbers, and interfaces (digits + punctuation)
@@ -972,12 +950,105 @@ class HallucinationDetector:
                     len(w_lower) > 2 and w_lower in intent_norm and not is_keyword
                 )
 
+                # Split user ID by separators and verify each part is either
+                # in the intent, in the common verbs/keywords lists, or numeric.
+                is_authorized_user_id = False
+                if is_user_id:
+                    parts = re.split(r"[-_]", w_lower)
+                    all_parts_authorized = True
+                    for part in parts:
+                        if not part:
+                            continue
+                        part_in_intent = len(part) > 2 and part in intent_norm
+                        part_in_common = (
+                            part in COMMON_VERBS
+                            or part in NOISY
+                            or part
+                            in [
+                                "vlan",
+                                "ospf",
+                                "bgp",
+                                "router",
+                                "interface",
+                                "set",
+                                "protocols",
+                                "mode",
+                                "type",
+                                "group",
+                                "area",
+                                "route",
+                                "address",
+                                "switchport",
+                                "neighbor",
+                                "nat",
+                                "crypto",
+                                "isakmp",
+                                "ipsec",
+                                "vrrp",
+                                "flow",
+                                "monitor",
+                                "prefix-list",
+                                "class",
+                                "policy-map",
+                                "dhcp",
+                                "ospfv3",
+                                "authentication",
+                                "null",
+                                "level",
+                                "destination",
+                                "source",
+                                "list",
+                                "pool",
+                                "dscp",
+                                "cs6",
+                                "orlonger",
+                                "ipv4",
+                                "transport",
+                                "udp",
+                                "ipfix",
+                                "version",
+                                "restrict",
+                                "console",
+                                "default",
+                                "qos",
+                                "trust",
+                                "security",
+                                "ike",
+                                "proposal",
+                                "gateway",
+                                "vpn",
+                                "shutdown",
+                                "export",
+                                "keys",
+                                "copy",
+                                "percent",
+                                "bandwidth",
+                                "encapsulation",
+                                "timeout",
+                                "class-map",
+                                "policy-map",
+                                "service-policy",
+                                "match-all",
+                                "match-any",
+                                "record",
+                                "exporter",
+                                "port-channel",
+                            ]
+                        )
+                        part_numeric = part.isdigit()
+                        if not (part_in_intent or part_in_common or part_numeric):
+                            all_parts_authorized = False
+                            break
+                    if all_parts_authorized:
+                        is_authorized_user_id = True
+
                 # Only skip user IDs if they are NOT in a structural position (first, second, or third token)
                 # This ensures fake protocols/modes like 'switchport mode hyper-virtual' are caught.
                 if (
                     is_numeric_ip
                     or is_interface
                     or is_in_intent
+                    or is_authorized_user_id
                     or (is_user_id and i >= 3)
                 ):
                     continue

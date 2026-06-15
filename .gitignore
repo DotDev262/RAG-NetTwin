@@ -42,3 +42,8 @@ logs/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Documentation & reference folders
+references/
+References/
+.opencode/

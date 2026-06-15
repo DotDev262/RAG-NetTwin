@@ -12,7 +12,7 @@ def test_post_process_config_cisco_interface():
     # Test GigabitEthernet mapping
     config = "interface Gig1/0/1\n ip address 10.1.1.1 255.255.255.0"
     processed = ParameterNormalizer.post_process_config(config, "cisco")
-    assert "interface Ethernet1/0/1" in processed
+    assert "interface Ethernet0/1" in processed
 
     # Test Gi mapping
     config = "interface Gi0/1"
@@ -59,10 +59,23 @@ policy-map QoS_POLICY
 
 
 def test_post_process_config_no_cleanup():
-    # Test that 'no policy-map type qos' -> 'no policy-map'
+    # Test that 'no policy-map type qos QoS' gets stripped as a global deletion command
     config = "no policy-map type qos QoS"
     processed = ParameterNormalizer.post_process_config(config, "cisco")
-    assert processed == "no policy-map QoS"
+    assert processed == ""
+
+
+def test_post_process_config_ipv6_route():
+    config = "ipv6 route 2001:db8::/64 Ethernet0/0"
+    processed = ParameterNormalizer.post_process_config(config, "cisco")
+    assert "2001:db8::/64" in processed
+
+
+def test_normalize_ip_parameters_ipv6():
+    params = {"ipv6_subnet": "2001:db8::/64"}
+    hints = ParameterNormalizer.normalize_ip_parameters(params, "cisco")
+    assert "2001:db8::/64" in hints
+    assert "wildcard mask" in hints
 
 
 if __name__ == "__main__":

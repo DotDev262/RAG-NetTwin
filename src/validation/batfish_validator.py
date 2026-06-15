@@ -82,16 +82,15 @@ class BatfishValidator(NetworkValidator):
         super().__init__(tier=1)
         self.host = settings.batfish_host
         self.session = None
-        self.known_gaps = set()
+        self.gaps_data = {}
 
         # Load known Batfish gaps from config
         try:
             config_path = Path("config/batfish_gaps.json")
             if config_path.exists():
                 with open(config_path, "r") as f:
-                    data = json.load(f)
-                    self.known_gaps = set(data.get("batfish_known_gaps", []))
-                logger.info(f"Loaded {len(self.known_gaps)} known Batfish gaps.")
+                    self.gaps_data = json.load(f)
+                logger.info("Loaded nested Batfish gaps config.")
             else:
                 logger.warning(f"Batfish gaps config not found at {config_path}")
         except Exception as e:
@@ -109,6 +108,40 @@ class BatfishValidator(NetworkValidator):
         """
         Validates a set of network device configurations.
         """
+        # Resolve address family dynamically (IPv4 vs IPv6)
+        address_family = "ipv4"
+        config_text_combined = "\n".join(configs.values()).lower()
+        if (
+            "ipv6" in config_text_combined
+            or "inet6" in config_text_combined
+            or "2001:" in config_text_combined
+        ):
+            address_family = "ipv6"
+
+        # Resolve OS version from intent or default to common
+        os_version = "common"
+        if intent and hasattr(intent, "devices") and intent.devices:
+            for dev in intent.devices:
+                if dev.name in configs:
+                    os_version = dev.os_version or "common"
+                    break
+
+        # Compile active known gaps for this address family and os version
+        active_gaps = set()
+
+        # 1. Add general common gaps
+        common_data = self.gaps_data.get("common", {})
+        if isinstance(common_data, dict):
+            active_gaps.update(common_data.get("common", []))
+
+        # 2. Add family-specific common gaps
+        family_data = self.gaps_data.get(address_family, {})
+        if isinstance(family_data, dict):
+            active_gaps.update(family_data.get("common", []))
+            # 3. Add family-specific version gaps
+            version_str = str(os_version)
+            active_gaps.update(family_data.get(version_str, []))
+
         # Create a local session for thread safety (Pybatfish Sessions are not thread-safe)
         try:
             session = Session(host=self.host)
@@ -244,7 +277,7 @@ class BatfishValidator(NetworkValidator):
                     # Filter out known Batfish parser gaps
                     # These are valid commands that Batfish doesn't support yet
                     combined_text = (details + " " + line_text).lower()
-                    if any(cmd.lower() in combined_text for cmd in self.known_gaps):
+                    if any(cmd.lower() in combined_text for cmd in active_gaps):
                         continue
 
                     # Handle specific known warnings
@@ -304,7 +337,7 @@ class BatfishValidator(NetworkValidator):
                     combined_ref_text = (
                         struct_type + " " + struct_name + " " + context
                     ).lower()
-                    if any(gap.lower() in combined_ref_text for gap in self.known_gaps):
+                    if any(gap.lower() in combined_ref_text for gap in active_gaps):
                         continue
 
                     # If Batfish literally says "Unknown" is missing, it's a parsing gap (F19)

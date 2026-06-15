@@ -88,6 +88,7 @@ def test_generator_null_field_resilience(mock_get_llm):
     mock_response.explanation = None
 
     mock_llm.invoke.return_value = mock_response
+    mock_llm.return_value = mock_response
 
     generator = ConfigGenerator()
     intent = StructuredIntent(
@@ -127,6 +128,7 @@ def test_generator_parallel_stress(mock_constraints, mock_plan, mock_get_llm):
     mock_response.verification_commands = []
     mock_response.explanation = ""
     mock_llm.invoke.return_value = mock_response
+    mock_llm.return_value = mock_response
 
     generator = ConfigGenerator()
     devices = [DeviceIntent(name=f"R{i}", vendor="cisco") for i in range(20)]

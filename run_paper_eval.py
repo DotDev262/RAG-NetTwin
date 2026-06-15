@@ -60,6 +60,7 @@ class PaperQualityEvaluator:
         validator: Optional[BatfishValidator] = None,
         hallucination_detector: Optional[HallucinationDetector] = None,
         token_counter: Optional[TokenCounter] = None,
+        evaluation_mode: str = "strict",
     ):
         self.console = Console()
         self.parser = parser or IntentParser()
@@ -73,6 +74,7 @@ class PaperQualityEvaluator:
         self.run_gns3 = run_gns3
         self.re_validate = re_validate
         self.interactive = interactive
+        self.evaluation_mode = evaluation_mode
 
         self.cache_manager = CacheManager()
         self.cfr_checker = CFRChecker()
@@ -267,8 +269,14 @@ class PaperQualityEvaluator:
 
         # --- RAG Mode ---
         cache_key = f"{CONFIG_GENERATOR_VERSION}:{retrieval_mode}:{intent_key}"
+        use_live_llm = os.getenv("USE_LIVE_LLM") == "True" or getattr(
+            settings, "use_live_llm", False
+        )
         with self.evaluation_lock:
-            cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
+            if use_live_llm:
+                cached_rag = None
+            else:
+                cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
 
         # [INTERACTIVE] Check for retrying failed entries
         if (
@@ -316,7 +324,30 @@ class PaperQualityEvaluator:
                         ParameterNormalizer.post_process_config(config, vendor=vendor)
                     )
 
-                if processed_configs:
+                batfish_failed = cached_rag.get("status") in [
+                    "ERROR",
+                    "FAIL",
+                    "REJECT_FOR_MANUAL_REVIEW",
+                ]
+                should_run_gns3 = True
+                if batfish_failed and self.evaluation_mode == "strict":
+                    logger.warning(
+                        "Short-circuiting GNS3 validation for cached entry due to Batfish failure in strict mode."
+                    )
+                    cached_rag["functional_status"] = "SKIPPED_FAIL"
+                    cached_rag["functional_errors"] = [
+                        "Skipped GNS3 validation due to Batfish failure in strict mode."
+                    ]
+                    should_run_gns3 = False
+                    with self.evaluation_lock:
+                        self.cache_manager.set(
+                            self.rag_cache,
+                            cache_key,
+                            cached_rag,
+                            mode=retrieval_mode,
+                        )
+
+                if should_run_gns3 and processed_configs:
                     try:
                         with self.gns3_lock:
                             g_res = self.gns3.validate(processed_configs, intent)
@@ -432,8 +463,30 @@ class PaperQualityEvaluator:
                 functional_status = "SKIPPED"
                 gns3_car = 0.0
                 is_multi_vendor = False
+                functional_errors = []
 
-                if self.run_gns3 and self.gns3:
+                batfish_failed = val_report.get("status") in [
+                    "ERROR",
+                    "FAIL",
+                    "REJECT_FOR_MANUAL_REVIEW",
+                ]
+                should_run_gns3 = bool(self.run_gns3 and self.gns3)
+
+                if (
+                    should_run_gns3
+                    and batfish_failed
+                    and self.evaluation_mode == "strict"
+                ):
+                    logger.warning(
+                        f"Short-circuiting GNS3 validation due to Batfish failure in strict mode ({val_report.get('status')})."
+                    )
+                    functional_status = "SKIPPED_FAIL"
+                    functional_errors = [
+                        "Skipped GNS3 validation due to Batfish failure in strict mode."
+                    ]
+                    should_run_gns3 = False
+
+                if should_run_gns3 and self.gns3 is not None:
                     try:
                         with self.gns3_lock:
                             g_res = self.gns3.validate(device_configs, intent)
@@ -551,7 +604,12 @@ class PaperQualityEvaluator:
         # --- Vanilla LLM ---
         if self.run_vanilla:
             with self.evaluation_lock:
-                cached_vanilla = self.cache_manager.get(self.vanilla_cache, intent_key)
+                if use_live_llm:
+                    cached_vanilla = None
+                else:
+                    cached_vanilla = self.cache_manager.get(
+                        self.vanilla_cache, intent_key
+                    )
 
             # [INTERACTIVE] Check for retrying failed entries
             if (
@@ -605,7 +663,26 @@ class PaperQualityEvaluator:
                         {"Vanilla-Router": vanilla_cfg}
                     )
                     functional_status = "SKIPPED"
-                    if self.run_gns3 and self.gns3:
+
+                    batfish_failed = validation.get("status") in [
+                        "ERROR",
+                        "FAIL",
+                        "REJECT_FOR_MANUAL_REVIEW",
+                    ]
+                    should_run_gns3 = bool(self.run_gns3 and self.gns3)
+
+                    if (
+                        should_run_gns3
+                        and batfish_failed
+                        and self.evaluation_mode == "strict"
+                    ):
+                        logger.warning(
+                            f"Short-circuiting Vanilla GNS3 validation due to Batfish failure in strict mode ({validation.get('status')})."
+                        )
+                        functional_status = "SKIPPED_FAIL"
+                        should_run_gns3 = False
+
+                    if should_run_gns3 and self.gns3 is not None:
                         try:
                             v_cmds = {
                                 "Vanilla-Router": [
@@ -911,6 +988,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run-gns3", action="store_true", help="Run GNS3 functional verification"
     )
+    parser.add_argument(
+        "--evaluation-mode",
+        choices=["strict", "observational"],
+        default="strict",
+        help="Evaluation mode: 'strict' (short-circuits GNS3 on Batfish failure) or 'observational' (always runs GNS3)",
+    )
     args = parser.parse_args()
 
     if args.clear_cache:
@@ -979,6 +1062,7 @@ if __name__ == "__main__":
                 run_gns3=args.run_gns3,
                 re_validate=args.re_validate,
                 interactive=args.interactive,
+                evaluation_mode=args.evaluation_mode,
             )
             evaluator.run_full_eval(retrieval_mode=mode)
     else:
@@ -988,5 +1072,6 @@ if __name__ == "__main__":
             run_gns3=args.run_gns3,
             re_validate=args.re_validate,
             interactive=args.interactive,
+            evaluation_mode=args.evaluation_mode,
         )
         evaluator.run_full_eval()

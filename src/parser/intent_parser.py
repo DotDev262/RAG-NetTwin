@@ -188,7 +188,7 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
         )
         examples_str = ""
         for i, ex in enumerate(few_shot_examples):
-            examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
+            examples_str += f'\nExample {i + 1}:\nNL: "{ex["intent"]}"\nStructured: {ex["structured"]}\n'
 
         system_prompt = f"""You are a network automation expert. 
 Translate the following list of {count} natural language intents into a structured JSON list.
@@ -270,7 +270,7 @@ RULES:
         few_shot_examples = self.vector_store.retrieve_few_shot(text, n_results=3)
         examples_str = ""
         for i, ex in enumerate(few_shot_examples):
-            examples_str += f"\nExample {i+1}:\nNL: \"{ex['intent']}\"\nStructured: {ex['structured']}\n"
+            examples_str += f'\nExample {i + 1}:\nNL: "{ex["intent"]}"\nStructured: {ex["structured"]}\n'
 
         # 3. Use Compiled DSPy Logic
         try:
@@ -468,7 +468,7 @@ Populate the 'requirements' list with any relevant constraints.
         for i, device in enumerate(intent.devices):
             # Ensure name is never null
             if not device.name:
-                device.name = f"Device-{i+1}"
+                device.name = f"Device-{i + 1}"
 
             # Get metadata from inventory
             metadata = self.inventory_resolver.resolve(device.name)

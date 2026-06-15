@@ -5,11 +5,14 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib
 
 import requests  # noqa: E402
 import time  # noqa: E402
-import telnetlib  # noqa: E402
 import socket  # noqa: E402
+import os  # noqa: E402
+import asyncio  # noqa: E402
+import re  # noqa: E402
+import uuid  # noqa: E402
 
 # noqa: E402
-from typing import Dict, Any, List, Optional, cast  # noqa: E402
+from typing import Dict, Any, List, Optional  # noqa: E402
 
 # noqa: E402
 from src.validation.base import NetworkValidator  # noqa: E402
@@ -18,6 +21,89 @@ from src.utils import setup_logger  # noqa: E402
 from src.schemas.intent import StructuredIntent  # noqa: E402
 
 logger = setup_logger("GNS3Validator")
+
+
+class AsyncTelnet:
+    """An asynchronous Telnet-like client for GNS3 console connection."""
+
+    def __init__(self, host: str, port: int, timeout: float = 15.0) -> None:
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.reader: Optional[asyncio.StreamReader] = None
+        self.writer: Optional[asyncio.StreamWriter] = None
+        self.buffer = bytearray()
+
+    async def connect(self) -> None:
+        self.reader, self.writer = await asyncio.wait_for(
+            asyncio.open_connection(self.host, self.port), timeout=self.timeout
+        )
+        self.buffer = bytearray()
+
+    async def write(self, data: bytes) -> None:
+        if self.writer:
+            self.writer.write(data)
+            await self.writer.drain()
+
+    async def read_very_eager(self) -> bytes:
+        if not self.reader:
+            return b""
+        try:
+            return await asyncio.wait_for(self.reader.read(4096), timeout=0.01)
+        except asyncio.TimeoutError:
+            return b""
+        except Exception:
+            return b""
+
+    async def expect(
+        self, list_of_bytes: List[bytes], timeout: float = 10.0
+    ) -> tuple[int, Optional[re.Match], bytes]:
+        """
+        Reads from reader until one of the regex byte patterns matches,
+        or timeout is reached.
+        Returns: (matched_index, match_object, accumulated_bytes)
+        """
+        if not self.reader:
+            return -1, None, b""
+
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            # Check buffer first
+            for idx, pattern in enumerate(list_of_bytes):
+                # Search using regex over self.buffer
+                match = re.search(pattern, self.buffer)
+                if match:
+                    end_idx = match.end()
+                    matched_chunk = bytes(self.buffer[:end_idx])
+                    self.buffer = self.buffer[end_idx:]
+                    return idx, match, matched_chunk
+
+            # Check timeout
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed >= timeout:
+                return -1, None, bytes(self.buffer)
+
+            # Read more data with a short timeout
+            try:
+                chunk = await asyncio.wait_for(
+                    self.reader.read(1024), timeout=min(1.0, timeout - elapsed)
+                )
+                if not chunk:
+                    # Connection closed
+                    return -1, None, bytes(self.buffer)
+                self.buffer.extend(chunk)
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                return -1, None, bytes(self.buffer)
+
+    async def close(self) -> None:
+        if self.writer:
+            self.writer.close()
+            try:
+                await self.writer.wait_closed()
+            except Exception:
+                pass
 
 
 class PortManager:
@@ -48,8 +134,11 @@ class GNS3Validator(NetworkValidator):
         self.base_url = f"http://{self.host}:{self.port}/v2"
         # Updated with credentials from ~/.config/GNS3/2.2/gns3_server.conf
         self.auth = (
-            "admin",
-            "ZQMSdXR6LVD5rN7gx2ipegzMYPYOZJeo7IJviL87PjgvYK4p8bg1R1fT9YgOTzX9",
+            os.getenv("GNS3_USERNAME", "admin"),
+            os.getenv(
+                "GNS3_PASSWORD",
+                "ZQMSdXR6LVD5rN7gx2ipegzMYPYOZJeo7IJviL87PjgvYK4p8bg1R1fT9YgOTzX9",
+            ),
         )
         self.project_id = None
         self.connected = False
@@ -70,6 +159,20 @@ class GNS3Validator(NetworkValidator):
             logger.warning(f"Could not connect to GNS3: {e}")
             self.connected = False
 
+    def __del__(self):
+        """Cleanup GNS3 project on destruction."""
+        if hasattr(self, "project_id") and self.project_id:
+            try:
+                self._cleanup_project()
+                requests.delete(
+                    f"{self.base_url}/projects/{self.project_id}", auth=self.auth
+                )
+                logger.info(
+                    f"Deleted temporary GNS3 project {self.project_id} on destruction."
+                )
+            except Exception:
+                pass
+
     def validate(
         self, configs: Dict[str, str], intent: Optional[StructuredIntent] = None
     ) -> Dict[str, Any]:
@@ -84,19 +187,31 @@ class GNS3Validator(NetworkValidator):
             }
 
         try:
-            # 1. Reuse or Create Persistent Project
-            project_name = "RAG_NetTwin_DigitalTwin"
+            # 1. Cleanup previous project if it exists in this session to free resources
+            if self.project_id:
+                try:
+                    self._cleanup_project()
+                    requests.delete(
+                        f"{self.base_url}/projects/{self.project_id}", auth=self.auth
+                    )
+                    logger.info(f"Deleted previous GNS3 project {self.project_id}")
+                except Exception as e:
+                    logger.warning(f"Error deleting previous GNS3 project: {e}")
+                self.project_id = None
+
+            # 2. Create dynamic Project
+            project_name = f"RAG_NetTwin_DigitalTwin_{uuid.uuid4().hex[:8]}"
             self.project_id = self._get_or_create_project(project_name)
             logger.info(
-                f"Using persistent GNS3 project: {project_name} ({self.project_id})"
+                f"Using dynamic GNS3 project: {project_name} ({self.project_id})"
             )
 
-            # 2. Cleanup
+            # 3. Cleanup
             self._cleanup_project()
 
             # 3. Build Topology
             devices = intent.devices if intent else []
-            nodes = self._create_nodes(devices)
+            nodes = self._create_nodes(devices, intent)
             logger.info(f"Created {len(nodes)} nodes")
 
             if not nodes and devices:
@@ -145,42 +260,51 @@ class GNS3Validator(NetworkValidator):
             logger.info("Nodes ready. Waiting 10s for OS stabilization...")
             time.sleep(10)
 
-            # 4. Push Configs & Track Stats (Recommendation CAR)
+            # 4. Push Configs & Track Stats (Recommendation CAR) concurrently
+            async def push_all():
+                tasks = []
+                device_names = []
+                for device_name, config in configs.items():
+                    if device_name in nodes:
+                        vendor = "cisco"
+                        if intent and intent.devices:
+                            for dev in intent.devices:
+                                if dev.name == device_name:
+                                    vendor = (dev.vendor or "cisco").lower()
+                                    break
+                        device_names.append(device_name)
+                        tasks.append(
+                            self._push_config_to_node(
+                                nodes[device_name], config, vendor
+                            )
+                        )
+                results_list = await asyncio.gather(*tasks)
+                return dict(zip(device_names, results_list))
+
+            node_stats_dict = asyncio.run(push_all())
+
             results = {}
             total_commands = 0
             accepted_commands = 0
             telnet_logs = {}
             push_errors = []
 
-            for device_name, config in configs.items():
-                if device_name in nodes:
-                    # Find vendor for this device
-                    vendor = "cisco"
-                    if intent and intent.devices:
-                        for dev in intent.devices:
-                            if dev.name == device_name:
-                                vendor = (dev.vendor or "cisco").lower()
-                                break
+            for device_name, node_stats in node_stats_dict.items():
+                telnet_logs[device_name] = node_stats.get("telnet_log", [])
 
-                    logger.info(f"Pushing {vendor} config to {device_name}...")
-                    node_stats = self._push_config_to_node(
-                        nodes[device_name], config, vendor
+                if node_stats.get("error"):
+                    push_errors.append(f"{device_name}: {node_stats['error']}")
+
+                if node_stats["total"] > 0:
+                    results[device_name] = (
+                        "Success"
+                        if node_stats["accepted"] == node_stats["total"]
+                        else "Partial"
                     )
-                    telnet_logs[device_name] = node_stats.get("telnet_log", [])
-
-                    if node_stats.get("error"):
-                        push_errors.append(f"{device_name}: {node_stats['error']}")
-
-                    if node_stats["total"] > 0:
-                        results[device_name] = (
-                            "Success"
-                            if node_stats["accepted"] == node_stats["total"]
-                            else "Partial"
-                        )
-                        total_commands += node_stats["total"]
-                        accepted_commands += node_stats["accepted"]
-                    else:
-                        results[device_name] = "Failed"
+                    total_commands += node_stats["total"]
+                    accepted_commands += node_stats["accepted"]
+                else:
+                    results[device_name] = "Failed"
 
             if not results and configs:
                 status = "FAIL"
@@ -192,7 +316,7 @@ class GNS3Validator(NetworkValidator):
                 car = (
                     (accepted_commands / total_commands) if total_commands > 0 else 0.0
                 )
-                summary = f"Tier 3 GNS3 validation complete. CAR: {car*100:.1f}%"
+                summary = f"Tier 3 GNS3 validation complete. CAR: {car * 100:.1f}%"
                 if status == "FAIL":
                     failed_nodes = [k for k, v in results.items() if v != "Success"]
                     summary = f"GNS3 Validation failed for: {', '.join(failed_nodes)}. "
@@ -232,75 +356,140 @@ class GNS3Validator(NetworkValidator):
         self, nodes: Dict[str, str], configs: Dict[str, str]
     ) -> Dict[str, str]:
         """
-        Pushes configurations to a set of nodes.
+        Pushes configurations to a set of nodes concurrently.
         """
         results = {}
-        for device_name, config in configs.items():
-            if device_name in nodes:
-                logger.info(f"Pushing config to {device_name}...")
-                node_stats = self._push_config_to_node(nodes[device_name], config)
-                results[device_name] = (
-                    "Success"
-                    if node_stats["accepted"] == node_stats["total"]
-                    and node_stats["total"] > 0
-                    else "Failed"
-                )
+
+        async def push_all():
+            tasks = []
+            device_names = []
+            for device_name, config in configs.items():
+                if device_name in nodes:
+                    device_names.append(device_name)
+                    tasks.append(self._push_config_to_node(nodes[device_name], config))
+            results_list = await asyncio.gather(*tasks)
+            return dict(zip(device_names, results_list))
+
+        node_stats_dict = asyncio.run(push_all())
+        for device_name, node_stats in node_stats_dict.items():
+            results[device_name] = (
+                "Success"
+                if node_stats["accepted"] == node_stats["total"]
+                and node_stats["total"] > 0
+                else "Failed"
+            )
         return results
+
+    async def _verify_single_node_functional_async(
+        self, device_name: str, node_id: str, commands: List[str]
+    ) -> List[Dict[str, str]]:
+        if not commands:
+            return []
+        try:
+            resp = requests.get(
+                f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
+                auth=self.auth,
+            )
+            node_info = resp.json()
+            console_port = node_info.get("console")
+            console_host = node_info.get("console_host", "localhost")
+            if console_host == "0.0.0.0":
+                console_host = self.host
+
+            tn = AsyncTelnet(console_host, console_port, timeout=5)
+            await tn.connect()
+
+            outputs = []
+            await tn.write(b"\r\n")
+            await asyncio.sleep(0.5)
+
+            for cmd in commands:
+                await tn.write(cmd.encode("ascii") + b"\r\n")
+                idx, match, text = await tn.expect([b">", b"#"], timeout=10)
+                output = text.decode("ascii", errors="ignore")
+                outputs.append({"command": cmd, "output": output})
+
+            await tn.close()
+            return outputs
+        except Exception as e:
+            logger.error(f"Verification failed for {device_name}: {e}")
+            return [{"error": str(e)}]
 
     def verify_functional(
         self, nodes: Dict[str, str], verification_data: Dict[str, List[str]]
     ) -> Dict[str, Any]:
         """
         Closed-Loop Verification (Recommendation 1).
-        Executes verification commands and returns output.
+        Executes verification commands concurrently and returns output.
         """
-        logger.info("Starting Functional Intent Verification...")
+        logger.info("Starting Functional Intent Verification concurrently...")
         # Wait for network convergence
         time.sleep(10)
 
-        verification_results = {}
+        async def verify_all():
+            tasks = []
+            device_names = []
+            for device_name, commands in verification_data.items():
+                if device_name in nodes and commands:
+                    device_names.append(device_name)
+                    tasks.append(
+                        self._verify_single_node_functional_async(
+                            device_name, nodes[device_name], commands
+                        )
+                    )
+            results = await asyncio.gather(*tasks)
+            return dict(zip(device_names, results))
 
-        for device_name, commands in verification_data.items():
-            if device_name not in nodes or not commands:
-                continue
+        return asyncio.run(verify_all())
 
-            node_id = nodes[device_name]
-            logger.info(f"Verifying {device_name}...")
+    async def _get_single_node_network_state_async(
+        self, device_name: str, node_id: str, commands: List[str]
+    ) -> Dict[str, str]:
+        try:
+            resp = requests.get(
+                f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
+                auth=self.auth,
+            )
+            node_info = resp.json()
+            console_port = node_info.get("console")
+            console_host = node_info.get("console_host", "localhost")
+            if console_host == "0.0.0.0":
+                console_host = self.host
 
-            try:
-                # Get console info
-                resp = requests.get(
-                    f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
-                    auth=self.auth,
-                )
-                node_info = resp.json()
-                console_port = node_info.get("console")
-                console_host = node_info.get("console_host", "localhost")
-                if console_host == "0.0.0.0":
-                    console_host = self.host
+            tn = AsyncTelnet(console_host, console_port, timeout=5)
+            await tn.connect()
 
-                with socket.create_connection((console_host, console_port), timeout=5):
-                    tn = telnetlib.Telnet(console_host, console_port, timeout=5)
+            device_state = {}
+            await tn.write(b"\r\n\r\n")
+            await asyncio.sleep(1)
+            await tn.read_very_eager()
 
-                    outputs = []
-                    # Wake up
-                    tn.write(b"\r\n")
-                    time.sleep(0.5)
+            error_keywords = [
+                "Invalid input",
+                "Error:",
+                "Unknown command",
+                "Ambiguous command",
+                "syntax error",
+            ]
 
-                    for cmd in commands:
-                        tn.write(cmd.encode("ascii") + b"\r\n")
-                        # Wait until prompt appears
-                        idx, match, text = tn.expect([b">", b"#"], timeout=10)  # type: ignore
-                        output = text.decode("ascii", errors="ignore")
-                        outputs.append({"command": cmd, "output": output})
+            for cmd in commands:
+                await tn.write(cmd.encode("ascii") + b"\r\n")
+                try:
+                    idx, match, text = await tn.expect([b">", b"#"], timeout=5)
+                    output = text.decode("ascii", errors="ignore")
 
-                    tn.close()
-                    verification_results[device_name] = outputs
-            except Exception as e:
-                logger.error(f"Verification failed for {device_name}: {e}")
-                verification_results[device_name] = [{"error": str(e)}]
+                    if any(err.lower() in output.lower() for err in error_keywords):
+                        device_state[cmd] = f"ERROR: {output.strip()}"
+                    else:
+                        device_state[cmd] = output
+                except Exception:
+                    device_state[cmd] = "TIMEOUT: No prompt received"
 
-        return verification_results
+            await tn.close()
+            return device_state
+        except Exception as e:
+            logger.error(f"State capture failed for {device_name}: {e}")
+            return {"error": str(e)}
 
     def get_network_state(
         self,
@@ -308,144 +497,113 @@ class GNS3Validator(NetworkValidator):
         commands: List[str] = ["show ip route", "show ip interface brief"],
     ) -> Dict[str, Any]:
         """
-        Captures a snapshot of the network state for Blast Radius analysis (Recommendation 3).
+        Captures a snapshot of the network state for Blast Radius analysis (Recommendation 3) concurrently.
         """
-        logger.info(f"Capturing network state baseline ({len(commands)} commands)...")
-        state = {}
+        logger.info(
+            f"Capturing network state baseline concurrently ({len(commands)} commands)..."
+        )
 
-        for device_name, node_id in nodes.items():
+        async def capture_all():
+            tasks = []
+            device_names = []
+            for device_name, node_id in nodes.items():
+                device_names.append(device_name)
+                tasks.append(
+                    self._get_single_node_network_state_async(
+                        device_name, node_id, commands
+                    )
+                )
+            results = await asyncio.gather(*tasks)
+            return dict(zip(device_names, results))
+
+        return asyncio.run(capture_all())
+
+    async def _wait_for_single_node_boot_async(
+        self, node_name: str, node_id: str, timeout: int
+    ) -> bool:
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
             try:
                 resp = requests.get(
                     f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
                     auth=self.auth,
                 )
+                if resp.status_code != 200:
+                    await asyncio.sleep(2)
+                    continue
+
                 node_info = resp.json()
                 console_port = node_info.get("console")
                 console_host = node_info.get("console_host", "localhost")
                 if console_host == "0.0.0.0":
                     console_host = self.host
 
-                with socket.create_connection((console_host, console_port), timeout=5):
-                    tn = telnetlib.Telnet(console_host, console_port, timeout=5)
+                if not console_port:
+                    await asyncio.sleep(2)
+                    continue
 
-                    device_state = {}
-                    # Wake up the console first
-                    tn.write(b"\r\n\r\n")
-                    time.sleep(1)
-                    tn.read_very_eager()  # Clear buffer
+                tn = AsyncTelnet(console_host, console_port, timeout=2)
+                await tn.connect()
+                await tn.write(b"\r\n")
 
-                    for cmd in commands:
-                        tn.write(cmd.encode("ascii") + b"\r\n")
-                        # Wait for prompt to ensure command finished
-                        try:
-                            idx, match, text = tn.expect([b">", b"#"], timeout=5)  # type: ignore
-                            output = text.decode("ascii", errors="ignore")
+                # Look for common prompts: Router>, Router#, Switch>, user:, login:
+                # Also handle Cisco "initial configuration dialog" [yes/no]
+                idx, match, text = await tn.expect(
+                    [
+                        b">",
+                        b"#",
+                        b"login:",
+                        b"user:",
+                        rb"initial configuration dialog\? \[yes/no\]:",
+                    ],
+                    timeout=5,
+                )
 
-                            # Check for common CLI error indicators (Fix: Ensure functional check actually validates)
-                            error_keywords = [
-                                "Invalid input",
-                                "Error:",
-                                "Unknown command",
-                                "Ambiguous command",
-                                "syntax error",
-                            ]
-                            if any(
-                                err.lower() in output.lower() for err in error_keywords
-                            ):
-                                device_state[cmd] = f"ERROR: {output.strip()}"
-                            else:
-                                device_state[cmd] = output
-                        except Exception:
-                            device_state[cmd] = "TIMEOUT: No prompt received"
+                if idx == 4:
+                    logger.info(
+                        f"Node {node_name} is in initial config dialog. Sending 'no'..."
+                    )
+                    await tn.write(b"no\r\n")
+                    await asyncio.sleep(1)
+                    await tn.write(b"\r\n")
+                elif idx != -1:
+                    logger.info(f"Node {node_name} is READY (detected prompt)")
+                    await tn.close()
+                    return True
 
-                    tn.close()
-                    state[device_name] = device_state
+                await tn.close()
+            except (
+                ConnectionRefusedError,
+                socket.timeout,
+                asyncio.TimeoutError,
+                OSError,
+            ):
+                # Still booting
+                pass
             except Exception as e:
-                logger.error(f"State capture failed for {device_name}: {e}")
+                logger.debug(f"Polling error for {node_name}: {e}")
 
-        return state
+            await asyncio.sleep(2)
+        return False
 
     def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 300) -> bool:
         """
-        Polls the console of all nodes until a prompt is detected.
+        Polls the console of all nodes concurrently until a prompt is detected.
         Returns True if all nodes are ready, False if timeout reached.
         """
-        start_time = time.time()
-        pending_nodes = list(nodes.keys())
-
         logger.info(
-            f"Polling console for {len(pending_nodes)} nodes (timeout: {timeout}s)..."
+            f"Polling console for {len(nodes)} nodes concurrently (timeout: {timeout}s)..."
         )
 
-        while time.time() - start_time < timeout and pending_nodes:
-            for node_name in list(pending_nodes):
-                node_id = nodes[node_name]
-                try:
-                    # Get console info
-                    resp = requests.get(
-                        f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
-                        auth=self.auth,
-                    )
-                    if resp.status_code != 200:
-                        continue
+        async def poll_all():
+            tasks = [
+                self._wait_for_single_node_boot_async(name, nid, timeout)
+                for name, nid in nodes.items()
+            ]
+            results = await asyncio.gather(*tasks)
+            return all(results)
 
-                    node_info = resp.json()
-                    console_port = node_info.get("console")
-                    console_host = node_info.get("console_host", "localhost")
-                    if console_host == "0.0.0.0":
-                        console_host = self.host
-
-                    if not console_port:
-                        continue
-
-                    # Try a non-blocking Telnet check
-                    with socket.create_connection(
-                        (console_host, console_port), timeout=2
-                    ):
-                        tn = telnetlib.Telnet(console_host, console_port, timeout=2)
-                        tn.write(b"\r\n")
-                        # Look for common prompts: Router>, Router#, Switch>, user:, login:
-                        # Also handle Cisco "initial configuration dialog" [yes/no]
-                        idx, match, text = tn.expect(
-                            cast(
-                                Any,
-                                [
-                                    b">",
-                                    b"#",
-                                    b"login:",
-                                    b"user:",
-                                    b"initial configuration dialog\? \[yes/no\]:",
-                                ],
-                            ),
-                            timeout=5,
-                        )
-
-                        if idx == 4:
-                            # Cisco Initial Config Dialog - say 'no'
-                            logger.info(
-                                f"Node {node_name} is in initial config dialog. Sending 'no'..."
-                            )
-                            tn.write(b"no\r\n")
-                            time.sleep(1)
-                            tn.write(b"\r\n")
-                            # Don't remove from pending yet, wait for real prompt in next poll
-
-                        elif idx != -1:
-                            logger.info(f"Node {node_name} is READY (detected prompt)")
-                            pending_nodes.remove(node_name)
-
-                        tn.close()
-                except (ConnectionRefusedError, socket.timeout, EOFError):
-                    # Still booting
-                    continue
-                except Exception as e:
-                    logger.debug(f"Polling error for {node_name}: {e}")
-                    continue
-
-            if pending_nodes:
-                time.sleep(2)  # Wait between polls
-
-        return len(pending_nodes) == 0
+        return asyncio.run(poll_all())
 
     def _get_or_create_project(self, name: str) -> str:
         """Finds existing project by name or creates a new one."""
@@ -501,7 +659,7 @@ class GNS3Validator(NetworkValidator):
                     )
                 except Exception as e:
                     logger.debug(
-                        f"Retry {attempt+1}: Failed to delete node {node['node_id']}: {e}"
+                        f"Retry {attempt + 1}: Failed to delete node {node['node_id']}: {e}"
                     )
 
             if attempt < max_retries - 1:
@@ -528,8 +686,13 @@ class GNS3Validator(NetworkValidator):
         resp.raise_for_status()
         return resp.json()["project_id"]
 
-    def _find_template_for_vendor(self, vendor: str) -> Optional[Dict]:
-        """Finds a suitable template based on device vendor."""
+    def _find_template_for_vendor(
+        self,
+        vendor: str,
+        device_name: str = "",
+        intent: Optional[StructuredIntent] = None,
+    ) -> Optional[Dict]:
+        """Finds a suitable template based on device vendor and L2/L3 intent properties."""
         try:
             resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
             if resp.status_code != 200:
@@ -537,11 +700,50 @@ class GNS3Validator(NetworkValidator):
 
             templates = resp.json()
             vendor = (vendor or "cisco").lower()
+            device_name_lower = (device_name or "").lower()
+
+            # Inspect intent or device name to determine if the target should be a Switch or a Router
+            is_switch = False
+            if any(
+                sw_kw in device_name_lower
+                for sw_kw in ["switch", "-sw", "sw-", "cat9", "catalyst"]
+            ):
+                is_switch = True
+
+            if intent:
+                proto_lower = (intent.protocol or "").lower()
+                if any(
+                    l2_kw in proto_lower
+                    for l2_kw in [
+                        "vlan",
+                        "spanning-tree",
+                        "switchport",
+                        "lacp",
+                        "etherchannel",
+                    ]
+                ):
+                    is_switch = True
+
+                params_str = str(intent.parameters).lower()
+                if any(
+                    l2_kw in params_str
+                    for l2_kw in [
+                        "switchport",
+                        "vlan",
+                        "trunk",
+                        "access",
+                        "spanning-tree",
+                    ]
+                ):
+                    is_switch = True
 
             if vendor == "juniper":
                 keywords = ["junos", "vsrx", "vmx", "olive", "juniper", "vyos"]
             else:
-                keywords = ["router", "iosv", "cisco", "csr1000v", "viou", "iol"]
+                if is_switch:
+                    keywords = ["iosvl2", "switch", "l2", "viou-l2", "iol-l2", "cisco"]
+                else:
+                    keywords = ["router", "iosv", "csr1000v", "viou", "iol", "cisco"]
 
             # 1. Try IOU type first (preferred for your setup)
             for tmpl in templates:
@@ -560,13 +762,17 @@ class GNS3Validator(NetworkValidator):
             logger.error(f"Error finding template for {vendor}: {e}")
             return None
 
-    def _create_nodes(self, devices: List[Any]) -> Dict[str, str]:
+    def _create_nodes(
+        self, devices: List[Any], intent: Optional[StructuredIntent] = None
+    ) -> Dict[str, str]:
         """Creates nodes and returns a map of name -> node_id"""
         node_map = {}
         self.last_errors = []
 
         for i, device in enumerate(devices):
-            template = self._find_template_for_vendor(device.vendor)
+            template = self._find_template_for_vendor(
+                device.vendor, device.name, intent
+            )
 
             if template:
                 payload = {
@@ -646,19 +852,19 @@ class GNS3Validator(NetworkValidator):
                     auth=self.auth,
                 )
                 if resp.status_code not in [200, 201]:
-                    err = f"Failed to create link between {device_names[i]} and {device_names[i+1]}: {resp.text}"
+                    err = f"Failed to create link between {device_names[i]} and {device_names[i + 1]}: {resp.text}"
                     logger.error(err)
                     if hasattr(self, "last_errors"):
                         self.last_errors.append(err)
             except Exception as e:
                 logger.error(
-                    f"Error creating link between {device_names[i]} and {device_names[i+1]}: {e}"
+                    f"Error creating link between {device_names[i]} and {device_names[i + 1]}: {e}"
                 )
 
-    def _push_config_to_node(
+    async def _push_config_to_node(
         self, node_id: str, config: str, vendor: str = "cisco"
     ) -> Dict[str, Any]:
-        """Pushes configuration via Telnet and tracks command acceptance."""
+        """Pushes configuration asynchronously via AsyncTelnet and tracks command acceptance."""
         stats: Dict[str, Any] = {
             "total": 0,
             "accepted": 0,
@@ -685,59 +891,76 @@ class GNS3Validator(NetworkValidator):
                 return stats
 
             error_keywords = [
-                "% Invalid input",
-                "Error:",
-                "Unknown command",
-                "Ambiguous command",
-                "syntax error",
-                "Invalid command",
-                "error: ",
+                b"% Invalid input",
+                b"Error:",
+                b"Unknown command",
+                b"Ambiguous command",
+                b"syntax error",
+                b"Invalid command",
+                b"error: ",
             ]
 
-            tn = telnetlib.Telnet(console_host, console_port, timeout=15)
-            tn.write(b"\r\n")
-            time.sleep(1)
+            tn = AsyncTelnet(console_host, console_port, timeout=15)
+            await tn.connect()
+            await tn.write(b"\r\n")
+            await asyncio.sleep(1)
 
             # Vendor-specific navigation
             if vendor == "juniper":
                 # Check if we are already in CLI
-                idx, match, text = tn.expect([b">", b"#", b"%"], timeout=5)  # type: ignore
+                idx, match, text = await tn.expect([b">", b"#", b"%"], timeout=5)
                 if idx == 2:  # at shell %
-                    tn.write(b"cli\r\n")
-                    tn.expect([b">"], timeout=5)  # type: ignore
+                    await tn.write(b"cli\r\n")
+                    await tn.expect([b">"], timeout=5)
 
-                tn.write(b"configure\r\n")
-                tn.expect([b"Entering configuration mode", b"#"], timeout=5)  # type: ignore
+                await tn.write(b"configure\r\n")
+                await tn.expect([b"Entering configuration mode", b"#"], timeout=5)
             else:
                 # Cisco/Default
                 # Try to wake up and see where we are
-                tn.write(b"\r\n")
-                idx, match, text = tn.expect([b">", b"#", b"(config)#"], timeout=5)  # type: ignore
+                await tn.write(b"\r\n")
+                idx, match, text = await tn.expect(
+                    [b">", b"#", rb"\(config\)#"], timeout=5
+                )
 
                 if idx == 0:  # at >
-                    tn.write(b"enable\r\n")
-                    tn.expect([b"#"], timeout=5)  # type: ignore
+                    await tn.write(b"enable\r\n")
+                    await tn.expect([b"#"], timeout=5)
 
                 if idx != 2:  # not in config mode
-                    tn.write(b"configure terminal\r\n")
-                    tn.expect([b"(config)#", b"#"], timeout=10)  # type: ignore
+                    await tn.write(b"configure terminal\r\n")
+                    await tn.expect([rb"\(config\)#", b"#"], timeout=10)
+
+            # Flush telnet buffer before entering command loop to discard stale prompts
+            await asyncio.sleep(0.5)
+            try:
+                await tn.read_very_eager()
+            except Exception:
+                pass
 
             for line in config.splitlines():
                 cmd = line.strip()
                 if not cmd or cmd.startswith("!") or cmd.startswith("#"):
                     continue
 
+                # Skip transition commands that the validator handles automatically
+                if cmd.lower() in ["configure terminal", "config t", "enable"]:
+                    continue
+
                 stats["total"] += 1
-                tn.write(cmd.encode("ascii") + b"\r\n")
+                await tn.write(cmd.encode("ascii") + b"\r\n")
 
                 # Check for errors after each command
-                # Junos uses # as prompt in config mode, Cisco uses (config)#
-                idx, match, text = tn.expect([b"(config)#", b"#", b">"], timeout=10)  # type: ignore
+                idx, match, text = await tn.expect(
+                    [rb"\(config\)#", b"#", b">"], timeout=10
+                )
                 output = text.decode("ascii", errors="ignore")
 
                 accepted = not any(
-                    err.lower() in output.lower() for err in error_keywords
+                    err.lower() in output.lower().encode("ascii", errors="ignore")
+                    for err in error_keywords
                 )
+
                 if accepted:
                     stats["accepted"] += 1
                 else:
@@ -746,24 +969,21 @@ class GNS3Validator(NetworkValidator):
                     if stats["error"] is None:
                         stats["error"] = err_msg
                     else:
-                        # Keep only first few errors to avoid bloated summary
                         if stats["error"].count(";") < 3:
                             stats["error"] += f"; {err_msg}"
-                # Deep Trace: Log everything
                 stats["telnet_log"].append(
                     {"command": cmd, "output": output.strip(), "accepted": accepted}
                 )
 
             if vendor == "juniper":
-                tn.write(b"commit and-quit\r\n")
-                tn.expect([b"commit complete", b">"], timeout=30)  # type: ignore
+                await tn.write(b"commit and-quit\r\n")
+                await tn.expect([b"commit complete", b">"], timeout=30)
             else:
-                tn.write(b"end\r\n")
-                tn.write(b"write memory\r\n")
-                tn.expect([b"[OK]", b"#"], timeout=15)  # type: ignore
+                await tn.write(b"end\r\n")
+                await tn.write(b"write memory\r\n")
+                await tn.expect([rb"\[OK\]", b"#"], timeout=15)
 
-            tn.close()
-
+            await tn.close()
             return stats
         except Exception as e:
             logger.error(f"Config push failed for {vendor} node {node_id}: {e}")

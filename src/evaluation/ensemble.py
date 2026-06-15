@@ -72,7 +72,7 @@ Candidates:
 """
         for i, c in enumerate(candidates):
             prompt += (
-                f"\n--- Candidate {i+1} (Model: {c['model']}) ---\n{c['config']}\n"
+                f"\n--- Candidate {i + 1} (Model: {c['model']}) ---\n{c['config']}\n"
             )
 
         prompt += """

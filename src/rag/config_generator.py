@@ -39,6 +39,7 @@ from src.evaluation.hallucination_detector import HallucinationDetector
 from src.schemas.intent import StructuredIntent
 from src.llm import LLMProvider
 from src.utils import clean_cli_prose, setup_logger, with_retry
+from src.config import settings
 
 CONFIG_GENERATOR_VERSION = "2.4.0"  # Incremented for Hierarchical Anchoring
 logger = setup_logger("ConfigGenerator")
@@ -564,6 +565,7 @@ class ConfigGenerator:
                     "### COMMON SYNTAX CORRECTIONS (STRICT) ###\n"
                     "- CISCO OS: Use Traditional IOS / IOS-XE syntax ONLY. NEVER use 'type qos' or 'type traffic' (NX-OS/XR leakage).\n"
                     "- CISCO OSPF: Use 'ip ospf database-filter all out' (with hyphen and 'out'), NOT 'ip ospf database filter all'.\n"
+                    "- CISCO NAT: Always use 'ip nat inside source list <acl> interface <int> overload' (must include the word 'inside'), NOT 'ip nat source list...'.\n"
                     "- CISCO NETFLOW (Flexible NetFlow): 1. Define 'flow record <name>' (match ipv4 source/dest, collect counter bytes/packets). 2. Define 'flow exporter <name>' (destination <ip>, transport udp <port>). 3. Define 'flow monitor <name>' (record <name>, exporter <name>). 4. Apply 'ip flow monitor <name> input' on interface.\n"
                     "- CISCO QoS (Structural): 1. 'access-list 101 permit ospf any any'. 2. 'class-map CS6_CLASS' (match access-group 101). 3. 'policy-map QoS_POLICY'. 4. Inside 'policy-map', you MUST use 'class CS6_CLASS'. 5. Inside 'class', use 'set dscp 48'. 6. Apply 'service-policy output QoS_POLICY' under 'interface Ethernet0/0'.\n"
                     "- VYOS (For 'juniper' in this lab): Use 'set interfaces ethernet eth1 address X.X.X.X/24', 'set protocols ospf area 0 network X.X.X.X/24', 'set protocols ospf area 0 hello-interval 5'.\n"
@@ -619,9 +621,67 @@ class ConfigGenerator:
                 "formatting_hints": formatting_hints,
             }
 
-            output: DeviceConfigOutput = cast(
-                DeviceConfigOutput, chain.invoke(llm_input)
-            )
+            from pydantic import ValidationError
+
+            try:
+                output: DeviceConfigOutput = cast(
+                    DeviceConfigOutput, chain.invoke(llm_input)
+                )
+            except ValidationError as ve:
+                logger.warning(
+                    f"Structured synthesis ValidationError: {ve}. Triggering unstructured fallback..."
+                )
+
+                # Fallback: simplified unstructured prompt
+                fallback_prompt = ChatPromptTemplate.from_messages(
+                    [
+                        (
+                            "system",
+                            "You are a Senior Network Engineer for {vendor} {os_version}.\n"
+                            "CRITICAL: Output ONLY raw CLI commands. Do not write explanations or conversational text.\n"
+                            "Synthesize the commands to accomplish the intent using target documentation syntax.",
+                        ),
+                        (
+                            "human",
+                            "Device: {device_name}\n"
+                            "Intent: {intent_text}\n"
+                            "Parameters: {intent_params}\n"
+                            "DOCUMENTATION:\n{device_context}\n\n"
+                            "RAW CLI CONFIGURATION:",
+                        ),
+                    ]
+                )
+
+                fallback_chain = fallback_prompt | self.llm
+                fallback_input = {
+                    "device_name": device.name,
+                    "vendor": device.vendor,
+                    "os_version": device.os_version or "latest",
+                    "intent_text": structured_intent.original_text,
+                    "intent_params": json.dumps(structured_intent.parameters),
+                    "device_context": lite_context,
+                }
+
+                fallback_response = fallback_chain.invoke(fallback_input)
+                raw_config_text = clean_cli_prose(cast(str, fallback_response.content))
+
+                # Build mock DeviceConfigOutput to integrate with down-stream verification
+                output = DeviceConfigOutput(
+                    blocks=[
+                        CommandBlock(
+                            commands=[
+                                cmd.strip()
+                                for cmd in raw_config_text.splitlines()
+                                if cmd.strip()
+                            ],
+                            source_ids=["BASE_CLI_KNOWLEDGE"],
+                        )
+                    ],
+                    confidence_score=0.5,
+                    reasoning_path="Pydantic validation failure. Fell back to unstructured CLI synthesis.",
+                    verification_commands=[],
+                    explanation="Unstructured generation fallback.",
+                )
 
             # Extract combined config and clean citations
             all_commands = []
@@ -945,6 +1005,9 @@ class ConfigGenerator:
         Returns:
             int: Number of refinement attempts allowed (0-2)
         """
+        if not getattr(settings, "enable_self_correction", True):
+            return 0
+
         # Simple intents: minimal or no refinement needed
         simple_protocols = [
             "hostname",
@@ -1061,7 +1124,8 @@ class ConfigGenerator:
                     "You are a CLI Debugger for {vendor} {os_version}.\n"
                     "CRITICAL: Output ONLY raw CLI commands. DO NOT output prose, conversational text, explanations, or 'should be changed to'.\n"
                     "Fix syntax errors using EXACT {vendor} {os_version} CLI syntax.\n"
-                    "NEVER mix syntax from other vendors or versions.",
+                    "NEVER mix syntax from other vendors or versions.\n"
+                    "### FORBIDDEN: DO NOT use 'no' commands (except 'no shutdown' if needed) to clear configurations (e.g., 'no ip address', 'no class-map', 'no policy-map', 'no interface'). Generate only the final desired state.",
                 ),
                 (
                     "human",

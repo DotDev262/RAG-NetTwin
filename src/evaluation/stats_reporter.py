@@ -30,7 +30,7 @@ class StatsReporter:
         centre_prob = p + z**2 / (2 * total)
         std_dev = math.sqrt((p * (1 - p) + z**2 / (4 * total)) / total)
         upper = (centre_prob + z * std_dev) / denominator
-        return f"{p*100:.1f}% (±{(upper-p)*100:.1f}%)"
+        return f"{p * 100:.1f}% (±{(upper - p) * 100:.1f}%)"
 
     def compute_p_value(self, count1: int, n1: int, count2: int, n2: int) -> str:
         if not SCIPY_AVAILABLE or n1 == 0 or n2 == 0:
@@ -120,8 +120,10 @@ class StatsReporter:
                     "N": str(n),
                     "Strict SV": self.compute_wilson_ci(strict_pass_count, n),
                     "PEA (CFR)": self.compute_wilson_ci(cfr_success, n),
-                    "GNS3 CAR": f"{avg_car*100:.1f}%",
-                    "GNS3 ISR": f"{isr_rate*100:.1f}%" if multi_vendor_data else "N/A",
+                    "GNS3 CAR": f"{avg_car * 100:.1f}%",
+                    "GNS3 ISR": f"{isr_rate * 100:.1f}%"
+                    if multi_vendor_data
+                    else "N/A",
                     "Functional": self.compute_wilson_ci(functional_pass, n),
                     "Hallucination": f"{(hal_count / n) * 100:.1f}%",
                 }

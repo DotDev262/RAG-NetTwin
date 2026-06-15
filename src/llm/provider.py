@@ -23,11 +23,226 @@ Typical Usage:
     parser_llm = LLMProvider.get_structured_llm(schema=StructuredIntent)
 """
 
-from typing import Optional, Type, Any, cast
+import logging
+import os
+import threading
+from typing import Optional, Type, Any, cast, List
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatResult
+from langchain_core.callbacks import CallbackManagerForLLMRun
 from pydantic import SecretStr
 from src.config import settings
+
+# --- Groq API Key Rotation Infrastructure ---
+
+
+class GroqKeyRotator:
+    """Manages rotation of Groq API keys when rate limits are hit (thread-safe)."""
+
+    def __init__(self):
+        self._keys: List[str] = []
+        self._current_index = 0
+        self._lock = threading.Lock()
+        self.logger = logging.getLogger("GroqKeyRotator")
+
+        # Load keys from settings or environment
+        from src.config import settings
+
+        raw_key = settings.groq_api_key or os.getenv("GROQ_API_KEY", "")
+        raw_keys_env = os.getenv("GROQ_API_KEYS", "")
+
+        seen = set()
+
+        # Check GROQ_API_KEYS first (comma-separated list)
+        if raw_keys_env:
+            for k in raw_keys_env.split(","):
+                k_clean = k.strip()
+                if k_clean and k_clean not in seen:
+                    self._keys.append(k_clean)
+                    seen.add(k_clean)
+
+        # Check GROQ_API_KEY (could be comma-separated or single)
+        if raw_key:
+            for k in raw_key.split(","):
+                k_clean = k.strip()
+                if k_clean and k_clean not in seen:
+                    self._keys.append(k_clean)
+                    seen.add(k_clean)
+
+        self.logger.info(f"Initialized GroqKeyRotator with {len(self._keys)} keys.")
+
+    def get_current_key(self) -> Optional[str]:
+        with self._lock:
+            if not self._keys:
+                return None
+            return self._keys[self._current_index]
+
+    def rotate_key(self) -> bool:
+        """Rotates to the next key. Returns True if successfully rotated, False otherwise."""
+        with self._lock:
+            if len(self._keys) <= 1:
+                self.logger.warning("No alternative Groq keys available for rotation.")
+                return False
+
+            old_index = self._current_index
+            self._current_index = (self._current_index + 1) % len(self._keys)
+            self.logger.warning(
+                f"Rate limit hit. Rotating Groq API key: index {old_index} -> {self._current_index} "
+                f"(Key preview: ...{self._keys[self._current_index][-6:]})"
+            )
+            return True
+
+    def get_keys_count(self) -> int:
+        with self._lock:
+            return len(self._keys)
+
+
+# Global key rotator instance
+groq_rotator = GroqKeyRotator()
+
+
+class RotatingRunnable(Runnable):
+    """Wraps a structured runnable to dynamically rebuild and retry with rotated keys on 429 errors."""
+
+    _current_runnable: Any
+
+    def __init__(self, rotator: GroqKeyRotator, factory_func: Any):
+        self.rotator = rotator
+        self.factory_func = factory_func
+        self._current_runnable = None
+        self._rebuild()
+
+    def _rebuild(self):
+        key = self.rotator.get_current_key()
+        self._current_runnable = self.factory_func(key)
+
+    def invoke(
+        self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any
+    ) -> Any:
+        attempts = max(1, self.rotator.get_keys_count())
+        for attempt in range(attempts):
+            try:
+                return self._current_runnable.invoke(input, config, **kwargs)
+            except Exception as e:
+                err_str = str(e)
+                if (
+                    "429" in err_str
+                    or "rate limit" in err_str.lower()
+                    or "rate_limit" in err_str.lower()
+                ) and attempt < attempts - 1:
+                    if self.rotator.rotate_key():
+                        self._rebuild()
+                        continue
+                raise e
+        raise RuntimeError("Failed after rotating all keys.")
+
+    async def ainvoke(
+        self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any
+    ) -> Any:
+        attempts = max(1, self.rotator.get_keys_count())
+        for attempt in range(attempts):
+            try:
+                return await self._current_runnable.ainvoke(input, config, **kwargs)
+            except Exception as e:
+                err_str = str(e)
+                if (
+                    "429" in err_str
+                    or "rate limit" in err_str.lower()
+                    or "rate_limit" in err_str.lower()
+                ) and attempt < attempts - 1:
+                    if self.rotator.rotate_key():
+                        self._rebuild()
+                        continue
+                raise e
+        raise RuntimeError("Failed after rotating all keys.")
+
+
+class RotatingChatGroq(BaseChatModel):
+    """ChatGroq wrapper that supports dynamic key rotation on rate limits."""
+
+    model_name: str
+    temperature: float
+    seed: int
+    rotator: GroqKeyRotator
+    client: Any = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    def __init__(
+        self,
+        model_name: str,
+        temperature: float,
+        seed: int,
+        rotator: GroqKeyRotator,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            model_name=model_name,
+            temperature=temperature,
+            seed=seed,
+            rotator=rotator,
+            **kwargs,
+        )  # type: ignore
+        self._rebuild_client()
+
+    @property
+    def _llm_type(self) -> str:
+        return "rotating-chat-groq"
+
+    def _rebuild_client(self):
+        from langchain_groq import ChatGroq
+
+        key = self.rotator.get_current_key()
+        api_key_secret = SecretStr(key) if key else None
+        self.client = ChatGroq(
+            model=self.model_name,
+            temperature=self.temperature,
+            api_key=api_key_secret,
+            max_retries=settings.llm_max_retries,
+            model_kwargs={"seed": self.seed},
+        )
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        attempts = max(1, self.rotator.get_keys_count())
+        for attempt in range(attempts):
+            try:
+                return self.client._generate(messages, stop, run_manager, **kwargs)
+            except Exception as e:
+                err_str = str(e)
+                if (
+                    "429" in err_str
+                    or "rate limit" in err_str.lower()
+                    or "rate_limit" in err_str.lower()
+                ) and attempt < attempts - 1:
+                    if self.rotator.rotate_key():
+                        self._rebuild_client()
+                        continue
+                raise e
+        raise RuntimeError("Failed after rotating all keys.")
+
+    def with_structured_output(self, schema: Any, **kwargs: Any) -> Runnable:
+        def factory(api_key: Optional[str]) -> Runnable:
+            from langchain_groq import ChatGroq
+
+            api_key_secret = SecretStr(api_key) if api_key else None
+            llm = ChatGroq(
+                model=self.model_name,
+                temperature=self.temperature,
+                api_key=api_key_secret,
+                max_retries=settings.llm_max_retries,
+                model_kwargs={"seed": self.seed},
+            )
+            return llm.with_structured_output(schema, **kwargs)
+
+        return RotatingRunnable(self.rotator, factory)
 
 
 class LLMProvider:
@@ -57,6 +272,7 @@ class LLMProvider:
     PROVIDER_GROQ = "groq"
     PROVIDER_GEMINI = "gemini"
     PROVIDER_LLAMACPP = "llamacpp"
+    PROVIDER_OLLAMA = "ollama"
 
     @staticmethod
     def get_dspy_lm(model: Optional[str] = None) -> Any:
@@ -97,7 +313,7 @@ class LLMProvider:
 
         Args:
             provider: LLM provider name. If None, uses settings.llm_provider.
-                Options: "groq", "gemini", "llamacpp".
+                Options: "groq", "gemini", "llamacpp", "ollama".
             model: Optional model name override. If None, uses provider default.
             temperature: LLM temperature (0.0 = deterministic, 1.0 = creative).
                 Default is 0.0 for consistent, reproducible outputs.
@@ -126,10 +342,12 @@ class LLMProvider:
             return LLMProvider._get_gemini_llm(model, temperature, api_key, seed)
         elif provider == LLMProvider.PROVIDER_LLAMACPP:
             return LLMProvider._get_llamacpp_llm(model, temperature, seed)
+        elif provider == LLMProvider.PROVIDER_OLLAMA:
+            return LLMProvider._get_ollama_llm(model, temperature, seed)
         else:
             raise ValueError(
                 f"Unsupported LLM provider: '{provider}'. "
-                f"Supported providers: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}, {LLMProvider.PROVIDER_LLAMACPP}"
+                f"Supported providers: {LLMProvider.PROVIDER_GROQ}, {LLMProvider.PROVIDER_GEMINI}, {LLMProvider.PROVIDER_LLAMACPP}, {LLMProvider.PROVIDER_OLLAMA}"
             )
 
     @staticmethod
@@ -140,7 +358,7 @@ class LLMProvider:
         seed: int = 42,
     ) -> BaseChatModel:
         """
-        Create a Groq LLM instance.
+        Create a Groq LLM instance with key rotation support.
 
         Args:
             model: Model name (default: settings.groq_model).
@@ -149,24 +367,23 @@ class LLMProvider:
             seed: Seed for determinism.
 
         Returns:
-            ChatGroq instance.
+            RotatingChatGroq instance.
         """
-        try:
-            from langchain_groq import ChatGroq
-        except ImportError:
-            raise ImportError("pip install langchain-groq")
-
-        api_key_str = api_key or settings.groq_api_key
-        api_key_secret = SecretStr(api_key_str) if api_key_str else None
-
         model = model or settings.groq_model
-        # Recommendation 5: Pass seed via model_kwargs for providers that support it
-        return ChatGroq(
-            model=model,
+        if api_key:
+            # If custom key is specified, build a dedicated single-key rotator
+            custom_rotator = GroqKeyRotator()
+            custom_rotator._keys = [api_key]
+            custom_rotator._current_index = 0
+            rotator = custom_rotator
+        else:
+            rotator = groq_rotator
+
+        return RotatingChatGroq(
+            model_name=model,
             temperature=temperature,
-            api_key=api_key_secret,
-            max_retries=settings.llm_max_retries,
-            model_kwargs={"seed": seed},
+            seed=seed,
+            rotator=rotator,
         )
 
     @staticmethod
@@ -236,6 +453,38 @@ class LLMProvider:
             seed=seed,
             n_ctx=settings.llama_cpp_n_ctx,
             n_gpu_layers=settings.llama_cpp_n_gpu_layers,
+        )
+
+    @staticmethod
+    def _get_ollama_llm(
+        model: Optional[str] = None,
+        temperature: float = 0.0,
+        seed: int = 42,
+    ) -> BaseChatModel:
+        """
+        Create a local Ollama LLM instance.
+
+        Args:
+            model: Model name (default: "llama3").
+            temperature: Sampling temperature (default: 0.0).
+            seed: Seed for determinism.
+
+        Returns:
+            ChatOllama instance.
+        """
+        try:
+            from langchain_ollama import ChatOllama
+        except ImportError:
+            try:
+                from langchain_community.chat_models import ChatOllama  # type: ignore[assignment]
+            except ImportError:
+                raise ImportError("pip install langchain-ollama or langchain-community")
+
+        model = model or "llama3"
+        return ChatOllama(
+            model=model,
+            temperature=temperature,
+            seed=seed,  # type: ignore[call-arg]
         )
 
     @staticmethod

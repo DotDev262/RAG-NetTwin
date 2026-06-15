@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from src.utils import setup_logger
@@ -17,6 +18,7 @@ class CacheManager:
 
     def __init__(self, cache_dir: str = "data/cache"):
         self.cache_dir = cache_dir
+        self.lock = threading.Lock()
         os.makedirs(cache_dir, exist_ok=True)
 
     def _is_expired(self, value: Dict[str, Any]) -> bool:
@@ -46,42 +48,44 @@ class CacheManager:
 
     def load_cache(self, filename: str) -> Dict[str, Any]:
         filepath = os.path.join(self.cache_dir, filename)
-        if not os.path.exists(filepath):
-            return {}
+        with self.lock:
+            if not os.path.exists(filepath):
+                return {}
 
-        try:
-            with open(filepath, "r") as f:
-                cache = json.load(f)
+            try:
+                with open(filepath, "r") as f:
+                    cache = json.load(f)
 
-            filtered = {}
-            for key, value in cache.items():
-                if not self._is_expired(value):
-                    filtered[key] = value
-            return filtered
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning(f"Failed to load cache {filepath}: {e}")
-            return {}
+                filtered = {}
+                for key, value in cache.items():
+                    if not self._is_expired(value):
+                        filtered[key] = value
+                return filtered
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Failed to load cache {filepath}: {e}")
+                return {}
 
     def save_cache(self, filename: str, cache: Dict[str, Any]):
         if not cache:
             return
 
         filepath = os.path.join(self.cache_dir, filename)
-        try:
-            disk_cache = {}
-            if os.path.exists(filepath):
-                try:
-                    with open(filepath, "r") as f:
-                        disk_cache = json.load(f)
-                except Exception:
-                    pass
+        with self.lock:
+            try:
+                disk_cache = {}
+                if os.path.exists(filepath):
+                    try:
+                        with open(filepath, "r") as f:
+                            disk_cache = json.load(f)
+                    except Exception:
+                        pass
 
-            disk_cache.update(cache)
-            with open(filepath, "w") as f:
-                json.dump(disk_cache, f, indent=2)
-            logger.info(f"Saved cache to {filepath} ({len(disk_cache)} items)")
-        except Exception as e:
-            logger.warning(f"Failed to save cache {filepath}: {e}")
+                disk_cache.update(cache)
+                with open(filepath, "w") as f:
+                    json.dump(disk_cache, f, indent=2)
+                logger.info(f"Saved cache to {filepath} ({len(disk_cache)} items)")
+            except Exception as e:
+                logger.warning(f"Failed to save cache {filepath}: {e}")
 
     def get(self, cache: Dict, key: str) -> Optional[Any]:
         if key not in cache:

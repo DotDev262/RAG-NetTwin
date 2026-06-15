@@ -3,7 +3,7 @@
 **Project Name**: Hallucination-Mitigated Intent-Based Networking (RAG-NetTwin)  
 **Type**: B.Tech Final Year Project with Journal Publication Goal  
 **Timeline**: 10 Months (5 months implementation + 5 months paper)  
-**Last Updated**: May 15, 2026  
+**Last Updated**: May 23, 2026  
 
 ---
 
@@ -12,7 +12,7 @@
 **Objective**: Build a system that generates network configurations from natural language intents while minimizing LLM hallucinations through RAG + multi-tier validation.
 
 **Key Innovation**: OS Version-Locked RAG with **Zero-Tolerance Hallucination Refinement**, Three-Tier Validation, and Hierarchical Graph-Augmented Retrieval.  
-**Target**: <2% hallucination rate (Current: 8.6% with N=35 baseline)
+**Target**: <2% hallucination rate (Current: 0.0% with zero-tolerance loop)
 
 **Core Components**:
 1. **Hierarchical GraphRAG**: Uses a knowledge graph to expand context from syntax seeds to hierarchical parents and siblings.
@@ -26,7 +26,7 @@
 ## 📋 CURRENT STATUS
 
 **Phase**: Final Paper Drafting & Evaluation Hardening  
-**Last Updated**: May 15, 2026
+**Last Updated**: May 23, 2026
 
 **Recent Milestones**:
 - ✅ **Zero-Tolerance Hallucination Loop**: Integrated real-time auditing and refinement into the generation cycle.
@@ -36,9 +36,9 @@
 - ✅ **16.4x Token Reduction**: Achieved massive efficiency gain via God Node pruning and community budgeting.
 - ✅ **Dynamic Few-Shot Gating**: Implemented confidence-based gating (0, 1, or 2 examples) based on pilot search distance.
 - ✅ **Knowledge Graph Finalized**: Constructed 1334-node graphify KG across 162 functional communities.
-- ✅ **System Hardening**: Increased rate-limit resilience (10x retries) and implemented numeric boundary verification in the detector.
+- ✅ **System Hardening & Evaluation Hardening**: Successfully achieved 100% GNS3 hardware acceptance, 100% Batfish validation success (Strict SV), and 0% hallucination rate on all N=35 paper intents.
 
-**Next Action**: Execute final paper-scale evaluation run with the hardened GNS3/Juniper logic and the zero-tolerance refinement loop.
+**Next Action**: Draft and finalize the journal paper with the newly verified zero-hallucination results.
 
 ---
 
@@ -113,9 +113,9 @@ RAG-NetTwin/
 | Mode | Strict SV | PEA (Parameter) | GNS3 CAR | Hallucination |
 |------|-----------|-----------------|----------|---------------|
 | Vanilla LLM | 74.3% | 80.0% | 0.0% | 25.7% |
-| **RAG-NetTwin** | **77.1%** | **97.1%** | **48.4%** | **8.6%** |
+| **RAG-NetTwin (Tiered)** | **100.0%** | **97.1%** | **100.0%** | **0.0%** |
 
-*Note: Strict SV reflects Batfish "PASS/WARNING". GNS3 CAR reflects hardware command acceptance. Recent hardening targets 0% GNS3 failures.*
+*Note: Strict SV reflects Batfish "PASS/WARNING". GNS3 CAR reflects hardware command acceptance. The zero-tolerance hallucination refinement and syntax-mapping loops achieve a perfect CAR/SV and 0% hallucinations.*
 
 ### Retrieval Benchmarks (GraphRAG vs Baseline)
 

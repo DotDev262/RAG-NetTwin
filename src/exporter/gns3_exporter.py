@@ -89,7 +89,7 @@ class GNS3Exporter:
                         "label": {
                             "rotation": 0,
                             "style": "font-family: 'Arial'; font-size: 10; font-weight: bold",
-                            "text": f"Eth{i+1}",
+                            "text": f"Eth{i + 1}",
                             "x": 0,
                             "y": 0,
                         },

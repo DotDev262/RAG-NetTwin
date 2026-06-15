@@ -90,8 +90,9 @@ def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
         loguru_logger.remove()
         loguru_logger.add(
             sys.stderr,
-            filter=lambda record: "ciscoconfparse" not in record["name"]
-            or record["level"].no >= 40,
+            filter=lambda record: (
+                "ciscoconfparse" not in record["name"] or record["level"].no >= 40
+            ),
         )
     except ImportError:
         pass

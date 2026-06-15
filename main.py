@@ -293,7 +293,7 @@ def main():
                                             print(f"    {line}")
                                         if len(out_lines) > 5:
                                             print(
-                                                f"    ... ({len(out_lines)-5} more lines)"
+                                                f"    ... ({len(out_lines) - 5} more lines)"
                                             )
                             print("---------------------------------------")
                 except Exception as e:
