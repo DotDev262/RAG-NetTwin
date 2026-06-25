@@ -1,179 +1,107 @@
-# Version-Aware RAG for Reliable Network CLI Configuration Synthesis
+# RAG-NetTwin: Retrieval-Augmented Generation for Network Configuration Validation
 
-A research system that generates network configurations from natural language intents while minimizing LLM hallucinations through RAG and multi-tier validation.
+A research system that synthesizes network CLI configurations from natural language intents using GraphRAG, multi-vendor knowledge graphs, and three-tier validation to minimize LLM hallucinations.
 
-**Current Status**: 0.0% hallucination rate achieved (Target: <2%)
+**Evaluated on**: Cisco IOS-XE 17.6, Juniper JunOS 21.4 (35 intents)
 
 ---
 
-## 🎯 What It Does
+## Key Results (N=35, 95% Bootstrap CI)
 
-```
-User Intent          RAG-NetTwin              Validated Config
-─────────────────>  ────────────────>  ──────────────────────
-"Configure OSPF      Generate CLI with        Batfish validates
-on Cisco 17.6"      citations from docs       Syntax + Semantics
-```
+| Metric | Vanilla LLM | RAG-NetTwin |
+|--------|-------------|-------------|
+| Strict Syntactic Validity (SV) | 74.3% | **94.3%** [85.7%, 100.0%] |
+| Hallucination Rate (HR) | 25.7% | **2.9%** |
+| Parameter Extraction Accuracy (PEA) | 80.0% | **100.0%** |
+| GNS3 Command Accuracy Rate (CAR) | 0.0% | **82.9%** [68.6%, 94.3%] |
+| Intent Syntactic Recognition (ISR) | 0.0% | **100.0%** |
 
-## ✨ Key Features
+**Token reduction**: 16.4x vs baseline RAG (57,533 → 3,503 tokens/query)
 
-- **RAG-Augmented Generation**: Commands grounded in official Cisco/Juniper documentation.
-- **Zero-Tolerance Hallucination Loop**: Real-time auditing and refinement based on intent parameters.
-- **Version-Locked Retrieval**: Filters by OS version (e.g., IOS-XE 17.6, JunOS 21.4).
-- **API Key Rotation**: Automatic rotation across multiple API keys when rate limited (HTTP 429).
+---
+
+## Key Features
+
+- **GraphRAG**: Hierarchical knowledge graph (1,334 nodes, 162 communities, 13.5 avg degree)
+- **Mandatory Citation Refinement**: Every generated command includes a verifiable documentation citation
+- **Version-Locked Retrieval**: Filters by OS version (IOS-XE 17.6, JunOS 21.4)
 - **Three-Tier Validation**:
-    - **Tier 1**: Batfish static analysis for syntax validation.
-    - **Tier 3**: GNS3 functional simulation for multi-vendor verification.
-- **Multi-Vendor Support**: Cisco IOS-XE and Juniper JunOS.
-
-## 📊 Results (N=35)
-
-| Metric | Vanilla LLM | RAG-NetTwin | Improvement |
-|--------|-------------|-------------|-------------|
-| Syntactic Validity | 74.3% | **100.0%** | +25.7% |
-| Parameter Accuracy (PEA) | 80.0% | **97.1%** | +17.1% |
-| Hallucination Rate | 25.7% | **0.0%** | -25.7% |
-
-**Full evaluation**: 35 test intents with Batfish and GNS3 validation.
-
-### Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| Average Latency | ~20 seconds |
-| Syntactic Validity | 100.0% |
-| Parameter Accuracy | 97.1% |
-| Hallucination Rate | 0.0% |
-| Token Reduction | **16.4x** (via GraphRAG) |
+  - **Tier 1**: Batfish static analysis (syntax validation)
+  - **Tier 2**: Referential Integrity (parameter-command consistency)
+  - **Tier 3**: Network Master Plan (GNS3 functional simulation)
+- **Multi-Vendor**: Cisco IOS-XE, Juniper JunOS
+- **API Key Rotation**: Automatic rotation across multiple Groq API keys on rate limit
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# Clone and setup
 git clone https://github.com/your-repo/RAG-NetTwin.git
 cd RAG-NetTwin
 
-# Setup environment with devenv
-devenv shell
-
-# Run evaluation
-uv run python run_paper_eval.py --max-workers 1 --run-gns3
+python -m venv .venv && source .venv/bin/activate
+uv sync
 ```
 
-**Requirements:**
-- Python 3.10+
-- Groq API key
-- Docker (for Batfish and GNS3)
+**Requirements:** Python 3.10+, Groq API key, Docker (for Batfish/GNS3)
 
 ---
 
-## 📁 Project Structure
-
-```
-RAG-NetTwin/
-├── benchmarks/         # Performance comparison scripts
-├── notebooks/          # Reproduction notebooks
-├── paper-analysis/     # Results analysis and plotting
-├── src/
-│   ├── parser/         # Intent parsing (NLP → Structured)
-│   ├── rag/            # Config generation + Vector store
-│   ├── validation/     # Batfish/GNS3 validators
-│   └── evaluation/     # Hallucination detection
-├── ui/                 # Visual Grounding Dashboard
-└── run_paper_eval.py   # Main evaluation engine
-```
-
----
-
-## 🔧 Running Tests & Benchmarks
+## Running Evaluation
 
 ```bash
-# Core evaluation in Strict Verification Mode (short-circuits GNS3 on Batfish failure)
+# Paper evaluation (35 intents, three-tier validation)
 uv run python run_paper_eval.py --run-gns3
 
-# Core evaluation in Observational Mode (pushes unvalidated configs to GNS3 to study hardware impact)
+# Strict Verification Mode (short-circuits GNS3 on Batfish failure)
+uv run python run_paper_eval.py --run-gns3
+
+# Observational Mode (pushes unvalidated configs to study hardware impact)
 uv run python run_paper_eval.py --run-gns3 --evaluation-mode observational
 
 # Retrieval benchmark
 uv run python benchmarks/graph_retrieval_benchmark.py
 
-# Regression tests (56 unit tests including evaluation_mode tests)
+# Unit tests
 uv run pytest
 ```
 
 ---
 
-## ⚡ Running Evaluations with Live Endpoints
+## Project Structure
 
-By default, the paper evaluation script runs with cached LLM configurations to save API costs and speed up verification. To run the evaluations live against cloud or local LLM endpoints:
-
-### 1. Set the API Keys & Environment Variables
-Configure the target provider and keys in `.env` or set them directly:
-```bash
-# To run live Gemini:
-export LLM_PROVIDER="gemini"
-export GEMINI_API_KEY="AIzaSy..."
-
-# To run live Groq with automatic rate-limit (429) key rotation:
-export LLM_PROVIDER="groq"
-# Set a comma-separated list of keys:
-export GROQ_API_KEYS="gsk_key1,gsk_key2,gsk_key3"
-
-# Or to run live local Ollama:
-export LLM_PROVIDER="ollama"
-# (Ensure your local Ollama server is running, e.g., 'ollama run llama3')
 ```
-
-### 2. Toggle the Live Execution Flag
-Set `USE_LIVE_LLM=True` to bypass cache lookups and force fresh configuration synthesis from the live LLM:
-```bash
-USE_LIVE_LLM=True uv run python run_paper_eval.py --run-gns3
-```
-
-Or run with the `--clear-cache` flag to purge old cached results and re-synthesize:
-```bash
-uv run python run_paper_eval.py --clear-cache --run-gns3
+RAG-NetTwin/
+├── benchmarks/           # Performance comparison scripts
+├── paper-analysis/       # Results analysis, figures, statistics
+│   ├── generate_paper_figures.py
+│   ├── statistical_analysis.py   # Bootstrap CIs, Wilcoxon, 5-fold CV
+│   ├── hyperparameter_ablation.py
+│   └── figures/          # Generated paper figures (300 DPI JPG)
+├── src/
+│   ├── rag/              # GraphRAG config generation, vector store
+│   ├── validation/       # Batfish/GNS3 validators
+│   └── evaluation/       # Hallucination detection
+├── data/
+│   ├── graph_corpus/     # Cisco/Juniper CLI documentation corpus
+│   ├── graph_db/         # Knowledge graph (JSON, chunk mappings)
+│   └── chroma_db/        # Vector embeddings
+└── run_paper_eval.py     # Main evaluation engine
 ```
 
 ---
 
-## 📚 Documentation
+## Statistical Rigor
 
-| File | Description |
-|------|-------------|
-| `AGENTS.md` | Detailed project context and status |
-| `docs/PAPER.md` | Journal paper draft |
-| `docs/ARCHITECTURE.md` | System architecture |
-
----
-
-## 💾 Knowledge Base (GraphRAG)
-
-**Total Nodes**: 1,334
-
-### Version-Locked Retrieval Example
-
-```python
-# Query built from parsed intent
-# Intent: "Configure OSPF area 0 on router1 (Cisco 17.6)"
-query = "ospf create area network router"
-
-# Retrieve with version locking
-results = vector_store.retrieve(
-    query=query,
-    vendor="cisco",
-    os_version="17.6",
-    n_results=5
-)
-```
+- **Bootstrap CIs**: 95% confidence intervals (N=1000 resamples)
+- **Wilcoxon signed-rank**: p<0.001 for all metrics vs baseline
+- **Cohen's d**: 1.22 (SV), 3.11 (CAR), 4.12 (HR-Free)
+- **5-fold cross-validation**: Reported as mean ± std
+- **Hyperparameter ablation**: Community budget=15, cosine threshold=0.70
 
 ---
 
-## 📄 License
+## License
 
-MIT License - See LICENSE file
-
----
-**Current Status:** Production & Publication-Ready Zero-Hallucination State ✅
+MIT License — See LICENSE file
