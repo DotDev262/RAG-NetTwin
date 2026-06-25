@@ -187,7 +187,7 @@ class PaperQualityEvaluator:
                 f"[cyan]Evaluating ({retrieval_mode})", total=len(parsed_intents)
             )
 
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            with ThreadPoolExecutor(max_workers=1) as executor:
                 future_to_intent = {
                     executor.submit(
                         self.evaluate_intent, intent, retrieval_mode=retrieval_mode

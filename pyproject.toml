@@ -49,6 +49,7 @@ dependencies = [
     "types-networkx>=3.6.1.20260518",
     "types-tqdm>=4.67.3.20260518",
     "langchain-ollama>=1.1.0",
+    "statsmodels>=0.14.6",
 ]
 
 [tool.uv.sources]

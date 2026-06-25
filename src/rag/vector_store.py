@@ -185,12 +185,12 @@ class VectorStore:
 
     def _load_knowledge_graph(self) -> None:
         """
-        Loads the specialized documentation knowledge graph from the graphify-docs directory.
+        Loads the specialized documentation knowledge graph from the graphify-out directory.
+        The graph is built by graphify and contains domain concepts for GraphRAG.
         """
-        # Point to the graphify-docs directory which contains the domain concepts
-        base_path = Path("graphify-docs")
+        # Point to the graphify-out directory which contains the full KG
+        base_path = Path("graphify-out")
         graph_path = base_path / "graph.json"
-        # mapping_path is optional; GraphRAG falls back to direct ID matching
         mapping_path = base_path / "chunk_to_node.json"
         labels_path = base_path / ".graphify_labels.json"
 

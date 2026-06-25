@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash-lite-preview-02-05"
     temperature: float = 0.0
     llm_max_retries: int = 10
-    enable_self_correction: bool = True
+    enable_self_correction: bool = False
     use_live_llm: bool = False
 
     # GNS3 Settings (Tier 3 validation)

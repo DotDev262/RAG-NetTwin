@@ -275,6 +275,48 @@ class CiscoNormalizer(BaseVendorNormalizer):
                     repaired_lines_pm.append(line)
                 processed = "\n".join(repaired_lines_pm)
 
+        # 6. Fix common Cisco logging command hallucinations
+        #    'logging buffer-size N'  ->  'logging buffered N'  (wrong keyword)
+        #    'logging buffer N'       ->  'logging buffered N'  (abbreviated wrong form)
+        processed = re.sub(
+            r"\blogging\s+buffer(?:-size|)\s+(\d+)",
+            r"logging buffered \1",
+            processed,
+            flags=re.IGNORECASE,
+        )
+        #    'logging buffer-size N <severity>'  ->  'logging buffered N <severity>'
+        processed = re.sub(
+            r"\blogging\s+buffer(?:-size|)\s+(\d+)\s+(\S+)",
+            r"logging buffered \1 \2",
+            processed,
+            flags=re.IGNORECASE,
+        )
+
+        # 7. Fix common IKE/IPsec isakmp policy command hallucinations
+        #    'encryption aes 256'  ->  'encr aes 256'  (wrong keyword; correct is 'encr')
+        #    'encryption aes 128'  ->  'encr aes 128'
+        #    'encryption 3des'     ->  'encr 3des'
+        processed = re.sub(
+            r"^\s*encryption\s+(aes(?:\s+\d+)?|3des|des)\s*$",
+            lambda m: m.group(0).replace("encryption", "encr", 1),
+            processed,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        #    'authentication pre-shared-key'  ->  'authentication pre-share'
+        processed = re.sub(
+            r"\bauthentication\s+pre-shared-key\b",
+            "authentication pre-share",
+            processed,
+            flags=re.IGNORECASE,
+        )
+        #    'hash sha-256'  ->  'hash sha256'  (IOS uses no hyphen for sha variants)
+        processed = re.sub(
+            r"\bhash\s+sha-(\d+)\b",
+            r"hash sha\1",
+            processed,
+            flags=re.IGNORECASE,
+        )
+
         return processed
 
 

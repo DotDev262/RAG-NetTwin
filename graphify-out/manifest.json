@@ -8,8 +8,8 @@
     "hash": "312fd7e841e8f4ef307a4f86525db360"
   },
   "/home/aryan/Projects/RAG-NetTwin/run_paper_eval.py": {
-    "mtime": 1781503029.5001764,
-    "hash": "7ca0894d402e52be68721c9d72783709"
+    "mtime": 1781504537.7335484,
+    "hash": "5b3a92df282a9903815d31495444a71d"
   },
   "/home/aryan/Projects/RAG-NetTwin/scripts/audit_demo.py": {
     "mtime": 1778129695.5409677,
@@ -48,8 +48,8 @@
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/config.py": {
-    "mtime": 1781501324.367495,
-    "hash": "7dbdc93fc51fe3a9ca960b8d6fba2fa8"
+    "mtime": 1781584918.4339585,
+    "hash": "c96e5521a19da0fc3db7533db43abb5e"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/data_processing/__init__.py": {
     "mtime": 1776340250.3575273,
@@ -92,16 +92,16 @@
     "hash": "26e84c02fcba2a73c02a90e82dbf77ae"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/evaluation/hallucination_detector.py": {
-    "mtime": 1781500419.314072,
-    "hash": "f8c7205401a78c595c9eb581d325a76b"
+    "mtime": 1781518588.9988384,
+    "hash": "9b2a569fcd228830d39957cfe913cde6"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/llm/__init__.py": {
     "mtime": 1778823298.9330518,
     "hash": "6e874535a2dc48df545e19b276a68c3c"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/llm/provider.py": {
-    "mtime": 1781503604.3210804,
-    "hash": "3b031a096245985ebc3283122705390b"
+    "mtime": 1781504584.3756216,
+    "hash": "3e9117649e73cd133e4eea0b6f80da06"
   },
   "/home/aryan/Projects/RAG-NetTwin/src/parser/__init__.py": {
     "mtime": 1776340250.357756,
@@ -212,20 +212,20 @@
     "hash": "8b391cc189284d63478a3a042206caba"
   },
   "/home/aryan/Projects/RAG-NetTwin/tests/test_hallucination.py": {
-    "mtime": 1781502086.5286937,
-    "hash": "f2243721ec0fd353021169ef3aca3286"
+    "mtime": 1781504499.7354887,
+    "hash": "9f7d69bb4569ef2a3bd148df48f17f6a"
   },
   "/home/aryan/Projects/RAG-NetTwin/tests/test_evaluation.py": {
-    "mtime": 1781504020.521735,
-    "hash": "bcea03e6f72ffed5b104ff89ca05c487"
+    "mtime": 1781504499.7364886,
+    "hash": "7e5994e9eaaf3972c5be284a1161008c"
   },
   "/home/aryan/Projects/RAG-NetTwin/tests/repro_hallucination.py": {
     "mtime": 1778498499.5171297,
     "hash": "5f3a78c5ffadf607fa7eb147ae80235d"
   },
   "/home/aryan/Projects/RAG-NetTwin/tests/test_cache_logic.py": {
-    "mtime": 1781502086.5276937,
-    "hash": "8603dfdabf4ae9c548d61aa5c1303690"
+    "mtime": 1781504499.7354887,
+    "hash": "31e6df523bdd1f63d456f045ae50fdf8"
   },
   "/home/aryan/Projects/RAG-NetTwin/tests/test_batfish_parallel.py": {
     "mtime": 1778823298.931052,
@@ -272,8 +272,8 @@
     "hash": "ef4b023f9bfd154bde0396daf01235d9"
   },
   "/home/aryan/Projects/RAG-NetTwin/README.md": {
-    "mtime": 1781503495.271909,
-    "hash": "121c1ec8672a12c86301d5fea554a040"
+    "mtime": 1781577225.8281806,
+    "hash": "49fd45e124c0e3127acee7e81fb3a99f"
   },
   "/home/aryan/Projects/RAG-NetTwin/GEMINI.md": {
     "mtime": 1777945136.136276,
@@ -328,12 +328,12 @@
     "hash": "d6ae37ce3699b82695cdd8c6820b35e8"
   },
   "/home/aryan/Projects/RAG-NetTwin/docs/research/RESEARCH_SPECIFICATION.md": {
-    "mtime": 1781503503.7659223,
-    "hash": "50287c0d985f13feec6d4cda06c073e1"
+    "mtime": 1781577221.8091743,
+    "hash": "9938eea3e1337fa13f2dc4a2bf5ede11"
   },
   "/home/aryan/Projects/RAG-NetTwin/docs/research/RESEARCH_IMPLEMENTATION_BLUEPRINT.md": {
-    "mtime": 1781503510.4339328,
-    "hash": "b2ad1c2a513f475883f644e1210582ce"
+    "mtime": 1781577216.3801658,
+    "hash": "19659d4a3b07282290a2b507db8383eb"
   },
   "/home/aryan/Projects/RAG-NetTwin/ui/frontend/index.html": {
     "mtime": 1778213917.938826,

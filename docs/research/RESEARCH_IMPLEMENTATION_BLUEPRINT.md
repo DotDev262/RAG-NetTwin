@@ -88,8 +88,8 @@ if not is_lite:
                 os_version=search_version,
                 n_results=1,
             )
-            # Threshold Check: Cosine distance > 0.60 indicates a weak match
-            if not pilot or pilot[0].get("distance", 1.0) > 0.60:
+            # Threshold Check: Cosine distance > 0.70 indicates a weak match
+            if not pilot or pilot[0].get("distance", 1.0) > 0.70:
                 logger.info("Low confidence pilot search. Triggering Multi-Query Expansion...")
                 cache_key = f"{base_query}:{vendor}:{search_version}"
                 if cache_key in self._query_expansion_cache:
@@ -246,23 +246,26 @@ def post_process_config(config: str, vendor: str) -> str:
         return config
 
     processed = config
-    cidr_to_mask = {
-        "8": "255.0.0.0",
-        "16": "255.255.0.0",
-        "24": "255.255.255.0",
-        "30": "255.255.255.252",
-        "32": "255.255.255.255"
-    }
 
-    # 1. Map CIDR to dotted-decimal subnet masks for static routes
+    # 1. Dynamic CIDR-to-mask conversion using ipaddress library
     def replace_cidr(match):
-        ip = match.group(1)
-        prefix = match.group(2)
-        mask = cidr_to_mask.get(prefix, "255.255.255.0")
-        return f"{ip} {mask}"
+        prefix_cmd = match.group(1)  # e.g., "ip route" or "ipv6 route"
+        ip = match.group(2)
+        prefix = match.group(3)
+        try:
+            # Dynamic subnet mask calculation using ipaddress library
+            net = ipaddress.ip_network(f"{ip}/{prefix}", strict=False)
+            if net.version == 6:
+                return f"{prefix_cmd} {ip}/{prefix}"
+            else:
+                return f"{prefix_cmd} {ip} {net.netmask}"
+        except Exception:
+            if ":" in ip:
+                return f"{prefix_cmd} {ip}/{prefix}"
+            return f"{prefix_cmd} {ip} 255.255.255.0"
 
     processed = re.sub(
-        r"(ip route \d+\.\d+\.\d+\.\d+)/(\d+)",
+        r"\b((?:ip|ipv6) route\s+([0-9a-fA-F.:]+))/(\d+)",
         replace_cidr,
         processed,
         flags=re.IGNORECASE,
@@ -274,9 +277,26 @@ def post_process_config(config: str, vendor: str) -> str:
         r"Gig": r"Ethernet",
         r"Gi": r"Ethernet",
         r"FastEthernet": r"Ethernet",
+        r"TenGigabitEthernet": r"Ethernet",
+        r"Ten": r"Ethernet",
+        r"Te": r"Ethernet",
     }
     for short, full in interface_maps.items():
         processed = re.sub(rf"\b{short}(\s*\d+(?:/\d+)*)", rf"{full}\1", processed, flags=re.IGNORECASE)
+
+    # 3. Convert three-tier interfaces (e.g. Ethernet1/0/24) to two-tier (Ethernet0/0)
+    def map_three_tier_interface(match):
+        full_name = match.group(1)
+        port = int(match.group(4))
+        mapped_port = port % 4
+        return f"{full_name}0/{mapped_port}"
+
+    processed = re.sub(
+        r"\b(Ethernet)(\d+)/(\d+)/(\d+)\b",
+        map_three_tier_interface,
+        processed,
+        flags=re.IGNORECASE,
+    )
 
     return processed
 ```
@@ -359,9 +379,10 @@ class HallucinationDetector:
     HALLUCINATION_PATTERNS = [
         r"<YOUR_[A-Z_]+>",
         r"<ENTER_[A-Z_]+>",
-        r"ENTER_IP_HERE",
-        r"YOUR_AS_NUMBER",
         r"PLACEHOLDER",
+        r"dummy-config",
+        r"\bUnknown\b",
+        r"\bTBD\b",
     ]
 
     def detect(
@@ -370,8 +391,10 @@ class HallucinationDetector:
         citations: List[str],
         valid_source_ids: List[str],
         retrieved_texts: Optional[List[str]] = None,
+        intent_context: str = "",
         intent_params: Optional[Dict[str, Any]] = None,
         master_plan: Optional[Dict[str, Any]] = None,
+        authorized_citations: Optional[List[str]] = None,
     ) -> HallucinationReport:
         suspicious = []
         invalid_cites = []
@@ -384,25 +407,34 @@ class HallucinationDetector:
                 suspicious.extend(list(set(matches)))
 
         # 2. Citation Verification
-        full_authorized = set(valid_source_ids)
+        full_authorized = set(valid_source_ids + (authorized_citations or []))
+        full_authorized.add("BASE_CLI_KNOWLEDGE")
         for cite in citations:
             clean_cite = cite.replace("ID:", "").strip()
             if clean_cite not in full_authorized:
                 invalid_cites.append(cite)
 
-        # 3. Parameter Binding Verification (check for unauthorized IPs/ASNs)
-        unauthorized = self._check_parameter_binding(
-            config_clean,
-            intent_params or {},
-            master_plan or {},
-            grounding_context=retrieved_texts,
-        )
+        # 3. Grounding Verification
+        ungrounded = []
+        if retrieved_texts or intent_context:
+            ungrounded = self._check_command_grounding(config_clean, retrieved_texts or [], intent_context)
 
-        is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0 or len(unauthorized) > 0
+        # 4. Parameter Binding Verification
+        unauthorized = []
+        if intent_params or master_plan or retrieved_texts:
+            unauthorized = self._check_parameter_binding(
+                config_clean,
+                intent_params or {},
+                master_plan or {},
+                grounding_context=retrieved_texts,
+            )
+
+        is_hallucinated = len(suspicious) > 0 or len(invalid_cites) > 0 or len(ungrounded) > 0 or len(unauthorized) > 0
         return HallucinationReport(
             is_hallucinated=is_hallucinated,
             suspicious_commands=suspicious,
             invalid_citations=invalid_cites,
+            ungrounded_commands=ungrounded,
             unauthorized_parameters=unauthorized
         )
 ```
@@ -421,7 +453,7 @@ Orchestrates the evaluation pipeline by verifying configurations through the Bat
 
 # 1. Check Batfish status
 batfish_failed = val_report.get("status") in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]
-should_run_gns3 = self.run_gns3 and self.gns3
+should_run_gns3 = bool(self.run_gns3 and self.gns3)
 
 # 2. Early short-circuiting in strict mode
 if should_run_gns3 and batfish_failed and self.evaluation_mode == "strict":
@@ -432,8 +464,8 @@ if should_run_gns3 and batfish_failed and self.evaluation_mode == "strict":
     functional_errors = ["Skipped GNS3 validation due to Batfish failure in strict mode."]
     should_run_gns3 = False
 
-# 3. Proceed to GNS3 emulation sandbox if allowed
-if should_run_gns3:
+# 3. Proceed to GNS3 emulation sandbox if allowed and connected
+if should_run_gns3 and self.gns3 is not None:
     try:
         with self.gns3_lock:
             g_res = self.gns3.validate(device_configs, intent)
@@ -441,3 +473,51 @@ if should_run_gns3:
             is_multi_vendor = g_res.get("is_multi_vendor", False)
             # ... deploy virtual nodes and push configs ...
 ```
+
+---
+
+## 9. Transparent API Key Rotation (Groq Rate Limits)
+
+* **File**: [src/llm/provider.py](file:///home/aryan/Projects/RAG-NetTwin/src/llm/provider.py)
+
+During large-scale paper evaluation runs, standard free/tier-1 developer limits on LLM endpoints are easily saturated (returning HTTP 429). RAG-NetTwin implements a thread-safe proxy/wrapper layer that dynamically shifts to alternative keys when a limit is reached.
+
+```python
+# Extract from provider.py: GroqKeyRotator, RotatingChatGroq, and RotatingRunnable
+
+class GroqKeyRotator:
+    """Manages rotation of Groq API keys when rate limits are hit (thread-safe)."""
+    def __init__(self):
+        self._keys: List[str] = []
+        self._current_index = 0
+        self._lock = threading.Lock()
+        # Loads comma-separated strings from GROQ_API_KEYS or GROQ_API_KEY envs
+
+    def rotate_key(self) -> bool:
+        with self._lock:
+            if len(self._keys) <= 1:
+                return False
+            self._current_index = (self._current_index + 1) % len(self._keys)
+            return True
+
+class RotatingChatGroq(BaseChatModel):
+    """ChatGroq wrapper that supports dynamic key rotation on rate limits."""
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        attempts = max(1, self.rotator.get_keys_count())
+        for attempt in range(attempts):
+            try:
+                return self.client._generate(messages, stop, run_manager, **kwargs)
+            except Exception as e:
+                err_str = str(e)
+                if ("429" in err_str or "rate limit" in err_str.lower()) and attempt < attempts - 1:
+                    if self.rotator.rotate_key():
+                        self._rebuild_client()
+                        continue
+                raise e
+
+class RotatingRunnable(Runnable):
+    """Wraps a structured runnable to dynamically rebuild and retry with rotated keys on 429 errors."""
+    # Wraps langchain runnables (e.g. structured_llm) to recreate and retry them
+    # on rate limit errors with rotated keys.
+```
+

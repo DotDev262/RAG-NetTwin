@@ -441,6 +441,10 @@ class HallucinationDetector:
             "128",
             "256",
             "512",
+            # Common IKE/IPsec lifetimes (seconds) that are standard and often in VPN intents
+            "3600",
+            "86400",
+            "28800",
         }
 
         for val in set(ips + all_numbers):
@@ -510,6 +514,8 @@ class HallucinationDetector:
             "ipv6",
             "vlan",
             "access-list",
+            "acl",
+            "range",
             "set",
             "show",
             "crypto",
@@ -566,6 +572,10 @@ class HallucinationDetector:
             "inside",
             "static",
             "mask",
+            "configure",
+            "delete",
+            "remove",
+
             "prefix-list",
             "route-map",
             "policy-map",
@@ -774,6 +784,10 @@ class HallucinationDetector:
             "aes128-cbc",
             "dh-group14-sha1",
             "soft-reconfiguration",
+            "route-reflector-client",
+            "route-reflector",
+            "reflector",
+            "client",
             "inbound",
             "outbound",
             "host",

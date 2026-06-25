@@ -1,0 +1,36 @@
+scenario,intent_type,SV,HR,CAR,ISR,PEA,Hallucination_Free,CFR_Faithful
+Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco,BGP,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure static route to 172.16.0.0/16 via 10.0.0.1,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Enable OSPF process 10 on all active interfaces for Juniper,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set router-id 1.1.1.1 for OSPF on Cisco IOS-XE 17.6,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Create an ACL named BLOCK_WEB to deny TCP port 80 from any source,ACL,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure a firewall filter on Juniper to discard ICMP from 10.0.0.0/8,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Apply access-list 101 inbound on interface GigabitEthernet0/1,Interface,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Restrict SSH access to only 192.168.1.0/24 subnet on Cisco,Other,0.0,0.0,0.0,1.0,1.0,1.0,1.0
+Create a standard ACL 10 to permit only 10.1.1.0/24,ACL,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set description 'Uplink to Core' on interface Gig0/0,Interface,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure VLAN 100 named 'DATABASE' on Cisco switch,VLAN,1.0,0.0,0.0,1.0,1.0,1.0,1.0
+Enable LLDP globally on a Juniper EX switch,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set interface MTU to 9000 for jumbo frames on Cisco IOS-XE,Interface,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+"Configure trunk port on Gig1/0/24 allowing VLANs 10,20,30",VLAN,1.0,0.0,0.0,1.0,1.0,1.0,1.0
+Configure OSPF area 0 between Cisco (17.6) and Juniper (21.4) on their shared link,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up a BGP peering between Cisco AS 65001 and Juniper AS 65002,BGP,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Align OSPF hello-interval to 5 seconds on both Cisco and Juniper routers,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set system hostname to CORE-RTR-01,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure NTP server 10.1.1.100 on Cisco IOS-XE,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Enable SNMP community 'public' with RO access,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up local user 'admin' with secret 'Cisco123' and level 15,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure logging buffer size to 100000,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure IPv6 address 2001:db8:acad::1/64 on interface GigabitEthernet0/2,Interface,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up OSPFv3 area 0 for IPv6 on Cisco IOS-XE,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure a NAT overload (PAT) for subnet 192.168.10.0/24 on interface Gig0/1,Interface,0.0,0.0,0.0,1.0,1.0,1.0,1.0
+Create a site-to-site VPN between Cisco (1.1.1.1) and Juniper (2.2.2.2) with PSK 'SecretKey',Multi-Vendor,1.0,0.5,1.0,1.0,1.0,0.5,1.0
+Set up a QoS policy to prioritize OSPF traffic (CS6) on Cisco,OSPF,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Configure an VRRP group 10 with virtual IP 10.1.1.254 on interface ge-0/0/0 for Juniper,Interface,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+"Enable DHCP snooping for VLANs 10,20 on a Cisco Catalyst switch",VLAN,1.0,0.0,0.0,1.0,1.0,1.0,1.0
+Configure a prefix-list to permit only 10.0.0.0/8 and its subnets on Juniper,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up an LACP etherchannel (Group 1) using Gig1/0/1 and Gig1/0/2 on Cisco,Other,1.0,0.0,0.0,1.0,1.0,1.0,1.0
+Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Restrict console access with an execution timeout of 5 minutes on Juniper,Other,1.0,0.0,1.0,1.0,1.0,1.0,1.0
+Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco,BGP,1.0,0.0,1.0,1.0,1.0,1.0,1.0

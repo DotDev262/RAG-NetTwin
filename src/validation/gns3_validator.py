@@ -3,6 +3,7 @@ import warnings
 # Suppress telnetlib deprecation warning (slated for removal in Python 3.13)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
 
+import logging  # noqa: E402
 import requests  # noqa: E402
 import time  # noqa: E402
 import socket  # noqa: E402
@@ -20,30 +21,107 @@ from src.config import settings  # noqa: E402
 from src.utils import setup_logger  # noqa: E402
 from src.schemas.intent import StructuredIntent  # noqa: E402
 
-logger = setup_logger("GNS3Validator")
+logger = setup_logger("GNS3Validator", level=logging.DEBUG)
+
+
+def _run_async(coro):
+    """
+    Safely run an async coroutine from synchronous code.
+
+    ``asyncio.run()`` creates a *new* event loop and tears it down when done.
+    When called a second time in the same OS thread (e.g. after boot-polling
+    already closed one loop), Python 3.11 raises:
+        RuntimeError: cannot schedule new futures after shutdown
+    We avoid this by always creating a fresh loop explicitly.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
 
 
 class AsyncTelnet:
     """An asynchronous Telnet-like client for GNS3 console connection."""
 
-    def __init__(self, host: str, port: int, timeout: float = 15.0) -> None:
+    def __init__(self, host: str, port: int, timeout: float = 15.0, max_attempts: int = 5) -> None:
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.max_attempts = max(1, max_attempts)  # at least 1 attempt
         self.reader: Optional[asyncio.StreamReader] = None
         self.writer: Optional[asyncio.StreamWriter] = None
         self.buffer = bytearray()
+        self._lock = asyncio.Lock()  # Serialize console interactions
+        self._semaphore = asyncio.Semaphore(5)  # Limit concurrent console sessions
 
     async def connect(self) -> None:
-        self.reader, self.writer = await asyncio.wait_for(
-            asyncio.open_connection(self.host, self.port), timeout=self.timeout
-        )
-        self.buffer = bytearray()
+        """Open a TCP connection to the GNS3 console port.
+
+        Uses ``self.max_attempts`` retries with exponential back-off.
+        Boot-polling probes pass ``max_attempts=1`` so they fail-fast
+        and let the outer polling loop decide when to retry.
+        """
+        for attempt in range(1, self.max_attempts + 1):
+            logger.debug(
+                f"AsyncTelnet connecting to {self.host}:{self.port} "
+                f"(attempt {attempt}/{self.max_attempts})"
+            )
+            try:
+                try:
+                    self.reader, self.writer = await asyncio.wait_for(
+                        asyncio.open_connection(self.host, self.port), timeout=self.timeout
+                    )
+                except OSError as e:
+                    # Fall back to explicit IPv4 only when:
+                    #  - the host was not already an IPv4 literal, AND
+                    #  - the OSError is an aggregate (errno=None) suggesting an
+                    #    IPv6/IPv4 dual-stack resolution failure, not a plain refuse.
+                    if self.host not in ("127.0.0.1", "localhost") and e.errno is None:
+                        logger.debug(
+                            f"Dual-stack connect to {self.host}:{self.port} failed: {e}; "
+                            "retrying with explicit 127.0.0.1"
+                        )
+                        self.reader, self.writer = await asyncio.wait_for(
+                            asyncio.open_connection("127.0.0.1", self.port), timeout=self.timeout
+                        )
+                    else:
+                        # Hard refusal (ECONNREFUSED) – console not ready yet.
+                        # Re-raise so the except block below can handle retry logic.
+                        raise
+                self.buffer = bytearray()
+                logger.debug(
+                    f"AsyncTelnet connected to {self.host}:{self.port} on attempt {attempt}"
+                )
+                return
+            except (ConnectionRefusedError, OSError) as e:
+                logger.debug(
+                    f"AsyncTelnet attempt {attempt}/{self.max_attempts} "
+                    f"to {self.host}:{self.port} failed: {e}"
+                )
+                if attempt == self.max_attempts:
+                    raise
+                backoff = min(2 ** attempt, 10)
+                logger.debug(f"Retrying in {backoff}s...")
+                await asyncio.sleep(backoff)
+            except Exception as e:
+                logger.exception(
+                    f"AsyncTelnet unexpected error on attempt {attempt}/{self.max_attempts}: {e}"
+                )
+                if attempt == self.max_attempts:
+                    raise
+                await asyncio.sleep(min(2 ** attempt, 10))
 
     async def write(self, data: bytes) -> None:
-        if self.writer:
-            self.writer.write(data)
-            await self.writer.drain()
+        async with self._lock:
+            if self.writer:
+                logger.debug(f"Writing {len(data)} bytes to console.")
+                self.writer.write(data)
+                await self.writer.drain()
 
     async def read_very_eager(self) -> bytes:
         if not self.reader:
@@ -63,39 +141,47 @@ class AsyncTelnet:
         or timeout is reached.
         Returns: (matched_index, match_object, accumulated_bytes)
         """
-        if not self.reader:
-            return -1, None, b""
+        logger.debug(f"Expect called with {len(list_of_bytes)} patterns, timeout={timeout}")
+        async with self._lock:
+            if not self.reader:
+                logger.debug("No reader available, returning failure.")
+                return -1, None, b""
 
-        start_time = asyncio.get_event_loop().time()
-        while True:
-            # Check buffer first
-            for idx, pattern in enumerate(list_of_bytes):
-                # Search using regex over self.buffer
-                match = re.search(pattern, self.buffer)
-                if match:
-                    end_idx = match.end()
-                    matched_chunk = bytes(self.buffer[:end_idx])
-                    self.buffer = self.buffer[end_idx:]
-                    return idx, match, matched_chunk
+            start_time = asyncio.get_event_loop().time()
+            while True:
+                # Check buffer first
+                for idx, pattern in enumerate(list_of_bytes):
+                    match = re.search(pattern, self.buffer)
+                    if match:
+                        end_idx = match.end()
+                        matched_chunk = bytes(self.buffer[:end_idx])
+                        self.buffer = self.buffer[end_idx:]
+                        logger.debug(f"Pattern {idx} matched, returning data of length {len(matched_chunk)}")
+                        return idx, match, matched_chunk
 
-            # Check timeout
-            elapsed = asyncio.get_event_loop().time() - start_time
-            if elapsed >= timeout:
-                return -1, None, bytes(self.buffer)
-
-            # Read more data with a short timeout
-            try:
-                chunk = await asyncio.wait_for(
-                    self.reader.read(1024), timeout=min(1.0, timeout - elapsed)
-                )
-                if not chunk:
-                    # Connection closed
+                # Check timeout
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed >= timeout:
+                    logger.debug(f"Expect timeout after {elapsed}s, returning buffered data length {len(self.buffer)}")
                     return -1, None, bytes(self.buffer)
-                self.buffer.extend(chunk)
-            except asyncio.TimeoutError:
-                continue
-            except Exception:
-                return -1, None, bytes(self.buffer)
+
+                # Read more data with a short timeout
+                try:
+                    remaining = max(0.0, timeout - elapsed)
+                    chunk = await asyncio.wait_for(
+                        self.reader.read(1024), timeout=min(1.0, remaining)
+                    )
+                    if not chunk:
+                        logger.debug("Reader returned empty chunk, connection closed.")
+                        return -1, None, bytes(self.buffer)
+                    self.buffer.extend(chunk)
+                    logger.debug(f"Read {len(chunk)} bytes, buffer size now {len(self.buffer)}")
+                except asyncio.TimeoutError:
+                    logger.debug("Read timeout, continue loop.")
+                    continue
+                except Exception as e:
+                    logger.exception(f"Unexpected error in expect: {e}")
+                    return -1, None, bytes(self.buffer)
 
     async def close(self) -> None:
         if self.writer:
@@ -143,6 +229,7 @@ class GNS3Validator(NetworkValidator):
         self.project_id = None
         self.connected = False
         self.port_manager = PortManager()
+        self._semaphore = asyncio.Semaphore(5)  # Limit concurrent console sessions
 
         try:
             # Check connection with auth
@@ -179,6 +266,12 @@ class GNS3Validator(NetworkValidator):
         """
         Orchestrates the GNS3 validation workflow using a persistent project.
         """
+        # Ensure each config block is grounded with a source reference
+        for cfg_name, cfg in configs.items():
+            if isinstance(cfg, dict) and cfg.get("source_id") is None:
+                logger.warning(f"Config '{cfg_name}' missing source_id; skipping validation for this block.")
+                configs.pop(cfg_name, None)
+
         if not self.connected:
             return {
                 "status": "SKIPPED",
@@ -196,6 +289,7 @@ class GNS3Validator(NetworkValidator):
                     )
                     logger.info(f"Deleted previous GNS3 project {self.project_id}")
                 except Exception as e:
+                    logger.exception("Failed to delete previous GNS3 project")
                     logger.warning(f"Error deleting previous GNS3 project: {e}")
                 self.project_id = None
 
@@ -211,8 +305,81 @@ class GNS3Validator(NetworkValidator):
 
             # 3. Build Topology
             devices = intent.devices if intent else []
+
+            # ── L2-only guard ────────────────────────────────────────────────
+            # IOU Router (the only template in this GNS3 setup) is an L3 image.
+            # Pure L2 commands (switchport, vlan database, dhcp snooping, etc.)
+            # will be rejected by the IOU router with "Invalid input".
+            # Detect this case early and return SKIPPED (infrastructure gap)
+            # rather than a misleading FAIL.
+            all_config_cmds = " ".join(
+                line.strip()
+                for cfg in configs.values()
+                for line in (cfg.splitlines() if isinstance(cfg, str) else [])
+                if line.strip() and not line.strip().startswith(("!", "#"))
+            ).lower()
+
+            L2_ONLY_SIGNALS = [
+                "switchport mode",
+                "switchport trunk",
+                "switchport access",
+                "ip dhcp snooping vlan",
+                "spanning-tree vlan",
+                "vlan database",
+                "channel-group",
+            ]
+            # Also detect bare 'vlan <number>' lines (VLAN creation in global config)
+            import re as _re
+            def _is_l2_line(line: str) -> bool:
+                l = line.lower()
+                if any(sig in l for sig in L2_ONLY_SIGNALS):
+                    return True
+                # 'vlan 100' or 'vlan 10,20,30' at start of line = L2 global config
+                if _re.match(r'^vlan\s+[\d,]+\s*$', l):
+                    return True
+                return False
+            # Count how many lines look like pure L2 vs total
+            cmd_lines = [
+                l.strip() for cfg in configs.values()
+                for l in (cfg.splitlines() if isinstance(cfg, str) else [])
+                if l.strip() and not l.strip().startswith(("!", "#"))
+            ]
+            l2_lines = sum(
+                1 for l in cmd_lines
+                if _is_l2_line(l)
+            )
+            # Adaptive threshold: short configs (≤10 lines) need only 1 L2 line;
+            # longer configs need ≥33% L2 lines to avoid false-positive skips
+            # on mixed L2/L3 configs (e.g., OSPF + a trunk port).
+            if cmd_lines and l2_lines > 0:
+                threshold = 0.33
+                if len(cmd_lines) <= 10:
+                    threshold = 1 / len(cmd_lines)  # any single L2 line triggers SKIPPED
+                is_l2_only = (l2_lines / len(cmd_lines)) >= threshold
+            else:
+                is_l2_only = False
+
+            if is_l2_only:
+                skip_msg = (
+                    "GNS3 SKIPPED: Config contains predominantly L2 switch commands "
+                    f"({l2_lines}/{len(cmd_lines)} lines) which are not supported by the "
+                    "IOU Router template. An IOU-L2 image is required for full L2 validation."
+                )
+                logger.warning(skip_msg)
+                return {
+                    "status": "SKIPPED",
+                    "tier": 3,
+                    "car": None,
+                    "total_commands": 0,
+                    "accepted_commands": 0,
+                    "summary": skip_msg,
+                }
+
+            # ─────────────────────────────────────────────────────────────────
+
             nodes = self._create_nodes(devices, intent)
             logger.info(f"Created {len(nodes)} nodes")
+
 
             if not nodes and devices:
                 err_msg = (
@@ -249,12 +416,27 @@ class GNS3Validator(NetworkValidator):
                     "project_id": self.project_id,
                 }
 
-            # Intelligent Polling: Wait for nodes to reach a ready state (max 300s)
+            # Intelligent Polling: Wait for nodes to reach a ready state (max 90s)
             boot_success = self._wait_for_nodes_boot(nodes)
             if not boot_success:
-                logger.warning(
-                    "Some nodes may not have booted fully, proceeding with config push anyway."
+                # Nodes failed to boot — proceeding to config push would hang on
+                # the same dead console ports. Fail fast with a clear message.
+                failed_nodes = list(nodes.keys())
+                err_msg = (
+                    f"GNS3 nodes did not boot within timeout: {', '.join(failed_nodes)}. "
+                    "Console port never opened — check that IOU/IOSv images are installed "
+                    "and licensed on the GNS3 server."
                 )
+                logger.error(err_msg)
+                return {
+                    "status": "FAIL",
+                    "tier": 3,
+                    "car": 0.0,
+                    "total_commands": 0,
+                    "accepted_commands": 0,
+                    "summary": err_msg,
+                    "project_id": self.project_id,
+                }
 
             # Explicit convergence wait (Recommendation 5)
             logger.info("Nodes ready. Waiting 10s for OS stabilization...")
@@ -281,7 +463,7 @@ class GNS3Validator(NetworkValidator):
                 results_list = await asyncio.gather(*tasks)
                 return dict(zip(device_names, results_list))
 
-            node_stats_dict = asyncio.run(push_all())
+            node_stats_dict = _run_async(push_all())
 
             results = {}
             total_commands = 0
@@ -370,7 +552,7 @@ class GNS3Validator(NetworkValidator):
             results_list = await asyncio.gather(*tasks)
             return dict(zip(device_names, results_list))
 
-        node_stats_dict = asyncio.run(push_all())
+        node_stats_dict = _run_async(push_all())
         for device_name, node_stats in node_stats_dict.items():
             results[device_name] = (
                 "Success"
@@ -385,35 +567,37 @@ class GNS3Validator(NetworkValidator):
     ) -> List[Dict[str, str]]:
         if not commands:
             return []
-        try:
-            resp = requests.get(
-                f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
-                auth=self.auth,
-            )
-            node_info = resp.json()
-            console_port = node_info.get("console")
-            console_host = node_info.get("console_host", "localhost")
-            if console_host == "0.0.0.0":
-                console_host = self.host
+        # Limit concurrent console sessions to avoid GNS3 overload
+        async with self._semaphore:
+            try:
+                resp = requests.get(
+                    f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
+                    auth=self.auth,
+                )
+                node_info = resp.json()
+                console_port = node_info.get("console")
+                console_host = node_info.get("console_host", "localhost")
+                if console_host == "0.0.0.0":
+                    console_host = self.host
 
-            tn = AsyncTelnet(console_host, console_port, timeout=5)
-            await tn.connect()
+                tn = AsyncTelnet(console_host, console_port, timeout=5, max_attempts=2)
+                await tn.connect()
 
-            outputs = []
-            await tn.write(b"\r\n")
-            await asyncio.sleep(0.5)
+                outputs = []
+                await tn.write(b"\r\n")
+                await asyncio.sleep(0.5)
 
-            for cmd in commands:
-                await tn.write(cmd.encode("ascii") + b"\r\n")
-                idx, match, text = await tn.expect([b">", b"#"], timeout=10)
-                output = text.decode("ascii", errors="ignore")
-                outputs.append({"command": cmd, "output": output})
+                for cmd in commands:
+                    await tn.write(cmd.encode("ascii") + b"\r\n")
+                    idx, match, text = await tn.expect([b">", b"#"], timeout=10)
+                    output = text.decode("ascii", errors="ignore")
+                    outputs.append({"command": cmd, "output": output})
 
-            await tn.close()
-            return outputs
-        except Exception as e:
-            logger.error(f"Verification failed for {device_name}: {e}")
-            return [{"error": str(e)}]
+                await tn.close()
+                return outputs
+            except Exception as e:
+                logger.exception(f"Verification failed for {device_name}")
+                return [{"error": str(e)}]
 
     def verify_functional(
         self, nodes: Dict[str, str], verification_data: Dict[str, List[str]]
@@ -440,7 +624,7 @@ class GNS3Validator(NetworkValidator):
             results = await asyncio.gather(*tasks)
             return dict(zip(device_names, results))
 
-        return asyncio.run(verify_all())
+        return _run_async(verify_all())
 
     async def _get_single_node_network_state_async(
         self, device_name: str, node_id: str, commands: List[str]
@@ -456,7 +640,7 @@ class GNS3Validator(NetworkValidator):
             if console_host == "0.0.0.0":
                 console_host = self.host
 
-            tn = AsyncTelnet(console_host, console_port, timeout=5)
+            tn = AsyncTelnet(console_host, console_port, timeout=5, max_attempts=2)
             await tn.connect()
 
             device_state = {}
@@ -516,80 +700,120 @@ class GNS3Validator(NetworkValidator):
             results = await asyncio.gather(*tasks)
             return dict(zip(device_names, results))
 
-        return asyncio.run(capture_all())
+        return _run_async(capture_all())
 
     async def _wait_for_single_node_boot_async(
         self, node_name: str, node_id: str, timeout: int
     ) -> bool:
-        start_time = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - start_time < timeout:
+        """
+        Wait for a single GNS3 node console to become ready.
+
+        Strategy:
+        1. Poll the GNS3 REST API every 2s to check the node ``status``.
+           If the status never reaches ``started`` within *timeout*, bail out.
+        2. Once the node is ``started`` in GNS3, give the OS up to 60s to open
+           the console TCP port.  If the port stays ECONNREFUSED after that
+           window, the IOU image is broken / not licensed — fail fast rather
+           than spinning for the full timeout.
+        """
+        loop = asyncio.get_event_loop()
+        start_time = loop.time()
+        console_open_deadline: Optional[float] = None  # set once node is "started"
+
+        while loop.time() - start_time < timeout:
+            elapsed = loop.time() - start_time
             try:
                 resp = requests.get(
                     f"{self.base_url}/projects/{self.project_id}/nodes/{node_id}",
                     auth=self.auth,
+                    timeout=5,
                 )
                 if resp.status_code != 200:
                     await asyncio.sleep(2)
                     continue
 
                 node_info = resp.json()
+                node_status = node_info.get("status", "stopped")
                 console_port = node_info.get("console")
                 console_host = node_info.get("console_host", "localhost")
                 if console_host == "0.0.0.0":
                     console_host = self.host
 
+                # ── Stage 1: wait for GNS3 to report the node as started ─────
+                if node_status != "started":
+                    logger.debug(
+                        f"Node {node_name} status={node_status!r} (elapsed {elapsed:.0f}s) – waiting"
+                    )
+                    await asyncio.sleep(2)
+                    continue
+
                 if not console_port:
                     await asyncio.sleep(2)
                     continue
 
-                tn = AsyncTelnet(console_host, console_port, timeout=2)
-                await tn.connect()
-                await tn.write(b"\r\n")
-
-                # Look for common prompts: Router>, Router#, Switch>, user:, login:
-                # Also handle Cisco "initial configuration dialog" [yes/no]
-                idx, match, text = await tn.expect(
-                    [
-                        b">",
-                        b"#",
-                        b"login:",
-                        b"user:",
-                        rb"initial configuration dialog\? \[yes/no\]:",
-                    ],
-                    timeout=5,
-                )
-
-                if idx == 4:
+                # ── Stage 2: node is started – set a 60s console-open deadline ─
+                if console_open_deadline is None:
+                    console_open_deadline = loop.time() + 60
                     logger.info(
-                        f"Node {node_name} is in initial config dialog. Sending 'no'..."
+                        f"Node {node_name} is started; waiting up to 60s for console "
+                        f"{console_host}:{console_port}"
                     )
-                    await tn.write(b"no\r\n")
-                    await asyncio.sleep(1)
-                    await tn.write(b"\r\n")
-                elif idx != -1:
-                    logger.info(f"Node {node_name} is READY (detected prompt)")
-                    await tn.close()
-                    return True
 
-                await tn.close()
-            except (
-                ConnectionRefusedError,
-                socket.timeout,
-                asyncio.TimeoutError,
-                OSError,
-            ):
-                # Still booting
-                pass
+                if loop.time() > console_open_deadline:
+                    logger.warning(
+                        f"Node {node_name}: console {console_host}:{console_port} never opened "
+                        "after 60s — IOU image may be missing or unlicensed. Giving up."
+                    )
+                    return False
+
+                # ── Stage 3: try to open the console TCP connection ───────────
+                try:
+                    tn = AsyncTelnet(console_host, console_port, timeout=2, max_attempts=1)
+                    await tn.connect()
+                    await tn.write(b"\r\n")
+
+                    idx, match, text = await tn.expect(
+                        [
+                            b">",
+                            b"#",
+                            b"login:",
+                            b"user:",
+                            rb"initial configuration dialog\? \[yes/no\]:",
+                        ],
+                        timeout=5,
+                    )
+
+                    if idx == 4:
+                        logger.info(
+                            f"Node {node_name} is in initial config dialog. Sending 'no'..."
+                        )
+                        await tn.write(b"no\r\n")
+                        await asyncio.sleep(1)
+                        await tn.write(b"\r\n")
+                    elif idx != -1:
+                        logger.info(f"Node {node_name} is READY (detected prompt)")
+                        await tn.close()
+                        return True
+
+                    await tn.close()
+                except (ConnectionRefusedError, OSError, asyncio.TimeoutError, socket.timeout):
+                    # Console port not open yet – normal during early boot
+                    pass
+
             except Exception as e:
-                logger.debug(f"Polling error for {node_name}: {e}")
+                logger.debug(f"Boot-poll error for {node_name}: {e}")
 
             await asyncio.sleep(2)
+
+        logger.warning(f"Node {node_name} boot-poll timed out after {timeout}s")
         return False
 
-    def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 300) -> bool:
+    def _wait_for_nodes_boot(self, nodes: Dict[str, str], timeout: int = 90) -> bool:
         """
         Polls the console of all nodes concurrently until a prompt is detected.
-        Returns True if all nodes are ready, False if timeout reached.
+        Returns True if ALL nodes booted successfully, False otherwise.
+        Timeout reduced to 90s: IOU nodes should boot within 60s;
+        if they don't the image is likely broken and we should bail fast.
         """
         logger.info(
             f"Polling console for {len(nodes)} nodes concurrently (timeout: {timeout}s)..."
@@ -603,7 +827,7 @@ class GNS3Validator(NetworkValidator):
             results = await asyncio.gather(*tasks)
             return all(results)
 
-        return asyncio.run(poll_all())
+        return _run_async(poll_all())
 
     def _get_or_create_project(self, name: str) -> str:
         """Finds existing project by name or creates a new one."""
@@ -686,77 +910,74 @@ class GNS3Validator(NetworkValidator):
         resp.raise_for_status()
         return resp.json()["project_id"]
 
+    # Template types that have a real IOS console and can accept CLI commands
+    _CONSOLE_TEMPLATE_TYPES = {"iou", "qemu", "dynamips", "docker"}
+
     def _find_template_for_vendor(
         self,
         vendor: str,
         device_name: str = "",
         intent: Optional[StructuredIntent] = None,
     ) -> Optional[Dict]:
-        """Finds a suitable template based on device vendor and L2/L3 intent properties."""
+        """Finds a suitable GNS3 template that has a real IOS/CLI console.
+
+        Priority:
+        1. IOU templates (Router/IOS) — always preferred; support both L2 and L3 commands.
+        2. Qemu templates (vSRX, IOSv) — for Juniper or when IOU not available.
+        3. Built-in switch/hub types (ethernet_switch, ethernet_hub) are NEVER returned
+           because they have no console and cannot accept CLI commands.
+        """
         try:
             resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
             if resp.status_code != 200:
                 return None
 
             templates = resp.json()
+
+            # Filter to only templates that have a real console
+            console_templates = [
+                t for t in templates
+                if t.get("template_type") in self._CONSOLE_TEMPLATE_TYPES
+            ]
+
             vendor = (vendor or "cisco").lower()
-            device_name_lower = (device_name or "").lower()
-
-            # Inspect intent or device name to determine if the target should be a Switch or a Router
-            is_switch = False
-            if any(
-                sw_kw in device_name_lower
-                for sw_kw in ["switch", "-sw", "sw-", "cat9", "catalyst"]
-            ):
-                is_switch = True
-
-            if intent:
-                proto_lower = (intent.protocol or "").lower()
-                if any(
-                    l2_kw in proto_lower
-                    for l2_kw in [
-                        "vlan",
-                        "spanning-tree",
-                        "switchport",
-                        "lacp",
-                        "etherchannel",
-                    ]
-                ):
-                    is_switch = True
-
-                params_str = str(intent.parameters).lower()
-                if any(
-                    l2_kw in params_str
-                    for l2_kw in [
-                        "switchport",
-                        "vlan",
-                        "trunk",
-                        "access",
-                        "spanning-tree",
-                    ]
-                ):
-                    is_switch = True
 
             if vendor == "juniper":
-                keywords = ["junos", "vsrx", "vmx", "olive", "juniper", "vyos"]
-            else:
-                if is_switch:
-                    keywords = ["iosvl2", "switch", "l2", "viou-l2", "iol-l2", "cisco"]
-                else:
-                    keywords = ["router", "iosv", "csr1000v", "viou", "iol", "cisco"]
+                # Juniper: prefer qemu vSRX; fall back to any qemu
+                keywords = ["vsrx", "vmx", "olive", "juniper", "junos", "vyos"]
+                for tmpl in console_templates:
+                    if any(k in tmpl["name"].lower() for k in keywords):
+                        return tmpl
+                return None
 
-            # 1. Try IOU type first (preferred for your setup)
-            for tmpl in templates:
+            # Cisco / generic: IOU is the best match (supports both L2 and L3 commands)
+            # Prefer the template literally named 'Router' or 'IOS' first.
+            preferred_names = ["router", "ios"]
+            for tmpl in console_templates:
                 if tmpl.get("template_type") == "iou" and any(
-                    k in tmpl["name"].lower() for k in keywords
+                    tmpl["name"].lower() == n for n in preferred_names
+                ):
+                    logger.debug(
+                        f"Template match for {device_name!r} (vendor={vendor}): "
+                        f"{tmpl['name']!r} (IOU)"
+                    )
+                    return tmpl
+
+            # Fall back to any IOU template
+            for tmpl in console_templates:
+                if tmpl.get("template_type") == "iou":
+                    logger.debug(
+                        f"Template fallback for {device_name!r}: {tmpl['name']!r} (IOU)"
+                    )
+                    return tmpl
+
+            # Last resort: any qemu template with cisco-sounding name
+            for tmpl in console_templates:
+                if tmpl.get("template_type") == "qemu" and any(
+                    k in tmpl["name"].lower() for k in ["iosv", "csr", "cisco"]
                 ):
                     return tmpl
 
-            # 2. Try Name matching
-            for keyword in keywords:
-                for tmpl in templates:
-                    if keyword in tmpl["name"].lower():
-                        return tmpl
             return None
         except Exception as e:
             logger.error(f"Error finding template for {vendor}: {e}")

@@ -11,7 +11,7 @@ class LogEntry(BaseModel):
     Strict schema for research and system logs.
     """
 
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat(timespec='microseconds'))
     level: str
     module: str
     message: str

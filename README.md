@@ -20,6 +20,7 @@ on Cisco 17.6"      citations from docs       Syntax + Semantics
 - **RAG-Augmented Generation**: Commands grounded in official Cisco/Juniper documentation.
 - **Zero-Tolerance Hallucination Loop**: Real-time auditing and refinement based on intent parameters.
 - **Version-Locked Retrieval**: Filters by OS version (e.g., IOS-XE 17.6, JunOS 21.4).
+- **API Key Rotation**: Automatic rotation across multiple API keys when rate limited (HTTP 429).
 - **Three-Tier Validation**:
     - **Tier 1**: Batfish static analysis for syntax validation.
     - **Tier 3**: GNS3 functional simulation for multi-vendor verification.
@@ -114,6 +115,11 @@ Configure the target provider and keys in `.env` or set them directly:
 # To run live Gemini:
 export LLM_PROVIDER="gemini"
 export GEMINI_API_KEY="AIzaSy..."
+
+# To run live Groq with automatic rate-limit (429) key rotation:
+export LLM_PROVIDER="groq"
+# Set a comma-separated list of keys:
+export GROQ_API_KEYS="gsk_key1,gsk_key2,gsk_key3"
 
 # Or to run live local Ollama:
 export LLM_PROVIDER="ollama"

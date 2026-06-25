@@ -146,16 +146,16 @@ def run_graph_benchmark():
 
     # Summary Panel
     avg_gain = np.mean([r["improvement"] for r in results])
-    total_candidates = sum([r["candidates_found"] for r in results])
 
     summary = f"""
-    [bold]Mean Semantic Precision (Baseline):[/bold] [white]{np.mean([r["baseline_score"] for r in results]):.4f}[/white]
-    [bold]Mean Semantic Precision (Advanced):[/bold] [green]{np.mean([r["advanced_score"] for r in results]):.4f}[/green]
+    [bold]Mean Semantic Precision (Baseline):[/bold] [white]{np.mean([r["baseline"] for r in results]):.4f}[/white]
+    [bold]Mean Semantic Precision (GraphRAG):[/bold] [green]{np.mean([r["graphrag"] for r in results]):.4f}[/green]
 
-    [bold]Total Candidates Considered:[/bold]       [cyan]{total_candidates}[/cyan]
+    [bold]Avg Context Chars (Baseline):[/bold]       [cyan]{np.mean([r["baseline_len"] for r in results]):.0f}[/cyan]
+    [bold]Avg Context Chars (GraphRAG):[/bold]     [cyan]{np.mean([r["graph_len"] for r in results]):.0f}[/cyan]
     [bold]Average Retrieval Improvement:[/bold]     [bold green]{avg_gain:.2f}%[/bold green]
 
-    [dim]Note: Scores are calculated using the local BAAI/bge-reranker-v2-m3 Cross-Encoder.[/dim]
+    [dim]Note: Scores are calculated using the local Alibaba-NLP/gte-reranker-modernbert-base Cross-Encoder.[/dim]
     """
 
     console.print(Panel(summary, title="Benchmark Summary", border_style="bold green"))

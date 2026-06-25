@@ -246,7 +246,7 @@ class ConfigGenerator:
                     )
                     # If distance > 0.60, documentation match is weak, trigger LLM expansion (Recommendation 4)
                     # Increased threshold to reduce unnecessary expansions
-                    if not pilot or pilot[0].get("distance", 1.0) > 0.60:
+                    if not pilot or pilot[0].get("distance", 1.0) > 0.70:
                         logger.info(
                             f"Low confidence pilot search for {vendor}. Triggering Multi-Query Expansion..."
                         )
