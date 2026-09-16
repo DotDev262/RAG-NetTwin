@@ -61,8 +61,10 @@ class PaperQualityEvaluator:
         hallucination_detector: Optional[HallucinationDetector] = None,
         token_counter: Optional[TokenCounter] = None,
         evaluation_mode: str = "strict",
+        limit: Optional[int] = None,
     ):
         self.console = Console()
+        self.limit = limit
         self.parser = parser or IntentParser()
         self.generator = generator or ConfigGenerator()
         self.validator = validator or BatfishValidator()
@@ -101,8 +103,8 @@ class PaperQualityEvaluator:
     def get_intent_key(self, intent) -> str:
         return intent.original_text if hasattr(intent, "original_text") else str(intent)
 
-    def get_test_intents(self) -> List[str]:
-        return [
+    def get_test_intents(self, limit: Optional[int] = None) -> List[str]:
+        intents = [
             "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
             "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
             "Configure static route to 172.16.0.0/16 via 10.0.0.1",
@@ -139,6 +141,10 @@ class PaperQualityEvaluator:
             "Restrict console access with an execution timeout of 5 minutes on Juniper",
             "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
         ]
+        lim = limit if limit is not None else self.limit
+        if lim is not None and lim > 0:
+            return intents[:lim]
+        return intents
 
     def run_full_eval(self, retrieval_mode: str = "tiered"):
         logger.info(
@@ -154,7 +160,7 @@ class PaperQualityEvaluator:
             if not self.cache_only:
                 return
 
-        scenarios = self.get_test_intents()
+        scenarios = self.get_test_intents(limit=self.limit)
         all_results = []
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         metadata = {
@@ -994,6 +1000,12 @@ if __name__ == "__main__":
         default="strict",
         help="Evaluation mode: 'strict' (short-circuits GNS3 on Batfish failure) or 'observational' (always runs GNS3)",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=1,
+        help="Limit number of test prompts/scenarios to evaluate (default: 1)",
+    )
     args = parser.parse_args()
 
     if args.clear_cache:
@@ -1063,6 +1075,7 @@ if __name__ == "__main__":
                 re_validate=args.re_validate,
                 interactive=args.interactive,
                 evaluation_mode=args.evaluation_mode,
+                limit=args.limit,
             )
             evaluator.run_full_eval(retrieval_mode=mode)
     else:
@@ -1073,5 +1086,6 @@ if __name__ == "__main__":
             re_validate=args.re_validate,
             interactive=args.interactive,
             evaluation_mode=args.evaluation_mode,
+            limit=args.limit,
         )
         evaluator.run_full_eval()

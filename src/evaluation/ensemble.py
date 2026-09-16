@@ -27,8 +27,8 @@ class EnsembleEngine:
     """
 
     def __init__(self, models: Optional[List[str]] = None):
-        self.models = models or ["llama-3.3-70b-versatile", "gemini-1.5-flash"]
-        self.judge = LLMProvider.get_llm(model="llama-3.3-70b-versatile", temperature=0)
+        self.models = models or ["openai/gpt-oss-120b", "gemini-1.5-flash"]
+        self.judge = LLMProvider.get_llm(model="openai/gpt-oss-120b", temperature=0)
 
     def generate_and_vote(
         self, intent: StructuredIntent, context_map: Dict[str, Any]
@@ -83,7 +83,7 @@ Provide your response as a JSON object with winner_index, rationale, and consist
             # Use structured output for the judge
             structured_judge = LLMProvider.get_structured_llm(
                 schema=EnsembleJudgeResponse,
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 temperature=0,
             )
             response = cast(EnsembleJudgeResponse, structured_judge.invoke(prompt))

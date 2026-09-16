@@ -223,7 +223,7 @@ class GNS3Validator(NetworkValidator):
             os.getenv("GNS3_USERNAME", "admin"),
             os.getenv(
                 "GNS3_PASSWORD",
-                "ZQMSdXR6LVD5rN7gx2ipegzMYPYOZJeo7IJviL87PjgvYK4p8bg1R1fT9YgOTzX9",
+                "uYFGX5E5jvzE3KJABcG4ZnTznaE7lAXhdpi0b0hSISIkYlfKwTHEOtXxKX3eIZTw",
             ),
         )
         self.project_id = None
@@ -779,6 +779,7 @@ class GNS3Validator(NetworkValidator):
                             b"login:",
                             b"user:",
                             rb"initial configuration dialog\? \[yes/no\]:",
+                            b"$",
                         ],
                         timeout=5,
                     )
@@ -951,11 +952,24 @@ class GNS3Validator(NetworkValidator):
                 return None
 
             # Cisco / generic: IOU is the best match (supports both L2 and L3 commands)
-            # Prefer the template literally named 'Router' or 'IOS' first.
-            preferred_names = ["router", "ios"]
+            # If device name hints at a switch, prefer switch/L2 template
+            is_switch_hint = any(s in device_name.lower() for s in ["sw", "switch", "l2"])
+            if is_switch_hint:
+                for tmpl in console_templates:
+                    if tmpl.get("template_type") == "iou" and any(
+                        s in tmpl["name"].lower() for s in ["switch", "l2"]
+                    ):
+                        logger.debug(
+                            f"Template match for switch {device_name!r} (vendor={vendor}): "
+                            f"{tmpl['name']!r} (IOU)"
+                        )
+                        return tmpl
+
+            # Otherwise prefer router/ios templates
+            preferred_keywords = ["router", "ios"]
             for tmpl in console_templates:
                 if tmpl.get("template_type") == "iou" and any(
-                    tmpl["name"].lower() == n for n in preferred_names
+                    k in tmpl["name"].lower() for k in preferred_keywords
                 ):
                     logger.debug(
                         f"Template match for {device_name!r} (vendor={vendor}): "
@@ -998,7 +1012,7 @@ class GNS3Validator(NetworkValidator):
             if template:
                 payload = {
                     "name": device.name,
-                    "compute_id": "local",
+                    "compute_id": template.get("compute_id") or "local",
                     "x": i * 150,
                     "y": 0,
                 }
@@ -1127,15 +1141,21 @@ class GNS3Validator(NetworkValidator):
             await asyncio.sleep(1)
 
             # Vendor-specific navigation
-            if vendor == "juniper":
-                # Check if we are already in CLI
-                idx, match, text = await tn.expect([b">", b"#", b"%"], timeout=5)
-                if idx == 2:  # at shell %
+            if vendor in ("juniper", "vyos"):
+                # Check if we are at login, shell, or CLI
+                idx, match, text = await tn.expect([b">", b"#", b"%", b"login:", b"$"], timeout=5)
+                if idx == 3:  # at login:
+                    await tn.write(b"vyos\r\n")
+                    await asyncio.sleep(0.5)
+                    await tn.write(b"vyos\r\n")
+                    await asyncio.sleep(1)
+                    await tn.expect([b"$", b"#", b">"], timeout=5)
+                elif idx == 2:  # at shell %
                     await tn.write(b"cli\r\n")
-                    await tn.expect([b">"], timeout=5)
+                    await tn.expect([b">", b"$"], timeout=5)
 
                 await tn.write(b"configure\r\n")
-                await tn.expect([b"Entering configuration mode", b"#"], timeout=5)
+                await tn.expect([b"Entering configuration mode", b"#", rb"\[edit\]"], timeout=5)
             else:
                 # Cisco/Default
                 # Try to wake up and see where we are

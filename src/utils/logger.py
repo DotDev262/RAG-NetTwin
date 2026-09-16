@@ -79,7 +79,7 @@ def setup_logger(name: str, log_file: str = "rag_net.log", level=logging.INFO):
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
-    file_handler = logging.FileHandler(log_path / log_file)
+    file_handler = logging.FileHandler(log_path / log_file, encoding="utf-8")
     file_handler.setFormatter(JsonFormatter())
     logger.addHandler(file_handler)
     logging.getLogger("ciscoconfparse").setLevel(logging.WARNING)

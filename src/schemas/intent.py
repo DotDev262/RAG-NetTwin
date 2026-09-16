@@ -108,6 +108,33 @@ class StructuredIntent(BaseModel):
             except Exception:
                 pass
 
+        # Handle flat device / vendor if devices is missing or empty
+        devs = data.get("devices")
+        if not devs or (isinstance(devs, list) and len(devs) == 0):
+            vendor = data.get("vendor")
+            dev_name = data.get("device") or data.get("device_name") or "Device"
+            if vendor or dev_name != "Device":
+                data["devices"] = [{
+                    "name": dev_name,
+                    "vendor": vendor,
+                    "os_type": data.get("os_type"),
+                    "os_version": data.get("os_version")
+                }]
+            else:
+                data["devices"] = [{"name": "Device", "vendor": "cisco", "os_type": "ios-xe", "os_version": "17.6"}]
+
+        # Handle protocol extraction from parameters or text if missing or Unknown
+        if data.get("protocol") in [None, "Unknown", ""]:
+            params = data.get("parameters")
+            if isinstance(params, dict) and "protocol" in params and params["protocol"]:
+                data["protocol"] = str(params["protocol"]).upper()
+            else:
+                orig = (data.get("original_text") or "").upper()
+                for proto in ["OSPF", "BGP", "VLAN", "ACL", "NAT", "VRRP", "STATIC", "LLDP", "NTP", "SNMP", "NETFLOW", "QOS", "ETHERCHANNEL", "LACP", "DHCP"]:
+                    if proto in orig:
+                        data["protocol"] = proto
+                        break
+
         return data
 
 

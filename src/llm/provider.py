@@ -290,10 +290,14 @@ class LLMProvider:
         )
 
         if provider == "groq":
+            clean_key = groq_rotator.get_current_key() or (
+                api_key.split(",")[0].strip() if api_key else None
+            )
             # Universal LM string format: 'provider/model'
-            return dspy.LM(f"groq/{model}", api_key=api_key)
+            return dspy.LM(f"groq/{model}", api_key=clean_key)
         elif provider == "gemini":
-            return dspy.LM(f"google/{model}", api_key=api_key)
+            clean_key = api_key.split(",")[0].strip() if api_key else None
+            return dspy.LM(f"google/{model}", api_key=clean_key)
         else:
             raise ValueError(f"DSPy currently doesn't support provider: {provider}")
 
@@ -332,7 +336,7 @@ class LLMProvider:
             >>> llm = LLMProvider.get_llm()
             >>>
             >>> # Use specific model
-            >>> llm = LLMProvider.get_llm(model="llama-3.1-70b-versatile")
+            >>> llm = LLMProvider.get_llm(model="openai/gpt-oss-120b")
         """
         provider = provider or settings.llm_provider
 
@@ -442,7 +446,7 @@ class LLMProvider:
             Requires llama-cpp-python and a compatible model file.
         """
         try:
-            from langchain_community.chat_models import ChatLlamaCpp
+            from langchain_community.chat_models import ChatLlamaCpp  # type: ignore[import-not-found]
         except ImportError:
             raise ImportError("pip install langchain-community llama-cpp-python")
 
@@ -473,10 +477,10 @@ class LLMProvider:
             ChatOllama instance.
         """
         try:
-            from langchain_ollama import ChatOllama
+            from langchain_ollama import ChatOllama  # type: ignore[import-not-found]
         except ImportError:
             try:
-                from langchain_community.chat_models import ChatOllama  # type: ignore[assignment]
+                from langchain_community.chat_models import ChatOllama  # type: ignore[import-not-found, assignment]
             except ImportError:
                 raise ImportError("pip install langchain-ollama or langchain-community")
 

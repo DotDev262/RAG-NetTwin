@@ -190,6 +190,10 @@ class ConfigGenerator:
         trace["base_query"] = base_query
 
         # 1. Group devices by vendor + version
+        if not structured_intent.devices:
+            from src.schemas.intent import DeviceIntent
+            structured_intent.devices = [DeviceIntent(name="Device", vendor="cisco", os_type="ios-xe", os_version="17.6")]
+
         device_groups: Dict[tuple[Optional[str], str], List[Any]] = {}
         for device in structured_intent.devices:
             group_key: tuple[Optional[str], str] = (
@@ -568,6 +572,7 @@ class ConfigGenerator:
                     "- CISCO NAT: Always use 'ip nat inside source list <acl> interface <int> overload' (must include the word 'inside'), NOT 'ip nat source list...'.\n"
                     "- CISCO NETFLOW (Flexible NetFlow): 1. Define 'flow record <name>' (match ipv4 source/dest, collect counter bytes/packets). 2. Define 'flow exporter <name>' (destination <ip>, transport udp <port>). 3. Define 'flow monitor <name>' (record <name>, exporter <name>). 4. Apply 'ip flow monitor <name> input' on interface.\n"
                     "- CISCO QoS (Structural): 1. 'access-list 101 permit ospf any any'. 2. 'class-map CS6_CLASS' (match access-group 101). 3. 'policy-map QoS_POLICY'. 4. Inside 'policy-map', you MUST use 'class CS6_CLASS'. 5. Inside 'class', use 'set dscp 48'. 6. Apply 'service-policy output QoS_POLICY' under 'interface Ethernet0/0'.\n"
+                    "- CISCO SSH / VTY: 'transport input ssh' and 'access-class <acl> in' MUST be placed inside a 'line vty 0 4' block, NEVER at the global level.\n"
                     "- VYOS (For 'juniper' in this lab): Use 'set interfaces ethernet eth1 address X.X.X.X/24', 'set protocols ospf area 0 network X.X.X.X/24', 'set protocols ospf area 0 hello-interval 5'.\n"
                     "- CISCO LACP: 1. Define 'interface port-channel 1'. 2. Under member interfaces, use 'channel-group 1 mode active'. Use 'EthernetX/Y' for interfaces (e.g., Ethernet0/1).\n"
                     "- JUNIPER OSPF: Use 'set protocols ospf area <area> interface <int>' syntax.\n"

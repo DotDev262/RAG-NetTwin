@@ -795,6 +795,10 @@ class HallucinationDetector:
             "private",
             "read-only",
             "read-write",
+            "summary",
+            "instance",
+            "brief",
+            "neighbors",
         ]
         LEAF_VERBS = [
             "description",

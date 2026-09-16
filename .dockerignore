@@ -1,0 +1,60 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Local environment
+.env
+.env.*
+.venv
+__pycache__/
+*.py[cod]
+*.egg-info
+
+# Project data (large, not needed at build time)
+data/
+models/
+gns3_projects/
+refplat-*
+*.gns3
+
+# Knowledge graph artifacts (generated at runtime/dev time)
+graphify-out/
+graphify-docs/
+graph_tmp/
+
+# Analysis / experimental code
+notebooks/
+benchmarks/
+paper-analysis/
+scripts/
+tests/
+config/
+docs/
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Logs & results
+logs/
+results/
+*.log
+
+# Assets
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tooling
+.opencode/

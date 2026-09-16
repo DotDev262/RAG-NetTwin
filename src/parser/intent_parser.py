@@ -199,6 +199,11 @@ RULES:
 1. You MUST return a list containing EXACTLY {count} intent objects.
 2. For each intent, choose the most specific 'action' from the allowed values: {actions_str}.
 3. The 'original_text' for each object MUST match the input text exactly from the provided list.
+4. Each object MUST include:
+   - "protocol": The network protocol name (e.g. OSPF, BGP, VLAN, ACL, STATIC, NAT)
+   - "devices": A list of device objects containing "name", "vendor", "os_type", "os_version"
+   - "parameters": A dictionary of extracted parameters (e.g. interface, ip, area)
+   - "requirements": A list of strings
 
 ### FEW-SHOT EXAMPLES ###
 {examples_str if examples_str else "No specific examples found."}
@@ -216,10 +221,40 @@ RULES:
 
         input_list = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(to_parse_texts)])
         chain = prompt | self.batch_llm
-        batch_result = cast(
-            BatchStructuredIntent,
-            chain.invoke({"input_list": input_list, "num": count}),
-        )
+        try:
+            batch_result = cast(
+                BatchStructuredIntent,
+                chain.invoke({"input_list": input_list, "num": count}),
+            )
+        except Exception as e:
+            recovered = None
+            failed_gen = None
+            err_dict = getattr(e, "body", {}) or {}
+            if isinstance(err_dict, dict) and "error" in err_dict:
+                failed_gen = err_dict["error"].get("failed_generation")
+            if not failed_gen:
+                err_str = str(e)
+                if "failed_generation" in err_str:
+                    import re as _re
+                    m = _re.search(r"['\"]failed_generation['\"]\s*:\s*(['\"])(.*?)\1(?:\s*[,}])", err_str, _re.DOTALL)
+                    if m:
+                        failed_gen = m.group(2)
+            if failed_gen:
+                try:
+                    import json as _json
+                    cleaned_gen = failed_gen.encode().decode('unicode_escape') if '\\n' in failed_gen else failed_gen
+                    data = _json.loads(cleaned_gen)
+                    if isinstance(data, list):
+                        recovered = BatchStructuredIntent(intents=[StructuredIntent(**item) for item in data])
+                    elif isinstance(data, dict) and "intents" in data:
+                        recovered = BatchStructuredIntent(**data)
+                    logger.info(f"Successfully recovered {len(recovered.intents)} intents from failed_generation.")
+                except Exception as parse_err:
+                    logger.debug(f"Failed to recover from failed_generation: {parse_err}")
+            if recovered:
+                batch_result = recovered
+            else:
+                raise
 
         if len(batch_result.intents) != count:
             raise ValueError(
@@ -451,7 +486,7 @@ Populate the 'requirements' list with any relevant constraints.
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
-                ("human", "{input}"),
+                ("human", "{{input}}"),
             ],
             template_format="jinja2",
         )

@@ -134,6 +134,8 @@ def _is_cli_command(line: str) -> bool:
         "egress",
         "zone",
         "untrust",
+        "line ",
+        "access-class ",
     )
     lower = line.lower()
     return lower.startswith(valid_starts)

@@ -23,7 +23,6 @@ RUN uv sync --frozen --no-dev
 COPY src/ ./src/
 COPY main.py ./
 COPY ui/ ./ui/
-COPY GEMINI.md ./
 
 # Final stage: Production image
 FROM python:3.11-slim AS production

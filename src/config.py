@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     collection_name: str = "network_docs"
 
     # LLM Model Settings
-    groq_model: str = "moonshotai/kimi-k2-instruct-0905"
+    groq_model: str = "openai/gpt-oss-120b"
     gemini_model: str = "gemini-2.0-flash-lite-preview-02-05"
     temperature: float = 0.0
     llm_max_retries: int = 10

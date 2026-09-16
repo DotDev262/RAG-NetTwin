@@ -72,7 +72,7 @@ def load_index():
         "[bold blue]Loading Grounding Knowledge Base...", spinner="dots"
     ):
         try:
-            with open(CHUNKS_FILE, "r") as f:
+            with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             # Create a lookup dictionary for O(1) access
             # This allows instant retrieval by chunk ID
@@ -109,6 +109,8 @@ def display_chunk(chunk_id: str, index: dict) -> bool:
     vendor = chunk.get("vendor", "Unknown")
     os_ver = chunk.get("os_version", "Unknown")
     source = chunk.get("source_file", "Unknown")
+    page_range = chunk.get("page_range", [])
+    tier = chunk.get("tier", "Unknown")
 
     # Header Table - displays chunk metadata
     table = Table(show_header=False, box=None)
@@ -116,6 +118,9 @@ def display_chunk(chunk_id: str, index: dict) -> bool:
     table.add_row("[bold]Vendor:[/bold]", f"[magenta]{vendor.upper()}[/magenta]")
     table.add_row("[bold]OS/Version:[/bold]", f"[yellow]{os_ver}[/yellow]")
     table.add_row("[bold]Source File:[/bold]", f"[dim]{source}[/dim]")
+    pages = f"{page_range[0]}-{page_range[1]}" if len(page_range) >= 2 else str(page_range[0]) if page_range else "N/A"
+    table.add_row("[bold]Pages:[/bold]", f"[yellow]{pages}[/yellow]")
+    table.add_row("[bold]Tier:[/bold]", f"[yellow]{tier}[/yellow]")
 
     console.print(Panel(table, title="Metadata", border_style="blue"))
 
@@ -153,13 +158,14 @@ def main():
     2. Direct mode: Accepts chunk ID as command-line argument
     """
     parser = argparse.ArgumentParser(description="RAG-NetTwin Grounding Audit Demo")
-    parser.add_argument("chunk_id", nargs="?", help="Specific Chunk ID to lookup")
+    parser.add_argument("chunk_ids", nargs="*", help="Chunk ID(s) to lookup")
     args = parser.parse_args()
 
-    # Direct mode: lookup single chunk and exit
-    if args.chunk_id:
+    # Direct mode: lookup one or more chunks and exit
+    if args.chunk_ids:
         index = load_index()
-        display_chunk(args.chunk_id, index)
+        for cid in args.chunk_ids:
+            display_chunk(cid, index)
         return
 
     # Interactive mode: show welcome message and start prompt loop

@@ -38,14 +38,14 @@ LLM_PROVIDER=groq  # Options: groq, gemini
 GROQ_API_KEY=gsk_your_api_key_here
 
 # Optional (with defaults)
-GROQ_MODEL=llama-3.3-70b-versatile  # Model name
-# Other options: mixtral-8x7b-32768, llama-3.1-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b  # Model name
+# Other options: openai/gpt-oss-20b, meta-llama/llama-4-scout-17b-16e-instruct
 ```
 
 **Available Groq Models:**
-- `llama-3.3-70b-versatile` (Recommended - best accuracy)
-- `llama-3.1-70b-versatile` (Fast, good accuracy)
-- `mixtral-8x7b-32768` (Larger context window)
+- `openai/gpt-oss-120b` (Recommended - best accuracy)
+- `openai/gpt-oss-20b` (Fast, good accuracy)
+- `meta-llama/llama-4-scout-17b-16e-instruct` (Larger context window)
 
 **Groq Limits:**
 - Free tier: 1M tokens/day
@@ -356,7 +356,7 @@ GROQ_API_KEY=your_key_here
 # LLM Provider
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_xxxxxxxx
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
 
 # Gemini backup (optional)
 GEMINI_API_KEY=xxxxxxxx
