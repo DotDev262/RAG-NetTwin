@@ -46,6 +46,24 @@ uv sync
 
 **Requirements:** Python 3.10+, Groq API key, Docker (for Batfish/GNS3)
 
+### Running the Interactive CLI
+
+Launch the main pipeline interface:
+
+```bash
+uv run python main.py
+```
+
+The interactive CLI guides you through:
+1. **Natural Language Intent Parsing**: Extracts target protocols, actions, and parameters into a `StructuredIntent`.
+2. **Knowledge-Grounded Generation**: Synthesizes CLI commands with **direct command-to-chunk provenance** linking each command block back to authoritative documentation chunk IDs.
+3. **Multi-Tier Validation**: Pre-validates syntax using Batfish (Tier 1) and referential checks with auto-refinement.
+4. **Digital Twin Topology Export**:
+   - **Standard Network Environment**: Exports to a pre-defined multi-tier core/distribution lab (`results/standard_environment.gns3`).
+   - **Dynamic Intent Topology**: Generates custom linear topologies tailored specifically to the input intent (`results/topology.gns3`).
+5. **Grounding Audit Trail**: Automatically writes a full markdown audit report (`results/audits/`) and offers interactive CLI chunk inspection with syntax highlighting and vendor page references.
+6. **Closed-Loop GNS3 Emulation**: Validates commands on hardware/emulated consoles in either a persistent **Standard Network Environment** (reusing existing nodes without project deletion) or a fresh dynamic lab.
+
 ---
 
 ## Running Evaluation

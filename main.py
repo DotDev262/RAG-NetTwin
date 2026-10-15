@@ -113,7 +113,21 @@ def main():
 
                 print(f"Device: {device_name}")
                 sources = data.get("retrieved_sources", [])
-                print(f"Retrieved {len(sources)} references.")
+                print(f"Retrieved {len(sources)} grounded reference chunks:")
+                for src_id in sources:
+                    print(f"   • [{src_id}]")
+                
+                # Command-to-Source Grounding Mapping
+                blocks = data.get("blocks", [])
+                grounded_blocks = [b for b in blocks if b.get("source_ids")]
+                if grounded_blocks:
+                    print("\nGrounding Command-to-Chunk Mapping:")
+                    for block in grounded_blocks:
+                        cmds = block.get("commands", [])
+                        src_refs = ", ".join(block.get("source_ids", []))
+                        for cmd in cmds:
+                            print(f"   • `{cmd}` <-- [{src_refs}]")
+
                 print("\nGenerated Configuration:")
                 print("```")
                 print(data.get("config", "ERROR"))
@@ -199,9 +213,18 @@ def main():
 
             # Step 5: Export Digital Twin Topology
             print("\n[5/6] Exporting Digital Twin (Topology-as-Code)...")
+            print("Select Topology Export Mode:")
+            print("  1. Standard Network Environment (shared multi-tier core/distribution lab)")
+            print("  2. Dynamic Intent Topology (new custom topology for this intent)")
+            topo_choice = input("Select [1/2] (default: 1): ").strip()
+
             try:
-                topo_path = exporter.export(structured_intent)
-                print(f"      ✓ Digital Twin topology exported to: {topo_path}")
+                if topo_choice == "2":
+                    topo_path = exporter.export(structured_intent)
+                    print(f"      ✓ Dynamic Digital Twin topology exported to: {topo_path}")
+                else:
+                    topo_path = exporter.export_standard_environment()
+                    print(f"      ✓ Standard Network Environment topology exported to: {topo_path}")
             except Exception as e:
                 logger.error(f"Export Error: {e}")
                 print(f"      [!] Export failed: {e}")
@@ -215,14 +238,45 @@ def main():
                 logger.error(f"Audit Error: {e}")
                 print(f"      [!] Audit report failed: {e}")
 
+            # Optional: Inspect Grounding Chunk Details directly in CLI
+            try:
+                all_cited_chunks = []
+                for dev_name, c_data in configs.items():
+                    if dev_name and not dev_name.startswith("_"):
+                        all_cited_chunks.extend(c_data.get("retrieved_sources", []))
+                all_cited_chunks = sorted(list(set(c for c in all_cited_chunks if not c.startswith("BASE_"))))
+                
+                if all_cited_chunks:
+                    print(f"\nGrounded in chunks: {', '.join(all_cited_chunks)}")
+                    print("Would you like to inspect any grounding chunk details? (y/n)")
+                    inspect_choice = input("> ").strip().lower()
+                    if inspect_choice == "y":
+                        from scripts.audit_demo import load_index, display_chunk
+                        chunk_index = load_index()
+                        while True:
+                            print(f"\nEnter Chunk ID to inspect ({', '.join(all_cited_chunks)}) or 'done':")
+                            c_id = input("> ").strip()
+                            if c_id.lower() in ["done", "d", "exit", "q", ""]:
+                                break
+                            display_chunk(c_id, chunk_index)
+            except Exception as e:
+                logger.debug(f"Grounding inspector error: {e}")
+
             # Step 7: Functional Verification (Recommendation 1)
             print("\nWould you like to run Functional Verification in GNS3? (y/n)")
             run_func = input("> ").strip().lower()
             if run_func == "y":
+                print("Select GNS3 Environment Mode:")
+                print("  1. Standard Network Environment (reuse/connect to standard persistent lab)")
+                print("  2. Isolated Dynamic Topology (spin up fresh project for this intent)")
+                env_choice = input("Select [1/2] (default: 1): ").strip()
+                use_standard_env = (env_choice != "2")
+                project_override = "RAG_NetTwin_Standard_Lab" if use_standard_env else None
+
                 try:
                     from src.validation.gns3_validator import GNS3Validator
 
-                    gns3 = GNS3Validator()
+                    gns3 = GNS3Validator(project_name=project_override)
                     result = {}  # Initialize
 
                     if not gns3.connected:
@@ -231,8 +285,8 @@ def main():
                         )
                         print("          Please ensure the GNS3 application is open.")
                     else:
-                        print("\n[7/7] Running Closed-Loop Functional Verification...")
-                        # Initial validation (creates project, starts nodes)
+                        print(f"\n[7/7] Running Closed-Loop Functional Verification ({'Standard Environment' if use_standard_env else 'Dynamic Topology'})...")
+                        # Initial validation (creates or connects to project, starts nodes)
                         result = gns3.validate({}, structured_intent)
 
                         if result.get("status") == "ERROR":

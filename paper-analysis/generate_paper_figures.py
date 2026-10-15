@@ -33,7 +33,7 @@ def figure_2_main_results():
 
     metrics = ["Strict SV", "PEA", "GNS3 CAR", "Hallucination-Free"]
     vanilla = [74.3, 80.0, 0.0, 74.3]  # Hallucination-free = 100 - HR
-    rag_nettwin = [94.3, 100.0, 93.5, 97.1]
+    rag_nettwin = [94.3, 100.0, 82.9, 97.1]
 
     x = np.arange(len(metrics))
     width = 0.35
@@ -43,17 +43,16 @@ def figure_2_main_results():
 
     for bar in bars1 + bars2:
         height = bar.get_height()
-        if height > 0:
-            ax.annotate(f"{height:.1f}%",
-                       xy=(bar.get_x() + bar.get_width() / 2, height),
-                       xytext=(0, 3), textcoords="offset points",
-                       ha="center", va="bottom", fontsize=13, fontweight="bold")
+        ax.annotate(f"{height:.1f}%",
+                   xy=(bar.get_x() + bar.get_width() / 2, height),
+                   xytext=(0, 3), textcoords="offset points",
+                   ha="center", va="bottom", fontsize=13, fontweight="bold")
 
     ax.set_ylabel("Score (%)")
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)
-    ax.set_ylim(0, 115)
-    ax.legend(loc="upper left")
+    ax.set_ylim(0, 120)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2, frameon=True)
     ax.axhline(y=100, color="gray", linestyle="--", alpha=0.3)
 
     save_fig(fig, "figure_2_main_results")
@@ -68,11 +67,12 @@ def figure_3_ablation():
         "+ Flat RAG",
         "+ Version Filter",
         "+ GraphRAG",
-        "+ Hallucination\nRefinement"
+        "+ Hallucination\nRefinement",
+        "+ Three-Tier\nValidation"
     ]
-    sv = [74.3, 82.1, 86.8, 91.3, 94.3]
-    hr = [25.7, 12.4, 8.7, 4.2, 2.9]  # Inverted for display
-    car = [0.0, 52.3, 64.1, 79.6, 93.5]
+    sv = [74.3, 82.1, 86.8, 91.3, 91.3, 94.3]
+    hr = [25.7, 12.4, 8.7, 4.2, 2.9, 2.9]  # Inverted for display (100 - hr = Hallucination-Free)
+    car = [0.0, 52.3, 64.1, 79.6, 79.6, 82.9]
 
     x = np.arange(len(configs))
     width = 0.25
@@ -139,7 +139,7 @@ def figure_5_semantic_gap():
 
     categories = ["Vanilla\nLLM", "Flat\nRAG", "Version\nFilter", "GraphRAG", "RAG-NetTwin\n(Full)"]
     isr = [0, 65, 78, 92, 100]
-    car = [0, 45, 58, 72, 93.5]
+    car = [0, 52.3, 58, 72, 82.9]
 
     x = np.arange(len(categories))
     width = 0.35
@@ -163,7 +163,7 @@ def figure_5_semantic_gap():
     ax.legend(loc="upper left")
 
     # Add gap annotation
-    ax.annotate("Semantic\nGap: 6.5%", xy=(4.175, 96.75), xytext=(3.5, 80),
+    ax.annotate("Semantic\nGap: 17.1%", xy=(4.175, 96.75), xytext=(3.5, 80),
                 fontsize=13, ha="center",
                 arrowprops=dict(arrowstyle="->", color="red", lw=1.5),
                 color="red", fontweight="bold")

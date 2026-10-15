@@ -120,6 +120,89 @@ class GNS3Exporter:
         logger.info(f"Topology successfully exported to {output_path}")
         return output_path
 
+    def export_standard_environment(
+        self, output_path: str = "results/standard_environment.gns3"
+    ) -> str:
+        """
+        Exports a standard, persistent network testbed topology (.gns3)
+        containing standard routers and links (Core, Distribution, Access)
+        so intents can be deployed onto a stable pre-provisioned environment.
+        """
+        logger.info("Exporting standard network environment topology...")
+        std_devices = [
+            {"name": "Router-A", "vendor": "cisco", "type": "iou", "x": -200, "y": -100},
+            {"name": "Router-B", "vendor": "cisco", "type": "iou", "x": 0, "y": -100},
+            {"name": "Router-C", "vendor": "cisco", "type": "iou", "x": 200, "y": -100},
+            {"name": "Switch-1", "vendor": "cisco", "type": "iou", "x": -100, "y": 100},
+            {"name": "Switch-2", "vendor": "cisco", "type": "iou", "x": 100, "y": 100},
+        ]
+
+        project = {
+            "name": "RAG_NetTwin_Standard_Lab",
+            "project_id": self.project_id,
+            "revision": 9,
+            "scene_height": 1000,
+            "scene_width": 2000,
+            "topology": {
+                "compute_id": "local",
+                "drawings": [],
+                "links": [],
+                "nodes": [],
+            },
+        }
+
+        node_map = {}
+        for dev in std_devices:
+            node_id = str(uuid.uuid4())
+            node = {
+                "compute_id": "local",
+                "name": dev["name"],
+                "node_id": node_id,
+                "node_type": dev["type"],
+                "symbol": ":/symbols/router.svg",
+                "x": dev["x"],
+                "y": dev["y"],
+                "properties": {"hostname": dev["name"]},
+            }
+            project["topology"]["nodes"].append(node)
+            node_map[dev["name"]] = node
+
+        # Interconnect Routers A-B and B-C, and connect to switches
+        connections = [
+            ("Router-A", "Router-B", 1, 1),
+            ("Router-B", "Router-C", 2, 1),
+            ("Router-A", "Switch-1", 3, 1),
+            ("Router-C", "Switch-2", 3, 1),
+            ("Switch-1", "Switch-2", 2, 2),
+        ]
+
+        for n1_name, n2_name, p1, p2 in connections:
+            link = {
+                "link_id": str(uuid.uuid4()),
+                "nodes": [
+                    {
+                        "adapter_number": 0,
+                        "label": {"rotation": 0, "style": "font-size: 10", "text": f"Eth{p1}"},
+                        "node_id": node_map[n1_name]["node_id"],
+                        "port_number": p1,
+                    },
+                    {
+                        "adapter_number": 0,
+                        "label": {"rotation": 0, "style": "font-size: 10", "text": f"Eth{p2}"},
+                        "node_id": node_map[n2_name]["node_id"],
+                        "port_number": p2,
+                    },
+                ],
+            }
+            project["topology"]["links"].append(link)
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(project, f, indent=4)
+
+        logger.info(f"Standard environment topology exported to {output_path}")
+        return output_path
+
 
 if __name__ == "__main__":
     from src.parser.intent_parser import IntentParser

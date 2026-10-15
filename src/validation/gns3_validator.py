@@ -211,7 +211,7 @@ class PortManager:
 class GNS3Validator(NetworkValidator):
     """Performs Tier 3 Emulation Analysis using GNS3 API."""
 
-    def __init__(self):
+    def __init__(self, project_name: Optional[str] = None, persistent: bool = False):
         super().__init__(tier=3)
         self.host = (
             settings.gns3_host if settings.gns3_host != "localhost" else "127.0.0.1"
@@ -226,6 +226,8 @@ class GNS3Validator(NetworkValidator):
                 "uYFGX5E5jvzE3KJABcG4ZnTznaE7lAXhdpi0b0hSISIkYlfKwTHEOtXxKX3eIZTw",
             ),
         )
+        self.custom_project_name = project_name
+        self.persistent = persistent or (project_name is not None)
         self.project_id = None
         self.connected = False
         self.port_manager = PortManager()
@@ -247,8 +249,8 @@ class GNS3Validator(NetworkValidator):
             self.connected = False
 
     def __del__(self):
-        """Cleanup GNS3 project on destruction."""
-        if hasattr(self, "project_id") and self.project_id:
+        """Cleanup GNS3 project on destruction if not marked persistent."""
+        if hasattr(self, "project_id") and self.project_id and not getattr(self, "persistent", False):
             try:
                 self._cleanup_project()
                 requests.delete(
@@ -280,8 +282,8 @@ class GNS3Validator(NetworkValidator):
             }
 
         try:
-            # 1. Cleanup previous project if it exists in this session to free resources
-            if self.project_id:
+            # 1. Cleanup previous temporary project if it exists in this session to free resources
+            if self.project_id and not self.persistent:
                 try:
                     self._cleanup_project()
                     requests.delete(
@@ -293,15 +295,21 @@ class GNS3Validator(NetworkValidator):
                     logger.warning(f"Error deleting previous GNS3 project: {e}")
                 self.project_id = None
 
-            # 2. Create dynamic Project
-            project_name = f"RAG_NetTwin_DigitalTwin_{uuid.uuid4().hex[:8]}"
-            self.project_id = self._get_or_create_project(project_name)
-            logger.info(
-                f"Using dynamic GNS3 project: {project_name} ({self.project_id})"
-            )
-
-            # 3. Cleanup
-            self._cleanup_project()
+            # 2. Create or connect to Project
+            if self.custom_project_name:
+                project_name = self.custom_project_name
+                self.project_id = self._get_or_create_project(project_name)
+                logger.info(
+                    f"Using standard persistent GNS3 project: {project_name} ({self.project_id})"
+                )
+            else:
+                project_name = f"RAG_NetTwin_DigitalTwin_{uuid.uuid4().hex[:8]}"
+                self.project_id = self._get_or_create_project(project_name)
+                logger.info(
+                    f"Using dynamic GNS3 project: {project_name} ({self.project_id})"
+                )
+                # Cleanup workspace only for fresh dynamic project
+                self._cleanup_project()
 
             # 3. Build Topology
             devices = intent.devices if intent else []
@@ -377,13 +385,34 @@ class GNS3Validator(NetworkValidator):
 
             # ─────────────────────────────────────────────────────────────────
 
-            nodes = self._create_nodes(devices, intent)
-            logger.info(f"Created {len(nodes)} nodes")
+            # Check if project already has nodes (standard environment)
+            existing_nodes_resp = requests.get(
+                f"{self.base_url}/projects/{self.project_id}/nodes", auth=self.auth
+            )
+            existing_nodes = {}
+            if existing_nodes_resp.status_code == 200:
+                for n in existing_nodes_resp.json():
+                    existing_nodes[n["name"]] = n["node_id"]
 
+            nodes = {}
+            missing_devices = []
+            for dev in devices:
+                if dev.name in existing_nodes:
+                    nodes[dev.name] = existing_nodes[dev.name]
+                else:
+                    missing_devices.append(dev)
+
+            if missing_devices:
+                created = self._create_nodes(missing_devices, intent)
+                nodes.update(created)
+                if len(created) > 1 and intent:
+                    self._create_links(created, intent)
+
+            logger.info(f"Resolved {len(nodes)} active nodes for topology")
 
             if not nodes and devices:
                 err_msg = (
-                    f"Failed to create any nodes for {len(devices)} requested devices."
+                    f"Failed to resolve any nodes for {len(devices)} requested devices."
                 )
                 if hasattr(self, "last_errors") and self.last_errors:
                     err_msg += f" Details: {'; '.join(self.last_errors[:3])}"
@@ -392,10 +421,6 @@ class GNS3Validator(NetworkValidator):
                     "tier": 3,
                     "summary": err_msg,
                 }
-
-            if len(nodes) > 1 and intent:
-                self._create_links(nodes, intent)
-                logger.info("Created links")
 
             # 3. Start Topology
             logger.info("Starting nodes...")
