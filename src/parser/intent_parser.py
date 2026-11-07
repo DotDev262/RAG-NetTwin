@@ -241,10 +241,20 @@ RULES:
                     m = _re.search(r"['\"]failed_generation['\"]\s*:\s*(['\"])(.*?)\1(?:\s*[,}])", err_str, _re.DOTALL)
                     if m:
                         failed_gen = m.group(2)
+                    else:
+                        # Fallback search if quote mismatch or escaped
+                        m2 = _re.search(r"['\"]failed_generation['\"]\s*:\s*['\"](.*)", err_str, _re.DOTALL)
+                        if m2:
+                            failed_gen = m2.group(1).rstrip("'\"}\n\r ")
             if failed_gen:
                 try:
                     import json as _json
+                    import re as _re
                     cleaned_gen = failed_gen.encode().decode('unicode_escape') if '\\n' in failed_gen else failed_gen
+                    # Strip markdown code fences if present (e.g. ```json ... ```)
+                    cleaned_gen = cleaned_gen.strip()
+                    cleaned_gen = _re.sub(r"^```(?:json)?\s*", "", cleaned_gen)
+                    cleaned_gen = _re.sub(r"\s*```$", "", cleaned_gen)
                     data = _json.loads(cleaned_gen)
                     if isinstance(data, list):
                         recovered = BatchStructuredIntent(intents=[StructuredIntent(**item) for item in data])
@@ -252,7 +262,7 @@ RULES:
                         recovered = BatchStructuredIntent(**data)
                     logger.info(f"Successfully recovered {len(recovered.intents)} intents from failed_generation.")
                 except Exception as parse_err:
-                    logger.debug(f"Failed to recover from failed_generation: {parse_err}")
+                    logger.warning(f"Failed to recover from failed_generation: {parse_err}")
             if recovered:
                 batch_result = recovered
             else:

@@ -422,7 +422,16 @@ class HallucinationDetector:
             "any",
             "log",
             # Common Base IPs (Defaults)
+            "10.0.0.0",
             "10.0.0.1",
+            "10.0.0.2",
+            "10.0.0.3",
+            "10.0.1.1",
+            "10.0.2.1",
+            "192.0.2.1",
+            "192.0.2.2",
+            "192.0.2.5",
+            "192.0.2.6",
             "192.168.1.1",
             "192.168.1.2",
             "10.1.1.1",
@@ -912,6 +921,17 @@ class HallucinationDetector:
             "instance",
             "brief",
             "neighbors",
+            "autonomous-system",
+            "routing-options",
+            "unicast-routing",
+            "buffered",
+            "log-neighbor-changes",
+            "key-chain",
+            "keychain",
+            "cryptographic-algorithm",
+            "key-string",
+            "cache",
+            "timeout",
         ]
         LEAF_VERBS = [
             "description",
@@ -935,6 +955,7 @@ class HallucinationDetector:
             "route-map",
             "key-exchange-group",
             "vrf",
+            "key-string",
         ]
 
         for line in config.splitlines():

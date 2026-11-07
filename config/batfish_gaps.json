@@ -77,7 +77,15 @@
       "tunnel protection ipsec",
       "address 101",
       "match address 101",
-      "set dscp "
+      "set dscp ",
+      "cryptographic-algorithm",
+      "set community delete",
+      "virtual-link",
+      "area 1 virtual-link",
+      "fast-reroute per-prefix",
+      "address-family ipv6",
+      "pbr is not supported",
+      "policy route-map"
     ]
   },
   "ipv4": {

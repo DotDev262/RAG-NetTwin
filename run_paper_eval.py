@@ -140,6 +140,23 @@ class PaperQualityEvaluator:
             "Configure NetFlow (IPFIX) to export to 10.1.1.50 on port 2055 from Cisco",
             "Restrict console access with an execution timeout of 5 minutes on Juniper",
             "Set up a BGP route reflector with neighbor 172.16.1.1 on Cisco",
+            "Multi-vendor BGP peering (Cisco IOS-XE to Juniper JunOS in AS 65001) with prefix advertisement (192.168.10.0/24), inbound local preference setting (250), outbound AS-path prepending (appending AS 65002 twice), and community tagging (65001:100)",
+            "Multi-vendor OSPF topology where Area 1 is a Totally Stubby NSSA on the Cisco side, with MD5 authentication enabled using a shared keychain (ENT_SEC_KEY, key ID 1)",
+            "Set up OSPF on the core routers, make sure security is on, and block all web traffic",
+            "Configure multi-homed BGP peering on Cisco with two upstream providers AS 65010 and AS 65020, scrubbing incoming customer community 65001:666 and setting MED to 50 based on local-preference 200",
+            "Configure OSPF multi-area topology where Area 2 is connected to backbone Area 0 via transit Area 1 using an authenticated virtual-link with router-id 2.2.2.2 and message-digest-key 1 md5 CiscoKey",
+            "Create an extended ACL named SECURE_EDGE with overlapping rules: permit tcp any any eq 443, deny ip host 192.168.1.100 any, and permit ip 192.168.1.0 0.0.0.255 any",
+            "Configure BGP route reflector in AS 65000 with cluster-id 10.0.0.1 reflecting routes to peer 10.0.0.2 with client-to-client reflection disabled",
+            "Configure OSPF Fast Reroute LFA (Loop-Free Alternate) per-prefix protection on interface GigabitEthernet0/1 to provide sub-second backup path protection for critical core prefixes",
+            "Configure OSPFv3 area 1 for IPv6 address-family on GigabitEthernet0/2 with link-local address fe80::1 and enable passive-interface on loopback0",
+            "Configure BGP confederation identifier 65000 with confederation peers 65102 on Cisco in sub-AS 65101 peering with neighbor 10.10.1.2",
+            "Configure policy-based routing with route-map PBR_POLICY to match source subnet 192.168.20.0/24 and set next-hop 10.0.0.254 to redirect traffic through firewall, applying route-map to interface GigabitEthernet0/0",
+            "Configure VRF named TENANT_A with RD 65001:100 on Cisco, bind interface Ethernet0/0 with IP 10.100.1.1/24 to VRF TENANT_A, and run OSPF process 100 within the VRF",
+            "Configure a GRE tunnel on interface Tunnel0 with source Ethernet0/0 and destination 192.168.12.2, assign IP 172.16.1.1/30 with keepalive 5 3, and add a static route for 10.50.0.0/16 via Tunnel0",
+            "Set up eBGP peering between Cisco AS 65001 and Juniper AS 65002 on shared link 10.0.0.0/30, where Cisco applies route-map PREPEND_OUT to prepend AS 65001 three times on outbound advertisements",
+            "Configure switchport port-security on interface Ethernet0/1 for Cisco switch, setting maximum 2 secure MAC addresses, enable mac-address sticky, and set violation restrict",
+            "Configure Spanning-Tree MST configuration on Cisco switch with region name REGION1, revision 1, and map VLANs 10,20 to instance 1",
+            "Configure a static blackhole route for subnet 192.0.2.0/24 to Null0 with tag 666 on Cisco, and redistribute tagged static routes into BGP AS 65001",
         ]
         lim = limit if limit is not None else self.limit
         if lim is not None and lim > 0:
@@ -251,6 +268,15 @@ class PaperQualityEvaluator:
             self.cache_manager.save_cache(VANILLA_CACHE_FILE, self.vanilla_cache)
             self.cache_manager.save_cache(RAG_CACHE_FILE, self.rag_cache)
 
+        # Partitioned Corpus Comparison Table: Baseline (first 35) vs Stress-Test (remaining) vs Combined
+        baseline_results = all_results[:35]
+        stress_results = all_results[35:]
+        if stress_results:
+            self.console.print("\n[bold cyan]=== BASELINE CORPUS RESULTS (N=35) ===[/bold cyan]")
+            self.stats_reporter.generate_summary_table(baseline_results, retrieval_mode)
+            self.console.print(f"\n[bold yellow]=== ADVANCED STRESS-TEST CORPUS RESULTS (N={len(stress_results)}) ===[/bold yellow]")
+            self.stats_reporter.generate_summary_table(stress_results, retrieval_mode)
+            self.console.print(f"\n[bold green]=== TOTAL COMPREHENSIVE CORPUS RESULTS (N={len(all_results)}) ===[/bold green]")
         self.stats_reporter.generate_summary_table(all_results, retrieval_mode)
         self._print_final_failure_summary(all_results)
 
@@ -447,11 +473,22 @@ class PaperQualityEvaluator:
 
                 val_report = self.validator.validate(device_configs, intent)
 
+                # Capture StateInvariantGraphController and Tier 1.5 Topology-Aware details
+                graph_intercept = rag_output.get("_graph_controller_intercept")
+                if graph_intercept and graph_intercept.get("has_conflicts"):
+                    logger.info(
+                        f"[GraphController] Intercepted {len(graph_intercept.get('conflicts', []))} conflict(s) for '{intent.original_text[:50]}...'"
+                    )
+
                 # Tier 1.5 Topology-Aware Validation Pipeline (Pre-Emulation Intermediate Check)
                 from src.validation.topology_validator import TopologyAwareValidator
                 topo_validator = TopologyAwareValidator()
                 topo_report = topo_validator.validate(device_configs, intent)
                 results["topology_aware_validation"] = topo_report
+                if topo_report.get("issues"):
+                    logger.info(
+                        f"[TopologyValidator] Flagged {len(topo_report['issues'])} topological/directional issue(s) for '{intent.original_text[:50]}...'"
+                    )
                 # Deep Trace: Aggregate RAG and Functional logs
                 deep_trace = rag_output.pop("_trace", {})
                 master_plan = deep_trace.get("master_plan")
