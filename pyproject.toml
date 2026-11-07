@@ -29,8 +29,6 @@ dependencies = [
     "torch>=2.0.0",
     "sentence-transformers>=3.1.0",
     "hf-xet>=1.4.3",
-    "matplotlib>=3.10.8",
-    "seaborn>=0.13.2",
 ]
 
 [project.optional-dependencies]
@@ -48,15 +46,9 @@ local-llm = [
 [dependency-groups]
 dev = [
     "graphifyy>=0.7.10",
-    "mypy>=1.15.0",
-    "pandas-stubs>=2.2.3.241126",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.9.0",
-    "scipy-stubs>=1.15.0.2",
-    "types-networkx>=3.6.1.20260518",
-    "types-requests>=2.32.0.20241016",
-    "types-tqdm>=4.67.3.20260518",
 ]
 
 [tool.uv.sources]

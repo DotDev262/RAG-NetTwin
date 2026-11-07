@@ -18,17 +18,16 @@ Typical Usage:
     print(f"Extracted {len(chunks)} CLI examples with context")
 """
 
-import re
-import json
-from pathlib import Path
-from typing import List, Dict
 import hashlib
+import json
+import re
+from pathlib import Path
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Add project root to path for imports
-
 from src.data_processing.pdf_extractor import extract_text_from_pdf
 from src.rag.vector_store import VectorStore
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Cisco IOS CLI patterns - captures command blocks with context
 # Each tuple: (regex_pattern, command_category)
@@ -110,7 +109,7 @@ JUNIPER_CLI_PATTERNS = [
 
 def extract_cli_examples(
     text: str, vendor: str, source_file: str = "unknown", page_num: int = 0
-) -> List[Dict]:
+) -> list[dict]:
     """
     Extract CLI command examples with context from text.
 
@@ -189,7 +188,7 @@ def extract_semantic_chunks(
     tier: int = 2,
     source_file: str = "unknown",
     page_num: int = 0,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Extracts high-level semantic chunks (Recommendation 1).
     Tier 2: Semantic Paragraphs (~500 chars)
@@ -245,7 +244,7 @@ def extract_semantic_chunks(
     return chunks
 
 
-def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> List[Dict]:
+def process_file_with_cli_extraction(pdf_path: str, vendor: str) -> list[dict]:
     """
     Process a PDF and extract CLI examples with context.
 

@@ -8,17 +8,19 @@ variables.
 """
 
 from __future__ import annotations
+
 import os
 from pathlib import Path
 
 try:
     from typing import Self
 except ImportError:
-    from typing_extensions import Self
+    from typing import Self
+from dotenv import load_dotenv
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from dotenv import load_dotenv
-from src.utils import is_wsl, fix_path
+
+from src.utils import fix_path, is_wsl
 
 # Load environment variables into os.environ for external libraries
 load_dotenv()

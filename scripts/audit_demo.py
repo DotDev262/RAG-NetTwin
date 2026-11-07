@@ -34,8 +34,9 @@ from pathlib import Path
 # Ensure project root is in sys.path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-import json
 import argparse
+import json
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax

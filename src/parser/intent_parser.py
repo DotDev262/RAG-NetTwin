@@ -1,16 +1,18 @@
-import os
-import json
-import time
 import hashlib
+import json
+import os
 import threading
-from typing import List, Optional, Dict, Any, cast
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from langchain_core.prompts import ChatPromptTemplate
-from src.llm import LLMProvider
+from typing import Any, cast
+
 import dspy  # type: ignore
-from src.schemas.intent import StructuredIntent, BatchStructuredIntent, ActionType
+from langchain_core.prompts import ChatPromptTemplate
+
+from src.llm import LLMProvider
 from src.parser.inventory_resolver import InventoryResolver
 from src.rag.vector_store import VectorStore
+from src.schemas.intent import ActionType, BatchStructuredIntent, StructuredIntent
 from src.utils import setup_logger
 from src.utils.helpers import with_retry
 
@@ -78,7 +80,7 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
 - Use "vyos" for VyOS routers.
 """
 
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: str | None = None):
         # Use LLMProvider to get structured LLM instance
         self.structured_llm = LLMProvider.get_structured_llm(
             schema=StructuredIntent, model=model_name, temperature=0
@@ -98,7 +100,7 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
         self.cache_lock = threading.Lock()
         self.cache = self._load_cache()
 
-    def _load_cache(self) -> Dict[str, Any]:
+    def _load_cache(self) -> dict[str, Any]:
         """Loads processed intents from disk."""
         if os.path.exists(INTENT_CACHE_FILE):
             try:
@@ -119,8 +121,8 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
                 logger.warning(f"Failed to save intent cache: {e}")
 
     def parse_batch(
-        self, texts: List[str], chunk_size: int = 5
-    ) -> List[StructuredIntent]:
+        self, texts: list[str], chunk_size: int = 5
+    ) -> list[StructuredIntent]:
         """Translates a batch of NL texts into StructuredIntent objects in parallel chunks."""
         all_intents_map = {}  # original index -> intent
 
@@ -159,7 +161,7 @@ IMPORTANT VENDOR DETECTION & DEVICE MAPPING:
         return [all_intents_map[i] for i in range(len(texts))]
 
     @with_retry(max_retries=5)
-    def _parse_chunk(self, texts: List[str]) -> List[StructuredIntent]:
+    def _parse_chunk(self, texts: list[str]) -> list[StructuredIntent]:
         """Parse a single chunk of intents with retry logic and caching."""
         # 1. Separate texts into cached and non-cached
         results = {}  # index -> intent
@@ -347,8 +349,8 @@ RULES:
         response = self.dspy_parser(intent=text, context=examples_str)
 
         # Helper to safely parse lists/dicts from strings
-        import json
         import ast
+        import json
 
         def safe_eval(val, default_type):
             if not val:

@@ -13,7 +13,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import requests
 
 # Add src to path for settings
-from src.config import settings  # noqa: E402
+from src.config import settings
 
 
 def clear_all_projects():

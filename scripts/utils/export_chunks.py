@@ -12,13 +12,14 @@ Usage:
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from src.rag.vector_store import VectorStore
 from rich.console import Console
 from rich.panel import Panel
+
+from src.rag.vector_store import VectorStore
 
 console = Console()
 
@@ -52,9 +53,9 @@ def main():
         console.print("[bold red]No chunks found in ChromaDB![/bold red]")
         sys.exit(1)
 
-    ids: List[str] = all_data["ids"]
-    documents: List[str] = all_data["documents"]
-    metadatas: List[Dict[str, Any]] = all_data["metadatas"]
+    ids: list[str] = all_data["ids"]
+    documents: list[str] = all_data["documents"]
+    metadatas: list[dict[str, Any]] = all_data["metadatas"]
 
     console.print(f"Read {len(ids)} raw chunks from ChromaDB")
 

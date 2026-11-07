@@ -1,4 +1,5 @@
 import pytest
+
 from src.rag.parameter_normalizer import ParameterNormalizer
 
 

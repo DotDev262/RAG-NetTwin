@@ -4,7 +4,7 @@ from pathlib import Path
 # Ensure project root is in sys.path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.rag.vector_store import VectorStore  # noqa: E402
+from src.rag.vector_store import VectorStore
 
 
 def seed_gold_configs():

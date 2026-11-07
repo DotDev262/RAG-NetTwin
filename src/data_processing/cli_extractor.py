@@ -20,17 +20,16 @@ Typical Usage:
     print(f"Extracted {len(chunks)} CLI commands")
 """
 
-import re
-import os
-from pathlib import Path
-from typing import List, Dict
 import hashlib
+import os
+import re
+from pathlib import Path
 
 # Add parent to path for imports
 project_root = Path(__file__).parent.parent.parent
 
-from src.data_processing.pdf_extractor import extract_text_from_pdf  # noqa: E402
-from src.rag.vector_store import VectorStore  # noqa: E402
+from src.data_processing.pdf_extractor import extract_text_from_pdf
+from src.rag.vector_store import VectorStore
 
 
 class CLIExtractor:
@@ -160,7 +159,7 @@ class CLIExtractor:
         (r"(?:set\s+system\s+ntp\s+server\s+\d+\.\d+\.\d+\.\d+)", "ntp"),
     ]
 
-    def extract_from_text(self, text: str, vendor: str) -> List[Dict]:
+    def extract_from_text(self, text: str, vendor: str) -> list[dict]:
         """
         Extract CLI commands from plain text.
 
@@ -210,7 +209,7 @@ class CLIExtractor:
 
         return chunks
 
-    def process_pdf(self, pdf_path: str, vendor: str) -> List[Dict]:
+    def process_pdf(self, pdf_path: str, vendor: str) -> list[dict]:
         """
         Extract CLI commands from a PDF file.
 

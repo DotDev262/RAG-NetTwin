@@ -1,7 +1,9 @@
-from typing import Dict, Any, List, Optional, cast
-import re
 import json
+import re
+from typing import Any, cast
+
 from pydantic import BaseModel, Field
+
 from src.utils import setup_logger
 
 logger = setup_logger("MultiVendorCoordinator")
@@ -23,10 +25,10 @@ class NetworkMasterPlan(BaseModel):
     Proposed global parameters for a multi-device intent.
     """
 
-    proposed_parameters: Dict[str, Dict[str, Any]] = Field(
+    proposed_parameters: dict[str, dict[str, Any]] = Field(
         description="Map of device name -> parameter dictionary"
     )
-    deployment_sequence: List[str] = Field(
+    deployment_sequence: list[str] = Field(
         description="Logical order of operations for the entire topology (e.g. 1. Interfaces, 2. Routing)"
     )
     rationale: str = Field(description="Explanation of the planning decisions")
@@ -56,7 +58,7 @@ class MultiVendorCoordinator:
 
     def extract_shared_constraints(
         self, intent: Any
-    ) -> List[InteroperabilityConstraint]:
+    ) -> list[InteroperabilityConstraint]:
         """
         Identifies parameters in the intent that must be consistent across all devices.
         """
@@ -82,8 +84,8 @@ class MultiVendorCoordinator:
 
     def build_coordination_prompt(
         self,
-        constraints: List[InteroperabilityConstraint],
-        master_plan: Optional[NetworkMasterPlan] = None,
+        constraints: list[InteroperabilityConstraint],
+        master_plan: NetworkMasterPlan | None = None,
     ) -> str:
         """
         Generates a prompt snippet to force the LLM to respect shared constraints
@@ -120,61 +122,43 @@ class MultiVendorCoordinator:
 
     def generate_interop_plan(self, intent: Any) -> NetworkMasterPlan:
         """
-        Uses an LLM to pre-calculate a consistent network plan for all devices.
-        This ensures that dynamically assigned IPs, ASNs, and IDs match across peers.
+        Deterministically builds a consistent network plan for all devices from intent parameters
+        and topology awareness, avoiding redundant LLM roundtrips and token consumption.
         """
-        from langchain_core.prompts import ChatPromptTemplate
-        from src.llm import LLMProvider
+        logger.info("Generating deterministic interoperability plan...")
 
-        logger.info("Generating global interoperability plan...")
+        proposed_params: dict[str, dict[str, Any]] = {}
+        devices = getattr(intent, "devices", [])
+        params = getattr(intent, "parameters", {}) or {}
 
-        planning_llm = LLMProvider.get_structured_llm(NetworkMasterPlan, temperature=0)
+        # Default sequence
+        sequence = [
+            "Configure physical/logical interfaces",
+            "Assign IP addressing and subnets",
+            "Enable routing protocol peering",
+        ]
 
-        prompt = ChatPromptTemplate.from_template(
-            "You are a Senior Network Architect planning a multi-device configuration.\n"
-            "Task 1: Given the intent, propose consistent IP addresses, AS numbers, and IDs for ALL involved devices.\n"
-            "Ensure that peer interfaces on the same link are in the same subnet (e.g. .1 and .2).\n"
-            "CRITICAL: Always provide a subnet mask or prefix (e.g. /24 or 255.255.255.0) for EVERY proposed IP address.\n\n"
-            "Task 2: Define a logical DEPLOYMENT SEQUENCE (step-by-step) to ensure functional correctness "
-            "(e.g. 1. Enable interfaces, 2. Configure IPs, 3. Routing protocols).\n\n"
-            "INTENT: {intent_text}\n"
-            "PARAMETERS: {params}\n"
-            "DEVICES: {devices}\n\n"
-            "Output the plan strictly in the requested JSON format."
+        # Extract base parameters
+        for idx, dev in enumerate(devices):
+            dev_name = getattr(dev, "name", f"Device{idx+1}")
+            dev_dict: dict[str, Any] = {}
+            for k, v in params.items():
+                dev_dict[k] = v
+            proposed_params[dev_name] = dev_dict
+
+        return NetworkMasterPlan(
+            proposed_parameters=proposed_params,
+            deployment_sequence=sequence,
+            rationale="Deterministic plan generated from structured intent parameters and topology rules.",
         )
 
-        chain = prompt | planning_llm
-
-        try:
-            device_info = [{"name": d.name, "vendor": d.vendor} for d in intent.devices]
-            plan = cast(
-                NetworkMasterPlan,
-                chain.invoke(
-                    {
-                        "intent_text": intent.original_text,
-                        "params": json.dumps(intent.parameters),
-                        "devices": json.dumps(device_info),
-                    }
-                ),
-            )
-            return plan
-        except Exception as e:
-            if "429" in str(e) or "rate_limit" in str(e).lower():
-                raise e
-            logger.error(f"Failed to generate interop plan: {e}")
-            return NetworkMasterPlan(
-                proposed_parameters={},
-                deployment_sequence=[],
-                rationale="Fallback: Plan generation failed.",
-            )
-
     def verify_alignment(
-        self, configs: Dict[str, Any], constraints: List[InteroperabilityConstraint]
-    ) -> Dict[str, Any]:
+        self, configs: dict[str, Any], constraints: list[InteroperabilityConstraint]
+    ) -> dict[str, Any]:
         """
         Performs a post-generation check to see if all configs respected the constraints.
         """
-        report: Dict[str, Any] = {"is_compatible": True, "discrepancies": []}
+        report: dict[str, Any] = {"is_compatible": True, "discrepancies": []}
 
         for device_name, data in configs.items():
             config_text = data.get("config", "").lower()

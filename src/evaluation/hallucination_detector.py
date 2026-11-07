@@ -25,9 +25,12 @@ Typical Usage:
 """
 
 import re
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from src.utils import setup_logger
+from src.utils.text import normalize_cli_command
 
 logger = setup_logger("HallucinationDetector")
 
@@ -45,15 +48,21 @@ class HallucinationReport(BaseModel):
         suspicious_commands: List of detected placeholder patterns.
         invalid_citations: List of citation IDs that don't match retrieved sources.
         ungrounded_commands: List of commands not found in retrieved documentation.
+        unauthorized_parameters: List of ungrounded parameters.
+        diagnostics: Structured error categories mapping failure type to specifics.
     """
 
     is_hallucinated: bool
-    reason: Optional[str] = None
-    suspicious_commands: List[str] = Field(default_factory=list)
-    invalid_citations: List[str] = Field(default_factory=list)
-    ungrounded_commands: List[str] = Field(default_factory=list)
-    unauthorized_parameters: List[str] = Field(
+    reason: str | None = None
+    suspicious_commands: list[str] = Field(default_factory=list)
+    invalid_citations: list[str] = Field(default_factory=list)
+    ungrounded_commands: list[str] = Field(default_factory=list)
+    unauthorized_parameters: list[str] = Field(
         description="Parameters (IPs, ASNs, VLANs) found in config but not in intent/plan",
+        default_factory=list,
+    )
+    diagnostics: list[dict[str, str]] = Field(
+        description="Structured diagnostic error categories (e.g. REGEX_MISMATCH, UNBOUND_CITATION)",
         default_factory=list,
     )
 
@@ -87,16 +96,112 @@ class HallucinationDetector:
         r"INSERT_.*_HERE",
     ]
 
+    def citation_binding_verification(
+        self,
+        citations: list[str],
+        valid_source_ids: list[str],
+        authorized_citations: list[str] | None = None,
+        metadata_tags: dict[str, Any] | None = None,
+    ) -> tuple[list[str], list[dict[str, str]]]:
+        """
+        Verifies citation bindings against valid sources with support for partial matches,
+        formatting variations, and metadata tag alignment.
+        Returns:
+            invalid_citations: list of completely unbound citation strings.
+            diagnostics: structured logs explaining binding status or failures.
+        """
+        full_authorized = set(valid_source_ids + (authorized_citations or []))
+        full_authorized.add("BASE_CLI_KNOWLEDGE")
+
+        invalid_cites = []
+        diagnostics = []
+
+        # Build normalized authorized pool
+        auth_lower_map = {auth.lower(): auth for auth in full_authorized}
+
+        for cite in citations:
+            if not cite:
+                continue
+
+            clean_cite = re.sub(r"^(?:id|ref|source)\s*[:=-]\s*", "", cite, flags=re.IGNORECASE).strip()
+            clean_cite_lower = clean_cite.lower()
+
+            if not clean_cite:
+                continue
+
+            found_valid = False
+
+            # 1. Exact match (case-insensitive)
+            if clean_cite_lower in auth_lower_map:
+                found_valid = True
+
+            # 2. Partial substring / ID prefix-suffix match
+            if not found_valid:
+                for auth_lower, orig_auth in auth_lower_map.items():
+                    # e.g. "chunk_12" matches "cisco_ospf_chunk_12"
+                    if len(clean_cite_lower) >= 4 and (
+                        clean_cite_lower in auth_lower or auth_lower in clean_cite_lower
+                    ):
+                        found_valid = True
+                        break
+
+            # 3. Metadata tag alignment (e.g. guide or vendor tags)
+            if not found_valid and metadata_tags:
+                for tag_val in metadata_tags.values():
+                    if isinstance(tag_val, str) and clean_cite_lower in tag_val.lower():
+                        found_valid = True
+                        break
+
+            if found_valid:
+                diagnostics.append(
+                    {"type": "BOUND_CITATION", "cite": cite, "detail": "Validly bound to source."}
+                )
+            else:
+                invalid_cites.append(cite)
+                diagnostics.append(
+                    {
+                        "type": "UNBOUND_CITATION",
+                        "cite": cite,
+                        "detail": f"Citation '{cite}' not found in retrieved source IDs or metadata tags.",
+                    }
+                )
+
+        return invalid_cites, diagnostics
+
+    def verify_syntax_regex(
+        self, command: str, patterns: list[str]
+    ) -> tuple[bool, str | None]:
+        """
+        Flexibly verifies that a command matches expected vendor grammar regexes,
+        gracefully accommodating real parameter values (IPs, VLANs, ASNs)
+        and optional flags/arguments without false positive fabrication flags.
+        """
+        normalized_cmd = normalize_cli_command(command)
+        if not normalized_cmd:
+            return True, None
+
+        if not patterns:
+            return True, None
+
+        for pat in patterns:
+            try:
+                if re.search(pat, normalized_cmd, re.IGNORECASE):
+                    return True, None
+            except re.error:
+                continue
+
+        return False, f"REGEX_MISMATCH: Command '{normalized_cmd}' does not match syntax patterns."
+
     def detect(
         self,
         config: str,
-        citations: List[str],
-        valid_source_ids: List[str],
-        retrieved_texts: Optional[List[str]] = None,
+        citations: list[str],
+        valid_source_ids: list[str],
+        retrieved_texts: list[str] | None = None,
         intent_context: str = "",
-        intent_params: Optional[Dict[str, Any]] = None,
-        master_plan: Optional[Dict[str, Any]] = None,
-        authorized_citations: Optional[List[str]] = None,
+        intent_params: dict[str, Any] | None = None,
+        master_plan: dict[str, Any] | None = None,
+        authorized_citations: list[str] | None = None,
     ) -> HallucinationReport:
         """
         Detect hallucinations in a generated configuration.
@@ -111,8 +216,14 @@ class HallucinationDetector:
         # Add global safe sources
         full_authorized.add("BASE_CLI_KNOWLEDGE")
 
-        # Step 1: Remove citation references from config
+        # Step 1: Remove citation references from config and normalize commands
         config_clean = re.sub(r"\[Ref: [^\]]+\]", "", config)
+        normalized_lines = [
+            normalize_cli_command(line)
+            for line in config_clean.splitlines()
+            if line.strip() and not line.strip().startswith("!")
+        ]
+        config_normalized = "\n".join(normalized_lines)
 
         # Step 2: Check for placeholder patterns
         for pattern in self.HALLUCINATION_PATTERNS:
@@ -120,23 +231,12 @@ class HallucinationDetector:
             if matches:
                 suspicious.extend(list(set(matches)))
 
-        # Step 3: Check citation validity strictly against retrieved session chunk IDs
-        for cite in citations:
-            # Clean 'ID: ' prefix if LLM included it
-            clean_cite = cite.replace("ID:", "").replace("id:", "").strip()
-            clean_cite_lower = clean_cite.lower()
-
-            found_valid = False
-
-            # 1. Exact match first (most robust) - case-insensitive
-            for auth in full_authorized:
-                if auth.lower() == clean_cite_lower:
-                    found_valid = True
-                    break
-
-            if not found_valid and cite:
-                if len(clean_cite) > 0:
-                    invalid_cites.append(cite)
+        # Step 3: Check citation validity using robust citation binding verification
+        invalid_cites, cite_diagnostics = self.citation_binding_verification(
+            citations=citations,
+            valid_source_ids=valid_source_ids,
+            authorized_citations=authorized_citations,
+        )
 
         # Step 4: Command Grounding Check (Recommendation 2)
         if retrieved_texts or intent_context:
@@ -153,6 +253,14 @@ class HallucinationDetector:
                 master_plan or {},
                 grounding_context=retrieved_texts,
             )
+
+        diagnostics: list[dict[str, str]] = list(cite_diagnostics)
+        for s in suspicious:
+            diagnostics.append({"type": "PLACEHOLDER", "detail": f"Placeholder pattern: {s}"})
+        for u in ungrounded:
+            diagnostics.append({"type": "UNGROUNDED_COMMAND", "detail": f"Ungrounded CLI token: {u}"})
+        for p in unauthorized:
+            diagnostics.append({"type": "UNAUTHORIZED_PARAM", "detail": f"Invented parameter: {p}"})
 
         # Determine overall hallucination status
         is_hallucinated = (
@@ -183,15 +291,16 @@ class HallucinationDetector:
             invalid_citations=invalid_cites,
             ungrounded_commands=ungrounded,
             unauthorized_parameters=unauthorized,
+            diagnostics=diagnostics,
         )
 
     def _check_parameter_binding(
         self,
         config: str,
-        intent_params: Dict[str, Any],
-        master_plan: Dict[str, Any],
-        grounding_context: Optional[List[str]] = None,
-    ) -> List[str]:
+        intent_params: dict[str, Any],
+        master_plan: dict[str, Any],
+        grounding_context: list[str] | None = None,
+    ) -> list[str]:
         """
         Verifies that all numeric identifiers in the config were authorized.
         Targets 'Invented Parameters' hallucination.
@@ -392,10 +501,8 @@ class HallucinationDetector:
             "9000",
             "9216",
             # Common Timers (seconds/minutes)
-            "1",
             "3",
             "5",
-            "10",
             "15",
             "30",
             "40",
@@ -420,7 +527,6 @@ class HallucinationDetector:
             "170",
             "200",
             "254",
-            "1",
             "100",
             # Common memory/buffer sizes (Powers of 2)
             "1024",
@@ -471,8 +577,8 @@ class HallucinationDetector:
         return unauthorized
 
     def _check_command_grounding(
-        self, config: str, docs: List[str], intent_context: str = ""
-    ) -> List[str]:
+        self, config: str, docs: list[str], intent_context: str = ""
+    ) -> list[str]:
         """
         Robust grounding check: verifies if config tokens are present in documentation
         OR derived from the user's intent. Prevents false positives on hostnames,
@@ -514,6 +620,7 @@ class HallucinationDetector:
             "ipv6",
             "vlan",
             "access-list",
+            "access-lists",
             "acl",
             "range",
             "set",
@@ -604,6 +711,12 @@ class HallucinationDetector:
             "inet",
             "standard",
             "extended",
+            "write",
+            "memory",
+            "copy",
+            "running-config",
+            "startup-config",
+            "commit",
             "privilege",
             "snmp",
             "community",

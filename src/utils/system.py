@@ -12,7 +12,7 @@ def is_wsl() -> bool:
         if os.path.exists("/proc/version"):
             with open("/proc/version", "r") as f:
                 return "microsoft" in f.read().lower()
-    except (IOError, PermissionError):
+    except (OSError, PermissionError):
         pass
     return False
 

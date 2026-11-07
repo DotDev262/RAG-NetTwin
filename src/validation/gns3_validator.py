@@ -315,11 +315,17 @@ class GNS3Validator(NetworkValidator):
             devices = intent.devices if intent else []
 
             # ── L2-only guard ────────────────────────────────────────────────
-            # IOU Router (the only template in this GNS3 setup) is an L3 image.
-            # Pure L2 commands (switchport, vlan database, dhcp snooping, etc.)
-            # will be rejected by the IOU router with "Invalid input".
-            # Detect this case early and return SKIPPED (infrastructure gap)
-            # rather than a misleading FAIL.
+            # If an L2-capable template (IOU Switch / IOSvL2) exists in GNS3,
+            # allow L2 switch commands to execute on the switch node.
+            # Only skip when no L2 template is available in GNS3.
+            templates_resp = requests.get(f"{self.base_url}/templates", auth=self.auth)
+            has_l2_template = False
+            if templates_resp.status_code == 200:
+                has_l2_template = any(
+                    (t.get("template_type") == "iou" and any(s in t.get("name", "").lower() for s in ["switch", "l2"]))
+                    or (t.get("template_type") == "qemu" and "iosvl2" in t.get("name", "").lower())
+                    for t in templates_resp.json()
+                )
             all_config_cmds = " ".join(
                 line.strip()
                 for cfg in configs.values()
@@ -359,7 +365,7 @@ class GNS3Validator(NetworkValidator):
             # Adaptive threshold: short configs (≤10 lines) need only 1 L2 line;
             # longer configs need ≥33% L2 lines to avoid false-positive skips
             # on mixed L2/L3 configs (e.g., OSPF + a trunk port).
-            if cmd_lines and l2_lines > 0:
+            if cmd_lines and l2_lines > 0 and not has_l2_template:
                 threshold = 0.33
                 if len(cmd_lines) <= 10:
                     threshold = 1 / len(cmd_lines)  # any single L2 line triggers SKIPPED
@@ -977,8 +983,9 @@ class GNS3Validator(NetworkValidator):
                 return None
 
             # Cisco / generic: IOU is the best match (supports both L2 and L3 commands)
-            # If device name hints at a switch, prefer switch/L2 template
-            is_switch_hint = any(s in device_name.lower() for s in ["sw", "switch", "l2"])
+            # If device name hints at a switch, or intent text / parameters mention switch / vlan / trunk, prefer switch/L2 template
+            intent_text = (getattr(intent, "original_text", "") or "").lower() if intent else ""
+            is_switch_hint = any(s in device_name.lower() for s in ["sw", "switch", "l2"]) or any(s in intent_text for s in ["switch", "vlan", "trunk", "snooping", "switchport"])
             if is_switch_hint:
                 for tmpl in console_templates:
                     if tmpl.get("template_type") == "iou" and any(

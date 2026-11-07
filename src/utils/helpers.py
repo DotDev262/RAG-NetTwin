@@ -1,10 +1,10 @@
+import json
+import logging
 import os
 import re
-import json
 import time
-import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 logger = logging.getLogger("RAG-NetTwin.Helpers")
 
@@ -40,7 +40,7 @@ def with_retry(max_retries=5, initial_sleep=5):
 
 
 def generate_audit_report(
-    intent: Any, configs: Dict[str, Any], output_dir: str = "results/audits"
+    intent: Any, configs: dict[str, Any], output_dir: str = "results/audits"
 ) -> str:
     """
     Generates a structured Markdown 'Grounding Audit Report' for an intent.
@@ -56,7 +56,7 @@ def generate_audit_report(
     filepath = os.path.join(output_dir, filename)
 
     # Load chunk index for metadata enrichment
-    chunks_index: Dict[str, Any] = {}
+    chunks_index: dict[str, Any] = {}
     chunks_file = os.path.join("data", "processed_chunks", "all_chunks.json")
     if os.path.exists(chunks_file):
         try:

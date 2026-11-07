@@ -22,26 +22,29 @@ Typical Usage:
     config = generator.generate(intent)
 """
 
-from typing import List, Dict, Any, Optional, cast
-from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
 import json
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, cast
 
-from src.rag.vector_store import VectorStore
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
+
+from src.config import settings
+from src.evaluation.hallucination_detector import HallucinationDetector
+from src.llm import LLMProvider
+from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
 from src.rag.parameter_normalizer import ParameterNormalizer
 from src.rag.query_expander import QueryExpander
-from src.validation.referential_integrity import ReferentialIntegrityValidator
-from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
-from src.evaluation.hallucination_detector import HallucinationDetector
+from src.rag.state_graph_controller import StateInvariantGraphController
+from src.rag.vector_store import VectorStore
 from src.schemas.intent import StructuredIntent
-from src.llm import LLMProvider
-from src.utils import clean_cli_prose, setup_logger, with_retry
-from src.config import settings
+from src.utils import TokenCounter, clean_cli_prose, setup_logger, with_retry
+from src.validation.referential_integrity import ReferentialIntegrityValidator
+from src.validation.topology_validator import TopologyAwareValidator
 
-CONFIG_GENERATOR_VERSION = "2.4.0"  # Incremented for Hierarchical Anchoring
+CONFIG_GENERATOR_VERSION = "2.5.0"  # Incremented for State-Invariant Graph Controller & Topology-Aware Validation
 logger = setup_logger("ConfigGenerator")
 
 
@@ -50,8 +53,8 @@ class CommandBlock(BaseModel):
     A block of CLI commands grounded in specific documentation.
     """
 
-    commands: List[str] = Field(description="List of raw CLI configuration commands")
-    source_ids: List[str] = Field(
+    commands: list[str] = Field(description="List of raw CLI configuration commands")
+    source_ids: list[str] = Field(
         description="IDs from the DOCUMENTATION block that justify these specific commands. "
         "Leave empty if the command is a generic prerequisite (like 'configure terminal').",
         default_factory=list,
@@ -63,7 +66,7 @@ class DeviceConfigOutput(BaseModel):
     Pydantic model for structured configuration output.
     """
 
-    blocks: List[CommandBlock] = Field(
+    blocks: list[CommandBlock] = Field(
         description="List of command blocks, each with its own documentation sources"
     )
     confidence_score: float = Field(
@@ -73,11 +76,11 @@ class DeviceConfigOutput(BaseModel):
         description="Step-by-step reasoning for the chosen commands. NEVER leave this empty or null.",
         default="",
     )
-    verification_commands: List[str] = Field(
+    verification_commands: list[str] = Field(
         description="CLI commands to verify the configuration works (e.g., show ip ospf neighbor)",
         default_factory=list,
     )
-    explanation: Optional[str] = Field(
+    explanation: str | None = Field(
         description="Brief summary of the changes", default=""
     )
 
@@ -109,9 +112,9 @@ class ConfigGenerator:
 
     def __init__(
         self,
-        model_name: Optional[str] = None,
-        vector_store: Optional[VectorStore] = None,
-        coordinator: Optional[MultiVendorCoordinator] = None,
+        model_name: str | None = None,
+        vector_store: VectorStore | None = None,
+        coordinator: MultiVendorCoordinator | None = None,
     ):
         """
         Initialize the ConfigGenerator.
@@ -127,30 +130,38 @@ class ConfigGenerator:
         )
         self.vector_store = vector_store or VectorStore()
         self.coordinator = coordinator or MultiVendorCoordinator()
+        self.graph_controller = StateInvariantGraphController()
+        self.topology_validator = TopologyAwareValidator()
         self.hallucination_detector = HallucinationDetector()
         self.query_expander = QueryExpander(model_name=model_name)
+        self.token_counter = TokenCounter()
         self._sanity_lock = threading.Lock()
         # Cache for query expansions to avoid repeated LLM calls
         self._query_expansion_cache: dict[str, list[str]] = {}
 
     def generate(
-        self, structured_intent: StructuredIntent, retrieval_mode: str = "tiered"
-    ) -> Dict[str, Any]:
+        self,
+        structured_intent: StructuredIntent,
+        retrieval_mode: str = "tiered",
+        force_refresh: bool = False,
+    ) -> dict[str, Any]:
         """
         Generates CLI configuration for each device.
         retrieval_mode: 'tiered' (ours), 'flat' (standard top-k), or 'none' (baseline).
+        force_refresh: If True, clears the semantic cache before generating. Defaults to False to conserve tokens.
         """
-        # TEMPORARY: Clear semantic cache for fresh generation during debugging
-        # This will be removed once generation is stable.
-        self.vector_store.clear_cache()
+        if force_refresh:
+            logger.info("force_refresh=True: clearing semantic cache for fresh generation.")
+            self.vector_store.clear_cache()
 
-        configs: Dict[str, Any] = {}
+        configs: dict[str, Any] = {}
         # Deep Trace: Initialize trace dictionary
-        trace: Dict[str, Any] = {
+        trace: dict[str, Any] = {
             "base_query": "",
             "expanded_queries": [],
             "retrieval_results": {},
             "llm_calls": {},
+            "token_usage": {},
         }
 
         # Recommendation 3: Intent Sanity Check
@@ -163,7 +174,7 @@ class ConfigGenerator:
         # Recommendation 2 (Multi-Vendor): Extract shared constraints and generate plan
         constraints = self.coordinator.extract_shared_constraints(structured_intent)
 
-        master_plan: Optional[Any] = None
+        master_plan: Any | None = None
         if len(structured_intent.devices) > 1:
             master_plan = self.coordinator.generate_interop_plan(structured_intent)
             trace["master_plan"] = (
@@ -172,12 +183,26 @@ class ConfigGenerator:
                 else master_plan
             )
 
+        # Module 1: State-Invariant Graph Controller (Synthesis-Time Guardrail)
+        graph_constraint_prompt: str = ""
+        if len(structured_intent.devices) > 1:
+            try:
+                self.graph_controller.build_topology_from_intent(structured_intent)
+                graph_constraint_prompt = self.graph_controller.build_constraint_injection_prompt(structured_intent)
+                trace["state_invariants"] = [
+                    inv.model_dump() for inv in self.graph_controller.extract_state_invariants(structured_intent)
+                ]
+            except Exception as e:
+                logger.error(f"Failed to build topology invariants: {e}")
+
         coordination_prompt: str = self.coordinator.build_coordination_prompt(
             constraints, master_plan=master_plan
         )
+        if graph_constraint_prompt:
+            coordination_prompt = f"{coordination_prompt}\n{graph_constraint_prompt}"
 
         # Build query once for all devices
-        semantic_params: List[str] = []
+        semantic_params: list[str] = []
         for k, v in structured_intent.parameters.items():
             semantic_params.append(k)
             if isinstance(v, str) and not re.match(r"^[0-9.:/]+$", v) and len(v) > 2:
@@ -194,9 +219,9 @@ class ConfigGenerator:
             from src.schemas.intent import DeviceIntent
             structured_intent.devices = [DeviceIntent(name="Device", vendor="cisco", os_type="ios-xe", os_version="17.6")]
 
-        device_groups: Dict[tuple[Optional[str], str], List[Any]] = {}
+        device_groups: dict[tuple[str | None, str], list[Any]] = {}
         for device in structured_intent.devices:
-            group_key: tuple[Optional[str], str] = (
+            group_key: tuple[str | None, str] = (
                 device.vendor,
                 self._normalize_version(device),
             )
@@ -206,7 +231,7 @@ class ConfigGenerator:
 
         # Phase 2: Multi-Query Expansion (Adaptive)
         # We start with just the base query and only expand if retrieval is poor.
-        queries: List[str] = [base_query]
+        queries: list[str] = [base_query]
         expansion_triggered: bool = False
         trace["expanded_queries"] = queries
 
@@ -214,7 +239,7 @@ class ConfigGenerator:
         if not hasattr(self, "_query_expansion_cache"):
             self._query_expansion_cache = {}
 
-        full_context_map: Dict[str, Dict[str, Any]] = {}
+        full_context_map: dict[str, dict[str, Any]] = {}
 
         # 2. Retrieval Phase
         if not is_lite:
@@ -224,7 +249,7 @@ class ConfigGenerator:
                     vendor_str: str = vendor if vendor else "unknown"
                     intent_text: str = structured_intent.original_text or ""
 
-                    cached_response: Optional[Dict[str, Any]] = (
+                    cached_response: dict[str, Any] | None = (
                         self.vector_store.check_cache(
                             intent_text,
                             structured_intent.parameters,
@@ -269,10 +294,10 @@ class ConfigGenerator:
                             f"High confidence pilot search for {vendor} (dist: {pilot[0].get('distance'):.2f}). Skipping expansion."
                         )
 
-                results: List[Dict[str, Any]] = []
+                results: list[dict[str, Any]] = []
 
                 # Accumulate results from available queries
-                all_candidates: List[Dict[str, Any]] = []
+                all_candidates: list[dict[str, Any]] = []
                 for q in queries:
                     if retrieval_mode == "tiered":
                         syntax_candidates = self.vector_store.hybrid_retrieve(
@@ -318,10 +343,10 @@ class ConfigGenerator:
                         all_candidates.extend(flat_candidates)
 
                 # Deduplicate candidates by ID
-                unique_candidates_map: Dict[str, Dict[str, Any]] = {
+                unique_candidates_map: dict[str, dict[str, Any]] = {
                     str(c["id"]): c for c in all_candidates
                 }
-                unique_candidates: List[Dict[str, Any]] = list(
+                unique_candidates: list[dict[str, Any]] = list(
                     unique_candidates_map.values()
                 )
 
@@ -347,7 +372,7 @@ class ConfigGenerator:
                     ]
 
                 if results:
-                    distances: List[float] = [
+                    distances: list[float] = [
                         float(res.get("distance") or 1.0) for res in results
                     ]
                     avg_distance: float = sum(distances) / len(results)
@@ -365,31 +390,41 @@ class ConfigGenerator:
                 if results:
                     results = self.vector_store.retrieve_with_parents(results)
 
-                # 3. Dynamic Few-Shot Selection (Efficiency Recommendation 2)
+                # 3. Dynamic Few-Shot Selection (Optimized for Token Consumption)
                 vendor_str = vendor if vendor else "unknown"
 
-                # Determine few-shot count based on pilot confidence
-                # If distance < 0.2, documentation is authoritative, no few-shot needed.
-                # If distance < 0.4, 1 few-shot is enough.
-                # Otherwise, use full 2 few-shots.
+                # Stricter pilot distance threshold to save tokens:
+                # If distance < 0.35, documentation is strong: bypass few-shot prompts (saving 400-800 tokens).
+                # If distance < 0.55, 1 example is sufficient.
+                # Otherwise, 2 examples maximum.
                 pilot_dist = pilot[0].get("distance", 1.0) if pilot else 1.0
                 n_few_shot = 2
-                if pilot_dist < 0.2:
+                if pilot_dist < 0.35:
                     n_few_shot = 0
-                elif pilot_dist < 0.4:
+                elif pilot_dist < 0.55:
                     n_few_shot = 1
 
-                gold_examples: List[Dict[str, Any]] = []
+                gold_examples: list[dict[str, Any]] = []
                 if n_few_shot > 0:
-                    gold_examples = self.vector_store.retrieve_gold_configs(
+                    raw_gold = self.vector_store.retrieve_gold_configs(
                         query=base_query, vendor=vendor_str, n_results=n_few_shot
                     )
+                    # Clean and compact few-shot examples to minimize prompt bloat
+                    for ex in raw_gold:
+                        cfg_lines = [
+                            line for line in ex.get("config", "").splitlines()
+                            if line.strip() and not line.strip().startswith("!") and not line.strip().startswith("#")
+                        ]
+                        gold_examples.append({
+                            "intent": ex.get("intent", ""),
+                            "config": "\n".join(cfg_lines[:12]),  # Bound lines per example
+                        })
                     logger.info(
-                        f"Dynamic Few-Shot: Selected {len(gold_examples)} examples (pilot dist: {pilot_dist:.2f})"
+                        f"Dynamic Few-Shot: Injected {len(gold_examples)} compact examples (pilot dist: {pilot_dist:.2f})"
                     )
                 else:
                     logger.info(
-                        f"Dynamic Few-Shot: Bypassing examples (pilot dist: {pilot_dist:.2f})"
+                        f"Dynamic Few-Shot: Bypassing examples (pilot dist: {pilot_dist:.2f}) to save prompt tokens."
                     )
 
                 for dev in devices:
@@ -401,15 +436,15 @@ class ConfigGenerator:
             logger.info(f"Lite-RAG path activated (Retrieval Mode: {retrieval_mode}).")
 
         # 3. Generation Phase: Sequential (to avoid rate limits)
-        futures: List[Any] = []
+        futures: list[Any] = []
         with ThreadPoolExecutor(max_workers=1) as executor:
             for device in structured_intent.devices:
                 if device.name in configs:
                     continue
 
                 device_context: str = ""
-                valid_ids: List[str] = []
-                examples: List[Dict[str, Any]] = []
+                valid_ids: list[str] = []
+                examples: list[dict[str, Any]] = []
 
                 # Recommendation: Handle Lite intents by providing a base knowledge anchor
                 if is_lite:
@@ -441,7 +476,7 @@ class ConfigGenerator:
 
             for future in as_completed(futures):
                 try:
-                    res: Dict[str, Any] = future.result()
+                    res: dict[str, Any] = future.result()
                     device_name: str = str(res["device_name"])
 
                     # Extract trace from device result if present
@@ -479,6 +514,42 @@ class ConfigGenerator:
         alignment_report = self.coordinator.verify_alignment(configs, constraints)
         configs["_interoperability_report"] = alignment_report
 
+        # Module 1 (Interactive Interception): Detect parameter divergence between adjacent nodes
+        raw_device_configs = {
+            k: v["config"] for k, v in configs.items()
+            if not k.startswith("_") and v.get("config") not in [None, "ERROR"]
+        }
+        if len(raw_device_configs) > 1:
+            conflict_res = self.graph_controller.intercept_and_validate(structured_intent, raw_device_configs)
+            configs["_graph_controller_intercept"] = conflict_res.model_dump()
+            if conflict_res.has_conflicts and conflict_res.remediation_prompt:
+                logger.warning(
+                    f"State-Invariant Graph Controller intercepted conflicts across {len(conflict_res.conflicts)} invariant(s). Triggering self-correction..."
+                )
+                # Auto-correct conflicting configurations
+                for conf in conflict_res.conflicts:
+                    for aff_dev_name in conf.get("devices", []):
+                        if aff_dev_name in configs and configs[aff_dev_name].get("config") not in [None, "ERROR"]:
+                            aff_dev_obj = next(d for d in structured_intent.devices if d.name == aff_dev_name)
+                            corrected_cfg = self.refine(
+                                device_name=aff_dev_name,
+                                config=configs[aff_dev_name]["config"],
+                                error_feedback=conflict_res.remediation_prompt,
+                                vendor=aff_dev_obj.vendor,
+                                os_version=aff_dev_obj.os_version,
+                            )
+                            configs[aff_dev_name]["config"] = ParameterNormalizer.post_process_config(
+                                corrected_cfg, vendor=aff_dev_obj.vendor
+                            )
+
+        # Module 2: Topology-Aware Validation Pipeline (Pre-Emulation Intermediate Tier)
+        current_active_configs = {
+            k: v["config"] for k, v in configs.items()
+            if not k.startswith("_") and v.get("config") not in [None, "ERROR"]
+        }
+        topo_val_report = self.topology_validator.validate(current_active_configs, structured_intent)
+        configs["_topology_aware_validation"] = topo_val_report
+
         # Phase 3: Referential Integrity Pre-Validation
         for device_name, data in configs.items():
             if device_name.startswith("_") or data.get("config") == "ERROR":
@@ -497,6 +568,7 @@ class ConfigGenerator:
                     configs["_sanity_check"]["is_grounded"] = False
 
         configs["_trace"] = trace
+        configs["_token_usage"] = self.token_counter.get_total_usage().model_dump()
 
         return configs
 
@@ -507,10 +579,10 @@ class ConfigGenerator:
         structured_intent: StructuredIntent,
         device_context: str,
         coordination_prompt: str = "",
-        valid_source_ids: Optional[List[str]] = None,
-        examples: Optional[List[Dict[str, Any]]] = None,
-        master_plan: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        valid_source_ids: list[str] | None = None,
+        examples: list[dict[str, Any]] | None = None,
+        master_plan: Any | None = None,
+    ) -> dict[str, Any]:
         """
         Generates configuration for a single device with a refinement loop.
         """
@@ -530,57 +602,15 @@ class ConfigGenerator:
             [
                 (
                     "system",
-                    "Expert {vendor} {os_version} CLI specialist. "
-                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. RESPECT shared constraints.\n\n"
-                    "### ZERO TOLERANCE FOR HALLUCINATION ###\n"
-                    "- NEVER add commands that are not explicitly mentioned in the documentation or required for the specific intent.\n"
-                    "- NEVER invent IP addresses, VLAN IDs, or names that are not in the Intent or Parameters.\n"
-                    "- If a command is not found in the documentation, DO NOT invent it based on general knowledge unless it is a standard prerequisite (like 'configure terminal').\n"
-                    "- If the intent is to 'Enable OSPF', DO NOT also configure BGP or static routes 'just in case'.\n\n"
-                    "### STRICT HIERARCHY RULES ###\n"
-                    "- Global commands (hostname, logging) go at the top level.\n"
-                    "- Interface commands (ip address, service-policy) MUST be within an 'interface <name>' block.\n"
-                    "- QoS commands (set dscp, bandwidth) MUST be within a 'class <name>' block, which MUST be inside a 'policy-map <name>' block. NEVER place them directly under policy-map.\n"
-                    "- ALL sub-mode commands (under interface, router, class, etc.) MUST be indented with exactly TWO spaces for visual hierarchy.\n"
-                    "- Protocol commands (network, neighbor) MUST be within a 'router <protocol>' block.\n\n"
-                    "### ATOMIC QOS BLOCKS (MANDATORY STRUCTURE) ###\n"
-                    "1. ACL: 'access-list 101 permit ospf any any'\n"
-                    "2. CLASS-MAP: 'class-map match-all CS6_CLASS' -> MUST be followed by ' match access-group 101'\n"
-                    "3. POLICY-MAP: 'policy-map QoS_POLICY' -> MUST be followed by ' class CS6_CLASS' -> MUST be followed by '  set dscp 48'\n"
-                    "4. INTERFACE: 'interface Ethernet0/0' -> MUST be followed by ' service-policy output QoS_POLICY'\n\n"
-                    "### STRICT GROUNDING RULE ###\n"
-                    "- ONLY use commands and syntax found in the ### DOCUMENTATION ### section.\n"
-                    "- If the documentation shows a specific value range or example value, ADHERE to it.\n"
-                    "- DO NOT use 'common knowledge' syntax if it differs from the provided documentation.\n"
-                    "- If a requested command is not in the documentation, and is not a basic prerequisite (like 'configure terminal' or 'enable'), EXCLUDE it and explain why in the 'explanation'.\n\n"
-                    "### PARAMETER INTEGRITY (CRITICAL) ###\n"
-                    "- ONLY use IP addresses, ASNs, and identifiers provided in the 'Parameters' or 'Intent'.\n"
-                    "- DO NOT invent complex network topologies or extra neighbors not mentioned in the intent.\n"
-                    "- If the intent asks for a specific neighbor, ONLY configure that neighbor.\n"
-                    "- If a parameter is missing, use a standard default (e.g. 10.0.0.1, GigabitEthernet0/1) but NEVER invent a pool of multiple random IPs.\n\n"
-                    "### TOP FAILURE PATTERNS (FORBIDDEN) ###\n"
-                    "- FORBIDDEN: 'no' commands (e.g., 'no ip address', 'no router ospf'). The environment starts from a clean state. DO NOT clear existing configuration.\n"
-                    "- FORBIDDEN: 'ip address X.X.X.X ...' at global level. MUST be under interface.\n"
-                    "- FORBIDDEN: 'service-policy ...' at global level. MUST be under interface.\n"
-                    "- FORBIDDEN: Referencing an ACL name/number without defining it.\n\n"
-                    "### REFERENTIAL INTEGRITY RULE ###\n"
-                    "- If you reference an ACL, policy-map, route-map, or NAT pool, you MUST define it in the SAME output.\n"
-                    "- Ensure the output 'device_name' EXACTLY matches the requested 'device_name'.\n\n"
-                    "### COMMON SYNTAX CORRECTIONS (STRICT) ###\n"
-                    "- CISCO OS: Use Traditional IOS / IOS-XE syntax ONLY. NEVER use 'type qos' or 'type traffic' (NX-OS/XR leakage).\n"
-                    "- CISCO OSPF: Use 'ip ospf database-filter all out' (with hyphen and 'out'), NOT 'ip ospf database filter all'.\n"
-                    "- CISCO NAT: Always use 'ip nat inside source list <acl> interface <int> overload' (must include the word 'inside'), NOT 'ip nat source list...'.\n"
-                    "- CISCO NETFLOW (Flexible NetFlow): 1. Define 'flow record <name>' (match ipv4 source/dest, collect counter bytes/packets). 2. Define 'flow exporter <name>' (destination <ip>, transport udp <port>). 3. Define 'flow monitor <name>' (record <name>, exporter <name>). 4. Apply 'ip flow monitor <name> input' on interface.\n"
-                    "- CISCO QoS (Structural): 1. 'access-list 101 permit ospf any any'. 2. 'class-map CS6_CLASS' (match access-group 101). 3. 'policy-map QoS_POLICY'. 4. Inside 'policy-map', you MUST use 'class CS6_CLASS'. 5. Inside 'class', use 'set dscp 48'. 6. Apply 'service-policy output QoS_POLICY' under 'interface Ethernet0/0'.\n"
-                    "- CISCO SSH / VTY: 'transport input ssh' and 'access-class <acl> in' MUST be placed inside a 'line vty 0 4' block, NEVER at the global level.\n"
-                    "- VYOS (For 'juniper' in this lab): Use 'set interfaces ethernet eth1 address X.X.X.X/24', 'set protocols ospf area 0 network X.X.X.X/24', 'set protocols ospf area 0 hello-interval 5'.\n"
-                    "- CISCO LACP: 1. Define 'interface port-channel 1'. 2. Under member interfaces, use 'channel-group 1 mode active'. Use 'EthernetX/Y' for interfaces (e.g., Ethernet0/1).\n"
-                    "- JUNIPER OSPF: Use 'set protocols ospf area <area> interface <int>' syntax.\n"
-                    "- BGP: Ensure 'address-family' is used if multi-protocol (IPv4/IPv6) is involved. For Cisco, use 'neighbor <ip> remote-as <asn>'.\n"
-                    "- VPN: For Cisco Site-to-Site, define: crypto isakmp policy, crypto isakmp key, crypto ipsec transform-set, crypto map, and interface tunnel.\n"
-                    "- PLACEHOLDERS: NEVER use 'Unknown'. If a parameter is missing, use standard defaults: Interface 'Ethernet0/0' (Cisco IOU) or 'ge-0/0/0' (Juniper), IP '10.0.0.1'.\n\n"
-                    "### STRICT ISOLATION RULE ###\n"
-                    "Generate output ONLY for device: {device_name}.\n\n"
+                    "Expert {vendor} {os_version} CLI specialist.\n"
+                    "RULES: 1. Use {vendor} syntax ONLY. 2. NEVER mix vendors. 3. Output ONLY for {device_name}. 4. RESPECT shared constraints.\n"
+                    "GROUNDING: Use ONLY syntax in ### DOCUMENTATION ###. Never invent commands or unstated IPs/ASNs.\n"
+                    "HIERARCHY: Global commands at root. Sub-mode commands (under interface, router, class) indented with 2 spaces.\n"
+                    "REFERENTIAL INTEGRITY: Any referenced ACL, policy-map, route-map must be defined in the same output.\n"
+                    "FORBIDDEN: 'no' commands; global 'ip address' or 'service-policy'; using word 'Unknown'.\n"
+                    "VENDOR SPECIFICS:\n"
+                    "- Cisco IOS-XE: interface config requires 'interface <name>'. OSPF: 'router ospf <id>' or 'ip ospf <id> area <area>'. BGP: 'neighbor <ip> remote-as <asn>'.\n"
+                    "- Juniper/VyOS: 'set interfaces ...', 'set protocols ospf area <area> ...', 'set protocols bgp ...'.\n"
                     "{coordination_prompt}",
                 ),
                 (
@@ -631,6 +661,14 @@ class ConfigGenerator:
             try:
                 output: DeviceConfigOutput = cast(
                     DeviceConfigOutput, chain.invoke(llm_input)
+                )
+                # Estimate token usage for prompt & completion
+                prompt_est = (len(str(prompt)) + len(str(llm_input))) // 4
+                completion_est = len(str(output.model_dump())) // 4
+                self.token_counter.add_usage(
+                    f"generate_{device.name}",
+                    prompt=prompt_est,
+                    completion=completion_est,
                 )
             except ValidationError as ve:
                 logger.warning(
@@ -756,6 +794,13 @@ class ConfigGenerator:
                     current_config, vendor=device.vendor or "cisco"
                 )
 
+                # Topology & Directional semantic check for current device
+                acl_semantic_issues = [
+                    f"ACL SEMANTIC ERROR: {iss.details} FIX: {iss.remediation_suggestion}"
+                    for iss in self.topology_validator._check_acl_directional_logic(device.name, current_config, structured_intent)
+                    if iss.severity == "CRITICAL"
+                ]
+
                 # Step 4: Audit for Hallucinations (Zero-Tolerance)
                 hal_report = self.hallucination_detector.detect(
                     config=current_config,
@@ -784,6 +829,7 @@ class ConfigGenerator:
                 if (
                     not has_critical_issues
                     and not ref_issues
+                    and not acl_semantic_issues
                     and not hal_report.is_hallucinated
                 ):
                     break
@@ -802,6 +848,9 @@ class ConfigGenerator:
                             issue
                             + " (CRITICAL: You MUST define this entity in your output. Example: 'access-list 101 permit any' or 'route-map MY-MAP permit 10')"
                         )
+
+                if acl_semantic_issues:
+                    feedback_parts.extend(acl_semantic_issues)
 
                 if hal_report.is_hallucinated:
                     feedback_parts.append(
@@ -848,19 +897,19 @@ class ConfigGenerator:
             return {"device_name": device.name, "config": "ERROR", "error": str(e)}
 
     def distill_context(
-        self, raw_chunks: List[Dict[str, Any]], token_limit: int = 1500
+        self, raw_chunks: list[dict[str, Any]], token_limit: int = 800
     ) -> str:
         """
-        Token Efficiency (Rec 4): Strips noise from PDF chunks using regex.
+        Token Efficiency: Strips noise from PDF chunks using regex.
         Extracts ONLY CLI blocks and key configuration context.
-        Also applies 'Lost-in-the-Middle' reordering (Phase 3).
-        Enforces a hard token limit (Estimated) to prevent prompt bloat.
+        Also applies 'Lost-in-the-Middle' reordering.
+        Enforces a compact token limit (default 800 tokens) to prevent prompt bloat.
         Identifies and prioritizes CRITICAL VENDOR RESTRICTIONS (Negative Grounding).
         """
         # Phase 3: Reorder chunks to put most relevant at edges
         raw_chunks = self.vector_store.reorder_lost_in_the_middle(raw_chunks)
 
-        restrictions: List[str] = []
+        restrictions: list[str] = []
         distilled: str = ""
         current_token_est = 0
 
@@ -896,10 +945,10 @@ class ConfigGenerator:
                 continue
 
             # 2. Extract CLI lines
-            cli_lines: List[str] = cli_pattern.findall(text)
+            cli_lines: list[str] = cli_pattern.findall(text)
 
             # 3. Extract prose that looks like a definition or example
-            prose_context: List[str] = []
+            prose_context: list[str] = []
             for line in lines:
                 if any(
                     k in line.lower()
@@ -939,22 +988,27 @@ class ConfigGenerator:
                 if hierarchy_str:
                     chunk_str += f"DOCUMENTATION_PATH: {hierarchy_str}\n"
                 if cli_lines:
-                    chunk_str += "CLI_SYNTAX:\n" + "\n".join(cli_lines[:15]) + "\n"
+                    chunk_str += "CLI_SYNTAX:\n" + "\n".join(cli_lines[:8]) + "\n"
                 if prose_context:
-                    chunk_str += "USAGE_RULES:\n" + "\n".join(prose_context[:5]) + "\n"
+                    chunk_str += "USAGE_RULES:\n" + "\n".join(prose_context[:2]) + "\n"
                 chunk_str += "---\n"
 
                 distilled += chunk_str
                 # Conservative estimate for CLI/Code: 1 token per 3 characters (Fix F9)
                 current_token_est += len(chunk_str) // 3
 
-        # Combine: Restrictions go FIRST
+        # Combine: Restrictions go FIRST (capped to top 3 to preserve tokens)
         final_output = ""
         if restrictions:
             final_output += "!!! CRITICAL VENDOR RESTRICTIONS !!!\n"
-            final_output += "\n".join(restrictions[:5]) + "\n\n"
+            final_output += "\n".join(restrictions[:3]) + "\n\n"
 
         final_output += distilled
+        # Hard token ceiling cap on total output (conservative: 1 token = 3 chars)
+        max_total_chars = token_limit * 3
+        if len(final_output) > max_total_chars:
+            final_output = final_output[:max_total_chars]
+
         return final_output
 
     def _check_lite_intent(self, intent: StructuredIntent) -> bool:
@@ -1068,42 +1122,8 @@ class ConfigGenerator:
             "pim",
         ]
 
-        # Check for complex protocols or multi-device scenarios
-        if intent.protocol and any(
-            proto in str(intent.protocol).lower() for proto in complex_protocols
-        ):
-            return 2
-
-        # Multiple devices often need more refinement for consistency
-        if len(intent.devices) > 1:
-            return 2
-
-        # Check for complex parameters that often need refinement
-        param_str = str(intent.parameters).lower()
-        complex_indicators = [
-            "access-list",
-            "policy-map",
-            "class-map",
-            "route-map",
-            "flow",
-            "exporter",
-            "monitor",
-            "record",
-            "bgp",
-            "as-number",
-            "neighbor",
-            "vrrp",
-            "vrf",
-            "vrrp",
-            "vrf",
-            "multicast",
-            "anycast",
-        ]
-
-        if any(indicator in param_str for indicator in complex_indicators):
-            return 2
-
-        # Default to 1 refinement for most cases
+        # Default to 1 refinement max across all scenarios to prevent token explosion.
+        # Deterministic parameter normalization and state graph invariants handle consistency.
         return 1
 
     @with_retry(max_retries=5)
@@ -1113,7 +1133,7 @@ class ConfigGenerator:
         config: str,
         error_feedback: str,
         vendor: str,
-        os_version: Optional[str] = None,
+        os_version: str | None = None,
     ) -> str:
         """
         Refines a configuration based on validation error feedback.

@@ -1,5 +1,5 @@
+
 from pydantic import BaseModel
-from typing import Dict
 
 
 class TokenUsage(BaseModel):
@@ -19,7 +19,7 @@ class TokenCounter:
     """
 
     def __init__(self) -> None:
-        self.session_usage: Dict[str, TokenUsage] = {}
+        self.session_usage: dict[str, TokenUsage] = {}
 
     def add_usage(
         self, call_id: str, prompt: int, completion: int, model: str = "llama3"

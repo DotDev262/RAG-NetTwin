@@ -1,7 +1,8 @@
+import json
 import os
 import shutil
 import sys
-import json
+
 from rich.console import Console
 from rich.panel import Panel
 

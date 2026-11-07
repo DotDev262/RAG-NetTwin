@@ -19,10 +19,10 @@ Typical Usage:
     print(metadata)  # {'name': 'Router-A', 'vendor': 'cisco', 'os_type': 'ios-xe', 'os_version': '17.6', 'found_in_inventory': True}
 """
 
-import os
 import json
-from typing import Dict, Any, Optional
+import os
 from pathlib import Path
+from typing import Any
 
 
 class InventoryResolver:
@@ -55,7 +55,7 @@ class InventoryResolver:
         True
     """
 
-    def __init__(self, inventory_path: Optional[str] = None):
+    def __init__(self, inventory_path: str | None = None):
         """
         Initialize the InventoryResolver.
 
@@ -70,7 +70,7 @@ class InventoryResolver:
         )
         self.inventory = self._load_inventory()
 
-    def _load_inventory(self) -> Dict[str, Any]:
+    def _load_inventory(self) -> dict[str, Any]:
         """
         Load local inventory mapping from JSON file.
 
@@ -92,7 +92,7 @@ class InventoryResolver:
                 print(f"Warning: Failed to load inventory from {path}: {e}")
         return {}
 
-    def resolve(self, hostname: str) -> Dict[str, Any]:
+    def resolve(self, hostname: str) -> dict[str, Any]:
         """
         Main entry point to resolve device facts.
 
@@ -152,7 +152,7 @@ class InventoryResolver:
             "found_in_inventory": False,
         }
 
-    def _query_live_device(self, hostname: str) -> Dict[str, Any]:
+    def _query_live_device(self, hostname: str) -> dict[str, Any]:
         """
         Uses NAPALM to fetch real version info from a device.
 

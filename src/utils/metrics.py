@@ -1,8 +1,8 @@
-from typing import List
+
 import numpy as np
 
 
-def calculate_mrr(relevant_id: str, retrieved_ids: List[str]) -> float:
+def calculate_mrr(relevant_id: str, retrieved_ids: list[str]) -> float:
     """
     Calculates Mean Reciprocal Rank (MRR).
     """
@@ -13,7 +13,7 @@ def calculate_mrr(relevant_id: str, retrieved_ids: List[str]) -> float:
         return 0.0
 
 
-def calculate_ndcg(relevant_id: str, retrieved_ids: List[str]) -> float:
+def calculate_ndcg(relevant_id: str, retrieved_ids: list[str]) -> float:
     """
     Calculates Normalized Discounted Cumulative Gain (NDCG) for a single relevant item.
     """

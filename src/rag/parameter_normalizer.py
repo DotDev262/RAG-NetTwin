@@ -1,7 +1,7 @@
 import abc
-import re
 import ipaddress
-from typing import Dict, Any
+import re
+from typing import Any
 
 
 class BaseVendorNormalizer(abc.ABC):
@@ -10,14 +10,12 @@ class BaseVendorNormalizer(abc.ABC):
     """
 
     @abc.abstractmethod
-    def normalize_ip_parameters(self, parameters: Dict[str, Any]) -> str:
+    def normalize_ip_parameters(self, parameters: dict[str, Any]) -> str:
         """Scan parameters and generate vendor-specific hints."""
-        pass
 
     @abc.abstractmethod
     def post_process_config(self, config: str) -> str:
         """Fix common vendor-specific syntactic errors in the final configuration."""
-        pass
 
 
 class CiscoNormalizer(BaseVendorNormalizer):
@@ -25,7 +23,7 @@ class CiscoNormalizer(BaseVendorNormalizer):
     Cisco-specific configuration normalizer.
     """
 
-    def normalize_ip_parameters(self, parameters: Dict[str, Any]) -> str:
+    def normalize_ip_parameters(self, parameters: dict[str, Any]) -> str:
         hints = []
         for key, val in parameters.items():
             if not isinstance(val, str):
@@ -325,7 +323,7 @@ class JuniperNormalizer(BaseVendorNormalizer):
     Juniper-specific configuration normalizer.
     """
 
-    def normalize_ip_parameters(self, parameters: Dict[str, Any]) -> str:
+    def normalize_ip_parameters(self, parameters: dict[str, Any]) -> str:
         hints = []
         for key, val in parameters.items():
             if not isinstance(val, str):
@@ -360,7 +358,7 @@ class VyOSNormalizer(BaseVendorNormalizer):
     VyOS-specific configuration normalizer.
     """
 
-    def normalize_ip_parameters(self, parameters: Dict[str, Any]) -> str:
+    def normalize_ip_parameters(self, parameters: dict[str, Any]) -> str:
         hints = []
         for key, val in parameters.items():
             if not isinstance(val, str):
@@ -409,7 +407,7 @@ class ParameterNormalizer:
             return CiscoNormalizer()
 
     @staticmethod
-    def normalize_ip_parameters(parameters: Dict[str, Any], vendor: str) -> str:
+    def normalize_ip_parameters(parameters: dict[str, Any], vendor: str) -> str:
         """
         Scans parameters for IP/CIDR strings and generates vendor-specific hints.
         """

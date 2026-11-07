@@ -25,12 +25,22 @@ A research system that synthesizes network CLI configurations from natural langu
 - **GraphRAG**: Hierarchical knowledge graph (1,334 nodes, 162 communities, 13.5 avg degree)
 - **Mandatory Citation Refinement**: Every generated command includes a verifiable documentation citation
 - **Version-Locked Retrieval**: Filters by OS version (IOS-XE 17.6, JunOS 21.4)
-- **Three-Tier Validation**:
+- **State-Invariant Graph Controller (v2)**: Topology graph registry with synthesis-time constraint injection and interactive conflict interception
+- **Multi-Tier Validation Pipeline**:
   - **Tier 1**: Batfish static analysis (syntax validation)
+  - **Tier 1.5**: Topology-Aware Validation (OSPF adjacency, BGP session, MTU, subnet continuity, ACL direction)
   - **Tier 2**: Referential Integrity (parameter-command consistency)
-  - **Tier 3**: Network Master Plan (GNS3 functional simulation)
+- **Compile-Time LLM Rule Encoder**: Automated offline extraction of cross-vendor alignment rules from RFCs and command references (`src.rule_encoder`)
 - **Multi-Vendor**: Cisco IOS-XE, Juniper JunOS
 - **API Key Rotation**: Automatic rotation across multiple Groq API keys on rate limit
+
+---
+
+## Detailed Documentation
+
+- **[v2 Complete User Guide](docs/USAGE_V2.md)**: State-Invariant Graph Controller, Topology-Aware Validation, and Offline Rule Encoder CLI.
+- **[Usage Guide](docs/USAGE.md)**: Interactive CLI and evaluation workflows.
+- **[Installation Guide](docs/INSTALLATION.md)**: Setup and Batfish WSL instructions.
 
 ---
 

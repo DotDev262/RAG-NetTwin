@@ -1,5 +1,5 @@
 import math
-from typing import List, Dict
+
 from rich.console import Console
 from rich.table import Table
 
@@ -47,7 +47,7 @@ class StatsReporter:
         return f"{p_val:.4f}"
 
     def generate_summary_table(
-        self, results: List[Dict], retrieval_mode: str = "tiered"
+        self, results: list[dict], retrieval_mode: str = "tiered"
     ):
         summary: list[dict[str, str]] = []
         mode_counts = {}

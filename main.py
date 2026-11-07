@@ -26,12 +26,11 @@ Typical Usage:
 
 # Ensure src is in path for imports
 
+from src.config import settings
+from src.exporter.gns3_exporter import GNS3Exporter
 from src.parser.intent_parser import IntentParser
 from src.rag.config_generator import ConfigGenerator
-from src.exporter.gns3_exporter import GNS3Exporter
-from src.evaluation.blast_radius_analyzer import BlastRadiusAnalyzer
-from src.utils import setup_logger, generate_audit_report
-from src.config import settings
+from src.utils import generate_audit_report, setup_logger
 
 # Initialize Logger for this module
 logger = setup_logger("CLI")
@@ -68,7 +67,6 @@ def main():
         parser = IntentParser()
         generator = ConfigGenerator()
         exporter = GNS3Exporter()
-        blast_analyzer = BlastRadiusAnalyzer()
         logger.info("Components initialized successfully")
     except Exception as e:
         logger.error(f"Initialization Error: {e}", exc_info=True)
@@ -211,6 +209,29 @@ def main():
                         "   Start validators: sudo ./scripts/install_validators_ubuntu.sh --verify"
                     )
 
+            # Step 4.75: Tier 1.5 Topology-Aware Validation Pipeline (Pre-Emulation Intermediate Tier)
+            active_device_configs = {
+                k: v["config"]
+                for k, v in configs.items()
+                if k is not None and not k.startswith("_") and v.get("config") not in [None, "ERROR"]
+            }
+            if active_device_configs:
+                try:
+                    from src.validation.topology_validator import TopologyAwareValidator
+
+                    print("\n[4.5/6] Running Topology-Aware Validation Pipeline (Tier 1.5)...")
+                    topo_val = TopologyAwareValidator()
+                    topo_report = topo_val.validate(active_device_configs, structured_intent)
+                    if topo_report.get("status") == "PASS":
+                        print(f"✅ Tier 1.5 Topology Validation PASS: {topo_report.get('summary')}")
+                    else:
+                        print(f"⚠️  Tier 1.5 Topology Validation {topo_report.get('status')}: {topo_report.get('summary')}")
+                        for iss in topo_report.get("issues", []):
+                            print(f"   - [{iss['error_type']}] {iss['details']}")
+                            print(f"     Remediation: {iss['remediation_suggestion']}")
+                except Exception as e:
+                    print(f"\n⚠️  Tier 1.5 Topology Validation failed: {e}")
+
             # Step 5: Export Digital Twin Topology
             print("\n[5/6] Exporting Digital Twin (Topology-as-Code)...")
             print("Select Topology Export Mode:")
@@ -251,7 +272,7 @@ def main():
                     print("Would you like to inspect any grounding chunk details? (y/n)")
                     inspect_choice = input("> ").strip().lower()
                     if inspect_choice == "y":
-                        from scripts.audit_demo import load_index, display_chunk
+                        from scripts.audit_demo import display_chunk, load_index
                         chunk_index = load_index()
                         while True:
                             print(f"\nEnter Chunk ID to inspect ({', '.join(all_cited_chunks)}) or 'done':")
@@ -321,17 +342,6 @@ def main():
                             # 4. Capture Post-Change State
                             print("      ✓ Capturing Post-Change State...")
                             post_state = gns3.get_network_state(result.get("nodes", {}))
-
-                            # 5. Analyze Blast Radius
-                            print(
-                                "\n[8/7] Analyzing Blast Radius (Impact Assessment)..."
-                            )
-                            analysis = blast_analyzer.analyze(
-                                user_input, pre_state, post_state
-                            )
-                            print("\n--- Blast Radius Analysis ---")
-                            print(analysis)
-                            print("------------------------------")
 
                             print("\n--- Functional Verification Results ---")
                             for dev, v_list in v_results.items():

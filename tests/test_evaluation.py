@@ -1,27 +1,27 @@
-import pytest
 import warnings
-from typing import Dict, Any
+from typing import Any
+
+import pytest
 
 # Suppress telnetlib deprecation warning (slated for removal in Python 3.13)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning:telnetlib")
 
 # Add src to path for imports
-import sys  # noqa: E402
-from pathlib import Path  # noqa: E402
+import sys
+from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-# noqa: E402
-from src.schemas.intent import StructuredIntent  # noqa: E402
-from run_paper_eval import PaperQualityEvaluator  # noqa: E402
+from run_paper_eval import PaperQualityEvaluator
+from src.schemas.intent import StructuredIntent
 
 
 class MockEvaluator(PaperQualityEvaluator):
     def __init__(self) -> None:
         # Skip the heavy initialization
         self.vanilla_llm = None
-        self.rag_cache: Dict[str, Any] = {}
-        self.vanilla_cache: Dict[str, Any] = {}
+        self.rag_cache: dict[str, Any] = {}
+        self.vanilla_cache: dict[str, Any] = {}
 
         # Initialize sub-components for testing
         from src.evaluation.cache_manager import CacheManager
@@ -32,7 +32,7 @@ class MockEvaluator(PaperQualityEvaluator):
         self.cfr_checker = CFRChecker()
         self.stats_reporter = StatsReporter()
 
-    def _junos_config_to_dict(self, config: str) -> Dict[str, Any]:
+    def _junos_config_to_dict(self, config: str) -> dict[str, Any]:
         return self.cfr_checker._junos_config_to_dict(config)
 
     def _check_cfr(self, intent: StructuredIntent, config: str) -> bool:
@@ -112,6 +112,7 @@ def test_check_cfr_multivendor_partial_missing(evaluator):
 
 def test_evaluation_mode_strict_skips_gns3():
     from unittest.mock import MagicMock
+
     from run_paper_eval import PaperQualityEvaluator
     from src.schemas.intent import StructuredIntent
 
@@ -177,6 +178,7 @@ def test_evaluation_mode_strict_skips_gns3():
 
 def test_evaluation_mode_observational_runs_gns3():
     from unittest.mock import MagicMock
+
     from run_paper_eval import PaperQualityEvaluator
     from src.schemas.intent import StructuredIntent
 
@@ -247,36 +249,38 @@ def test_evaluation_mode_observational_runs_gns3():
 def test_groq_key_rotator_rotation():
     import os
     from unittest.mock import patch
-    from src.llm.provider import GroqKeyRotator
+
     from src.config import settings
+    from src.llm.provider import GroqKeyRotator
 
     # Mock environment variable to load multiple keys and override settings
     with patch.dict(
         os.environ, {"GROQ_API_KEYS": "key1,key2,key3", "GROQ_API_KEY": ""}
-    ):
-        with patch.object(settings, "groq_api_key", ""):
-            rotator = GroqKeyRotator()
+    ), patch.object(settings, "groq_api_key", ""):
+        rotator = GroqKeyRotator()
 
-            assert rotator.get_keys_count() == 3
-            assert rotator.get_current_key() == "key1"
+        assert rotator.get_keys_count() == 3
+        assert rotator.get_current_key() == "key1"
 
-            # First rotation
-            assert rotator.rotate_key() is True
-            assert rotator.get_current_key() == "key2"
+        # First rotation
+        assert rotator.rotate_key() is True
+        assert rotator.get_current_key() == "key2"
 
-            # Second rotation
-            assert rotator.rotate_key() is True
-            assert rotator.get_current_key() == "key3"
+        # Second rotation
+        assert rotator.rotate_key() is True
+        assert rotator.get_current_key() == "key3"
 
-            # Third rotation wraps around
-            assert rotator.rotate_key() is True
-            assert rotator.get_current_key() == "key1"
+        # Third rotation wraps around
+        assert rotator.rotate_key() is True
+        assert rotator.get_current_key() == "key1"
 
 
 def test_rotating_chat_groq_retries_and_rotates_on_429():
     from unittest.mock import MagicMock, patch
-    from src.llm.provider import RotatingChatGroq, GroqKeyRotator
+
     from langchain_core.messages import HumanMessage
+
+    from src.llm.provider import GroqKeyRotator, RotatingChatGroq
 
     rotator = GroqKeyRotator()
     rotator._keys = ["key1", "key2"]

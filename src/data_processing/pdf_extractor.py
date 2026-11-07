@@ -13,7 +13,8 @@ Requirements:
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
+
 from opendataloader_pdf import convert  # type: ignore
 
 from src.utils import setup_logger
@@ -23,7 +24,7 @@ logger = setup_logger("PDFExtractor")
 
 def extract_text_from_pdf(
     pdf_path: str, use_hybrid: bool = False
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Extracts text from a PDF file using OpenDataLoader.
 

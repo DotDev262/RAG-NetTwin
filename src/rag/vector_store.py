@@ -28,24 +28,23 @@ Typical Usage:
     )
 """
 
-import json
 import hashlib
-import os
+import json
 import logging
-from typing import List, Dict, Any, Optional, cast
+import os
 from pathlib import Path
+from typing import Any, cast
 
 import chromadb
 import networkx as nx  # type: ignore
 from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 from networkx.readwrite import json_graph  # type: ignore
 from rank_bm25 import BM25Okapi  # type: ignore
 from sentence_transformers import CrossEncoder
 
 from src.config import settings
 from src.utils import setup_logger
-
-from chromadb.utils import embedding_functions
 
 # Suppress transformer and BERT loading reports
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -83,7 +82,7 @@ class VectorStore:
         and defaults to a sentence-transformer model for semantic similarity.
     """
 
-    def __init__(self, persist_dir: Optional[str] = None):
+    def __init__(self, persist_dir: str | None = None):
         """
         Initialize the VectorStore.
 
@@ -162,12 +161,12 @@ class VectorStore:
         )
 
         # Hybrid Search: BM25 components
-        self.bm25: Optional[BM25Okapi] = None
-        self.corpus_map: Dict[str, Dict[str, Any]] = {}  # chunk_id -> chunk_data
+        self.bm25: BM25Okapi | None = None
+        self.corpus_map: dict[str, dict[str, Any]] = {}  # chunk_id -> chunk_data
         self._initialize_bm25()
 
         # Reranker: Cross-Encoder (Recommendation 1 Elite)
-        self.reranker: Optional[CrossEncoder] = None
+        self.reranker: CrossEncoder | None = None
         try:
             self.reranker = CrossEncoder(
                 settings.reranker_model_name, trust_remote_code=True
@@ -177,7 +176,7 @@ class VectorStore:
             logger.error(f"Failed to initialize Reranker: {e}")
 
         # Knowledge Graph: GraphRAG components (Recommendation 4)
-        self.graph: Optional[nx.Graph] = None
+        self.graph: nx.Graph | None = None
         self._load_knowledge_graph()
 
         print(f"Connected to ChromaDB at {self.persist_dir}")
@@ -251,8 +250,8 @@ class VectorStore:
             logger.error(f"Failed to load documentation knowledge graph: {e}")
 
     def retrieve_community_context(
-        self, seed_chunks: List[Dict[str, Any]], max_additional_chunks: int = 15
-    ) -> List[Dict[str, Any]]:
+        self, seed_chunks: list[dict[str, Any]], max_additional_chunks: int = 15
+    ) -> list[dict[str, Any]]:
         """
         Community-Aware Retrieval (SOTA GraphRAG):
         Identifies the community clusters of the seed chunks and retrieves the entire cluster.
@@ -340,17 +339,17 @@ class VectorStore:
             if not all_data or not all_data.get("ids"):
                 return
 
-            tokenized_corpus: List[List[str]] = []
-            ids: List[str] = cast(List[str], all_data.get("ids") or [])
-            documents: List[str] = cast(List[str], all_data.get("documents") or [])
-            metadatas: List[Dict[str, Any]] = cast(
-                List[Dict[str, Any]], all_data.get("metadatas") or []
+            tokenized_corpus: list[list[str]] = []
+            ids: list[str] = cast(list[str], all_data.get("ids") or [])
+            documents: list[str] = cast(list[str], all_data.get("documents") or [])
+            metadatas: list[dict[str, Any]] = cast(
+                list[dict[str, Any]], all_data.get("metadatas") or []
             )
 
             for i in range(len(ids)):
                 chunk_id: str = ids[i]
                 text: str = documents[i]
-                metadata: Dict[str, Any] = metadatas[i]
+                metadata: dict[str, Any] = metadatas[i]
 
                 # Store in map for fast lookup during retrieval
                 self.corpus_map[chunk_id] = {
@@ -367,7 +366,7 @@ class VectorStore:
         except Exception as e:
             print(f"Failed to initialize BM25: {e}")
 
-    def add_chunks(self, chunks: List[Any], batch_size: int = 1000) -> None:
+    def add_chunks(self, chunks: list[Any], batch_size: int = 1000) -> None:
         """
         Add chunks to vector database in batches with CPU throttling.
 
@@ -473,12 +472,12 @@ class VectorStore:
     def retrieve(
         self,
         query: str,
-        vendor: Optional[str] = None,
-        os_version: Optional[str] = None,
-        tier: Optional[int] = None,
+        vendor: str | None = None,
+        os_version: str | None = None,
+        tier: int | None = None,
         n_results: int = 5,
         exact_version: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieve relevant chunks for a query.
 
@@ -524,7 +523,7 @@ class VectorStore:
         """
         # Build where clause for filtering
         # ChromaDB supports $and for combining multiple conditions
-        where_conditions: List[Dict[str, Any]] = []
+        where_conditions: list[dict[str, Any]] = []
         if vendor:
             where_conditions.append({"vendor": vendor})
         if os_version:
@@ -534,7 +533,7 @@ class VectorStore:
             where_conditions.append({"tier": tier})
 
         # Construct the where clause based on number of conditions
-        where_clause: Optional[Dict[str, Any]] = None
+        where_clause: dict[str, Any] | None = None
         if len(where_conditions) == 1:
             # Single condition - use directly
             where_clause = where_conditions[0]
@@ -559,7 +558,7 @@ class VectorStore:
         )
 
         # Format results into list of dicts
-        formatted_results: List[Dict[str, Any]] = []
+        formatted_results: list[dict[str, Any]] = []
         ids_list = results.get("ids")
         documents_list = results.get("documents")
         metadatas_list = results.get("metadatas")
@@ -581,7 +580,7 @@ class VectorStore:
 
         return formatted_results
 
-    def add_few_shot_examples(self, examples: List[Dict[str, str]]):
+    def add_few_shot_examples(self, examples: list[dict[str, str]]):
         """
         Adds examples to the few-shot collection.
         Each example should have 'intent' (NL) and 'structured' (JSON string).
@@ -589,11 +588,11 @@ class VectorStore:
         if not examples:
             return
 
-        ids: List[str] = [
+        ids: list[str] = [
             hashlib.md5(ex["intent"].encode()).hexdigest() for ex in examples
         ]
-        documents: List[str] = [ex["intent"] for ex in examples]
-        metadatas: List[Dict[str, Any]] = [
+        documents: list[str] = [ex["intent"] for ex in examples]
+        metadatas: list[dict[str, Any]] = [
             {"structured": ex["structured"]} for ex in examples
         ]
 
@@ -608,7 +607,7 @@ class VectorStore:
         )
         print(f"Added {len(examples)} examples to few-shot collection.")
 
-    def retrieve_few_shot(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
+    def retrieve_few_shot(self, query: str, n_results: int = 3) -> list[dict[str, Any]]:
         """
         Retrieves the most similar intent-to-json examples.
         """
@@ -619,7 +618,7 @@ class VectorStore:
             query_embeddings=query_embeddings, n_results=n_results
         )
 
-        formatted: List[Dict[str, Any]] = []
+        formatted: list[dict[str, Any]] = []
         ids_list = results.get("ids")
         documents_list = results.get("documents")
         metadatas_list = results.get("metadatas")
@@ -638,7 +637,7 @@ class VectorStore:
             )
         return formatted
 
-    def add_gold_configs(self, examples: List[Dict[str, str]]):
+    def add_gold_configs(self, examples: list[dict[str, str]]):
         """
         Adds Intent-to-Config examples to the gold standard collection.
         Examples should have 'intent', 'vendor', and 'config'.
@@ -646,12 +645,12 @@ class VectorStore:
         if not examples:
             return
 
-        ids: List[str] = [
+        ids: list[str] = [
             hashlib.md5(f"{ex['vendor']}:{ex['intent']}".encode()).hexdigest()
             for ex in examples
         ]
-        documents: List[str] = [ex["intent"] for ex in examples]
-        metadatas: List[Dict[str, Any]] = [
+        documents: list[str] = [ex["intent"] for ex in examples]
+        metadatas: list[dict[str, Any]] = [
             {"vendor": ex["vendor"], "config": ex["config"]} for ex in examples
         ]
 
@@ -667,7 +666,7 @@ class VectorStore:
 
     def retrieve_gold_configs(
         self, query: str, vendor: str, n_results: int = 2
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieves the most similar Intent-to-Config examples for a vendor.
         """
@@ -678,7 +677,7 @@ class VectorStore:
             where={"vendor": vendor},
         )
 
-        formatted: List[Dict[str, Any]] = []
+        formatted: list[dict[str, Any]] = []
         ids_list = results.get("ids")
         documents_list = results.get("documents")
         metadatas_list = results.get("metadatas")
@@ -699,7 +698,7 @@ class VectorStore:
 
     def check_intent_parsing_cache(
         self, intent_text: str, threshold: float = 0.05
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Efficiency Phase 1: Semantic Intent Cache.
         Checks if a similar intent has already been parsed.
@@ -725,7 +724,7 @@ class VectorStore:
         return None
 
     def update_intent_parsing_cache(
-        self, intent_text: str, structured_intent: Dict[str, Any]
+        self, intent_text: str, structured_intent: dict[str, Any]
     ) -> None:
         """
         Efficiency Phase 1: Semantic Intent Cache.
@@ -741,11 +740,11 @@ class VectorStore:
     def check_cache(
         self,
         intent_text: str,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         vendor: str,
         retrieval_mode: str = "tiered",
         threshold: float = 0.02,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Checks the semantic cache for a matching intent, specific to retrieval mode.
         Threshold: 0.02 allows for slightly more variation while maintaining specificity.
@@ -783,9 +782,9 @@ class VectorStore:
     def update_cache(
         self,
         intent_text: str,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         vendor: str,
-        response: Dict[str, Any],
+        response: dict[str, Any],
         retrieval_mode: str = "tiered",
         version: str = "1.0.0",
     ):
@@ -822,7 +821,7 @@ class VectorStore:
         ]:
             try:
                 ids_result = coll.get()
-                ids: Optional[List[str]] = ids_result.get("ids")
+                ids: list[str] | None = ids_result.get("ids")
                 if ids:
                     coll.delete(ids=ids)
                     logger.info(f"Purged {len(ids)} entries from {coll_name}.")
@@ -832,12 +831,12 @@ class VectorStore:
     def hybrid_retrieve(
         self,
         query: str,
-        vendor: Optional[str] = None,
-        os_version: Optional[str] = None,
-        tier: Optional[int] = None,
+        vendor: str | None = None,
+        os_version: str | None = None,
+        tier: int | None = None,
         n_results: int = 5,
         k: int = 60,  # RRF constant
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Performs Hybrid Search using Reciprocal Rank Fusion (RRF).
         Combines Semantic (Vector) and Keyword (BM25) results.
@@ -849,15 +848,15 @@ class VectorStore:
     def _hybrid_retrieve_internal(
         self,
         query: str,
-        vendor: Optional[str] = None,
-        os_version: Optional[str] = None,
-        tier: Optional[int] = None,
+        vendor: str | None = None,
+        os_version: str | None = None,
+        tier: int | None = None,
         n_results: int = 5,
         k: int = 60,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Internal hybrid retrieval logic."""
         # 1. Semantic Search
-        vector_results: List[Dict[str, Any]] = self.retrieve(
+        vector_results: list[dict[str, Any]] = self.retrieve(
             query, vendor, os_version, tier, n_results=n_results * 2
         )
 
@@ -865,20 +864,20 @@ class VectorStore:
         if not self.bm25:
             return vector_results  # Fallback
 
-        tokenized_query: List[str] = query.lower().split()
+        tokenized_query: list[str] = query.lower().split()
         # Get top matching docs from BM25
         bm25_scores = self.bm25.get_scores(tokenized_query)
 
         # Sort BM25 results by score and apply filters manually
-        bm25_ranked: List[str] = []
-        all_ids: List[str] = list(self.corpus_map.keys())
+        bm25_ranked: list[str] = []
+        all_ids: list[str] = list(self.corpus_map.keys())
         for idx, score in enumerate(bm25_scores):
             if score > 0:
                 chunk_id: str = all_ids[idx]
-                chunk: Dict[str, Any] = self.corpus_map[chunk_id]
+                chunk: dict[str, Any] = self.corpus_map[chunk_id]
 
                 # Apply metadata filters
-                meta: Dict[str, Any] = chunk["metadata"]
+                meta: dict[str, Any] = chunk["metadata"]
                 if vendor and meta.get("vendor") != vendor:
                     continue
 
@@ -895,8 +894,8 @@ class VectorStore:
         bm25_ranked = bm25_ranked[: n_results * 2]
 
         # 3. Reciprocal Rank Fusion (RRF)
-        rrf_scores: Dict[str, float] = {}  # id -> rrf_score
-        vector_distances: Dict[str, float] = {}  # id -> distance
+        rrf_scores: dict[str, float] = {}  # id -> rrf_score
+        vector_distances: dict[str, float] = {}  # id -> distance
 
         # Add vector ranks
         for rank, res in enumerate(vector_results):
@@ -913,13 +912,13 @@ class VectorStore:
             )
 
         # 4. Final Ranking
-        sorted_ids: List[str] = sorted(
+        sorted_ids: list[str] = sorted(
             rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True
         )
 
-        final_results: List[Dict[str, Any]] = []
+        final_results: list[dict[str, Any]] = []
         for chunk_id_final in sorted_ids[:n_results]:
-            chunk_final: Dict[str, Any] = self.corpus_map[chunk_id_final]
+            chunk_final: dict[str, Any] = self.corpus_map[chunk_id_final]
             final_results.append(
                 {
                     "id": chunk_final["id"],
@@ -933,8 +932,8 @@ class VectorStore:
         return final_results
 
     def rerank(
-        self, query: str, chunks: List[Dict[str, Any]], n_results: int = 1
-    ) -> List[Dict[str, Any]]:
+        self, query: str, chunks: list[dict[str, Any]], n_results: int = 1
+    ) -> list[dict[str, Any]]:
         """
         Uses the local Cross-Encoder to re-score and rank chunks.
         """
@@ -945,7 +944,7 @@ class VectorStore:
         processed_chunks = [chunk.copy() for chunk in chunks]
 
         # Prepare pairs for the Cross-Encoder: (Query, Document)
-        pairs: List[List[str]] = [
+        pairs: list[list[str]] = [
             [query, str(chunk["text"])] for chunk in processed_chunks
         ]
 
@@ -975,14 +974,14 @@ class VectorStore:
 
             processed_chunks[i]["rerank_score"] = final_score
 
-        ranked: List[Dict[str, Any]] = sorted(
+        ranked: list[dict[str, Any]] = sorted(
             processed_chunks, key=lambda x: x.get("rerank_score", 0.0), reverse=True
         )
         return ranked[:n_results]
 
     def reorder_lost_in_the_middle(
-        self, chunks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, chunks: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Reorders chunks to put most relevant information at the beginning and end.
         Mitigates LLM 'Lost in the Middle' bias.
@@ -990,7 +989,7 @@ class VectorStore:
         if len(chunks) <= 2:
             return chunks
 
-        res: List[Optional[Dict[str, Any]]] = [None] * len(chunks)
+        res: list[dict[str, Any] | None] = [None] * len(chunks)
         for i, chunk in enumerate(chunks):
             if i % 2 == 0:
                 res[i // 2] = chunk
@@ -999,19 +998,19 @@ class VectorStore:
         return [c for c in res if c is not None]
 
     def retrieve_with_parents(
-        self, results: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, results: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Enhances results by fetching parent documents for any Tier 1 chunks.
         (Recommendation Elite: Knowledge Graph Readiness)
         """
-        enhanced_results: List[Dict[str, Any]] = list(results)
-        parent_ids_to_fetch: List[str] = []
+        enhanced_results: list[dict[str, Any]] = list(results)
+        parent_ids_to_fetch: list[str] = []
 
         # 1. Identify parents needed
         for res in results:
-            metadata: Dict[str, Any] = res.get("metadata", {})
-            parent_id: Optional[str] = metadata.get("parent_id")
+            metadata: dict[str, Any] = res.get("metadata", {})
+            parent_id: str | None = metadata.get("parent_id")
             if parent_id and parent_id != "":
                 # Check if parent is already in the results
                 if not any(r["id"] == parent_id for r in enhanced_results):
@@ -1024,14 +1023,14 @@ class VectorStore:
             )
             for pid in set(parent_ids_to_fetch):
                 if pid in self.corpus_map:
-                    parent_chunk: Dict[str, Any] = self.corpus_map[pid]
+                    parent_chunk: dict[str, Any] = self.corpus_map[pid]
                     # Tag as parent for LLM transparency
                     parent_chunk["metadata"]["is_parent_context"] = True
                     enhanced_results.append(parent_chunk)
 
         return enhanced_results
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get database statistics.
 

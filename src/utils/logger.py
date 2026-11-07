@@ -1,8 +1,9 @@
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -15,8 +16,8 @@ class LogEntry(BaseModel):
     level: str
     module: str
     message: str
-    exception: Optional[str] = None
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    exception: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class JsonFormatter(logging.Formatter):

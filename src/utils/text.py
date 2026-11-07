@@ -192,3 +192,68 @@ def clean_cli_prose(text: str) -> str:
             cleaned_lines.append(line)
 
     return "\n".join(cleaned_lines)
+
+
+CLI_KEYWORD_ABBREVIATIONS = {
+    r"\bint\b": "interface",
+    r"\bip add\b": "ip address",
+    r"\bsh\b": "show",
+    r"\bconf t\b": "configure terminal",
+    r"\bno shut\b": "no shutdown",
+    r"\bdesc\b": "description",
+    r"\bsw\b": "switchport",
+    r"\bsw mode\b": "switchport mode",
+    r"\bsw acc\b": "switchport access",
+    r"\bsw tr\b": "switchport trunk",
+}
+
+CASE_SENSITIVE_PREFIXES = (
+    "password",
+    "secret",
+    "community",
+    "description",
+    "banner",
+    "key-string",
+    "pre-shared-key",
+)
+
+
+def normalize_cli_command(line: str) -> str:
+    """
+    Normalizes a CLI command line:
+    1. Strips leading/trailing whitespace and squashes multiple spaces.
+    2. Expands common CLI abbreviations and aliases.
+    3. Handles case-insensitivity appropriately for commands where OS syntax allows it,
+       while preserving case-sensitive parameters (passwords, community strings, descriptions).
+    """
+    if not line:
+        return ""
+
+    # Squash spaces
+    clean = re.sub(r"[ \t]+", " ", line.strip())
+
+    # Check for case-sensitive segments
+    lower = clean.lower()
+    split_idx = -1
+    for prefix in CASE_SENSITIVE_PREFIXES:
+        match = re.search(rf"\b{prefix}\b", lower)
+        if match:
+            # We want to preserve case after the keyword
+            split_idx = match.end()
+            break
+
+    if split_idx != -1:
+        syntax_part = clean[:split_idx].lower()
+        param_part = clean[split_idx:]
+    else:
+        syntax_part = clean.lower()
+        param_part = ""
+
+    # Expand abbreviations in syntax part
+    for abbr_pat, full_kw in CLI_KEYWORD_ABBREVIATIONS.items():
+        syntax_part = re.sub(abbr_pat, full_kw, syntax_part)
+
+    # Recombine
+    combined = (syntax_part + param_part).strip()
+    return re.sub(r"[ \t]+", " ", combined)
+

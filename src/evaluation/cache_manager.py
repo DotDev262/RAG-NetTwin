@@ -1,8 +1,9 @@
-import os
 import json
+import os
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any
+
 from src.utils import setup_logger
 
 logger = setup_logger("CacheManager")
@@ -21,7 +22,7 @@ class CacheManager:
         self.lock = threading.Lock()
         os.makedirs(cache_dir, exist_ok=True)
 
-    def _is_expired(self, value: Dict[str, Any]) -> bool:
+    def _is_expired(self, value: dict[str, Any]) -> bool:
         """
         Check if a cache entry is expired based on its status.
         """
@@ -46,7 +47,7 @@ class CacheManager:
         except (ValueError, TypeError):
             return True
 
-    def load_cache(self, filename: str) -> Dict[str, Any]:
+    def load_cache(self, filename: str) -> dict[str, Any]:
         filepath = os.path.join(self.cache_dir, filename)
         with self.lock:
             if not os.path.exists(filepath):
@@ -65,7 +66,7 @@ class CacheManager:
                 logger.warning(f"Failed to load cache {filepath}: {e}")
                 return {}
 
-    def save_cache(self, filename: str, cache: Dict[str, Any]):
+    def save_cache(self, filename: str, cache: dict[str, Any]):
         if not cache:
             return
 
@@ -87,7 +88,7 @@ class CacheManager:
             except Exception as e:
                 logger.warning(f"Failed to save cache {filepath}: {e}")
 
-    def get(self, cache: Dict, key: str) -> Optional[Any]:
+    def get(self, cache: dict, key: str) -> Any | None:
         if key not in cache:
             return None
 
@@ -96,7 +97,7 @@ class CacheManager:
             return None
         return value
 
-    def set(self, cache: Dict, key: str, value: Any, mode: Optional[str] = None):
+    def set(self, cache: dict, key: str, value: Any, mode: str | None = None):
         cache[key] = {
             **value,
             "timestamp": datetime.now().isoformat(),

@@ -1,6 +1,7 @@
 import json
-import uuid
 import os
+import uuid
+
 from src.schemas.intent import StructuredIntent
 from src.utils import setup_logger
 

@@ -1,4 +1,5 @@
 import threading
+
 from src.validation.batfish_validator import BatfishValidator
 
 

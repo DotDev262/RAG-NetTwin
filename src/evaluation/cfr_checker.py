@@ -1,7 +1,9 @@
-import re
 import json
-from typing import Dict, Any
+import re
+from typing import Any
+
 from ciscoconfparse import CiscoConfParse  # type: ignore
+
 from src.utils import setup_logger
 
 logger = setup_logger("CFRChecker")
@@ -244,8 +246,8 @@ class CFRChecker:
         standalone_pattern = f"(?<![\\w/]){re.escape(value)}(?![\\w/])"
         return bool(re.search(standalone_pattern, config))
 
-    def _junos_config_to_dict(self, config: str) -> Dict[str, Any]:
-        tree: Dict[str, Any] = {}
+    def _junos_config_to_dict(self, config: str) -> dict[str, Any]:
+        tree: dict[str, Any] = {}
         for line in config.splitlines():
             line = line.strip()
             if not line or not line.startswith("set "):
@@ -258,7 +260,7 @@ class CFRChecker:
                 current = current[part]
         return tree
 
-    def _check_junos_parameter(self, tree: Dict, key: str, value: str) -> bool:
+    def _check_junos_parameter(self, tree: dict, key: str, value: str) -> bool:
         key_aliases = {
             "vlan": ["vlan-id", "vlan"],
             "area": ["area", "area-id"],

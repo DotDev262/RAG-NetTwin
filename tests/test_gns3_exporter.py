@@ -1,9 +1,9 @@
 import os
 
-# Add src to path
-
-from src.schemas.intent import StructuredIntent, DeviceIntent
 from src.exporter.gns3_exporter import GNS3Exporter
+
+# Add src to path
+from src.schemas.intent import DeviceIntent, StructuredIntent
 
 
 def test_export():

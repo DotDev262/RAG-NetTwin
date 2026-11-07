@@ -26,13 +26,15 @@ Typical Usage:
 import logging
 import os
 import threading
-from typing import Optional, Type, Any, cast, List
+from typing import Any, cast
+
+from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
-from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import SecretStr
+
 from src.config import settings
 
 # --- Groq API Key Rotation Infrastructure ---
@@ -42,7 +44,7 @@ class GroqKeyRotator:
     """Manages rotation of Groq API keys when rate limits are hit (thread-safe)."""
 
     def __init__(self):
-        self._keys: List[str] = []
+        self._keys: list[str] = []
         self._current_index = 0
         self._lock = threading.Lock()
         self.logger = logging.getLogger("GroqKeyRotator")
@@ -73,7 +75,7 @@ class GroqKeyRotator:
 
         self.logger.info(f"Initialized GroqKeyRotator with {len(self._keys)} keys.")
 
-    def get_current_key(self) -> Optional[str]:
+    def get_current_key(self) -> str | None:
         with self._lock:
             if not self._keys:
                 return None
@@ -119,7 +121,7 @@ class RotatingRunnable(Runnable):
         self._current_runnable = self.factory_func(key)
 
     def invoke(
-        self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any
+        self, input: Any, config: RunnableConfig | None = None, **kwargs: Any
     ) -> Any:
         attempts = max(1, self.rotator.get_keys_count())
         for attempt in range(attempts):
@@ -139,7 +141,7 @@ class RotatingRunnable(Runnable):
         raise RuntimeError("Failed after rotating all keys.")
 
     async def ainvoke(
-        self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any
+        self, input: Any, config: RunnableConfig | None = None, **kwargs: Any
     ) -> Any:
         attempts = max(1, self.rotator.get_keys_count())
         for attempt in range(attempts):
@@ -206,9 +208,9 @@ class RotatingChatGroq(BaseChatModel):
 
     def _generate(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         attempts = max(1, self.rotator.get_keys_count())
@@ -229,7 +231,7 @@ class RotatingChatGroq(BaseChatModel):
         raise RuntimeError("Failed after rotating all keys.")
 
     def with_structured_output(self, schema: Any, **kwargs: Any) -> Runnable:
-        def factory(api_key: Optional[str]) -> Runnable:
+        def factory(api_key: str | None) -> Runnable:
             from langchain_groq import ChatGroq
 
             api_key_secret = SecretStr(api_key) if api_key else None
@@ -275,12 +277,13 @@ class LLMProvider:
     PROVIDER_OLLAMA = "ollama"
 
     @staticmethod
-    def get_dspy_lm(model: Optional[str] = None) -> Any:
+    def get_dspy_lm(model: str | None = None) -> Any:
         """
         Returns a DSPy-compatible language model (Recommendation 3).
         Uses universal dspy.LM interface for maximum compatibility.
         """
         import dspy  # type: ignore
+
         from src.config import settings
 
         provider = settings.llm_provider
@@ -303,10 +306,10 @@ class LLMProvider:
 
     @staticmethod
     def get_llm(
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
+        provider: str | None = None,
+        model: str | None = None,
         temperature: float = 0.0,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         seed: int = 42,
     ) -> "BaseChatModel":
         """
@@ -356,9 +359,9 @@ class LLMProvider:
 
     @staticmethod
     def _get_groq_llm(
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.0,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         seed: int = 42,
     ) -> BaseChatModel:
         """
@@ -392,9 +395,9 @@ class LLMProvider:
 
     @staticmethod
     def _get_gemini_llm(
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.0,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         seed: int = 42,
     ) -> BaseChatModel:
         """
@@ -427,7 +430,7 @@ class LLMProvider:
 
     @staticmethod
     def _get_llamacpp_llm(
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.0,
         seed: int = 42,
     ) -> BaseChatModel:
@@ -461,7 +464,7 @@ class LLMProvider:
 
     @staticmethod
     def _get_ollama_llm(
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.0,
         seed: int = 42,
     ) -> BaseChatModel:
@@ -493,11 +496,11 @@ class LLMProvider:
 
     @staticmethod
     def get_structured_llm(
-        schema: Type[Any],
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
+        schema: type[Any],
+        provider: str | None = None,
+        model: str | None = None,
         temperature: float = 0.0,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         seed: int = 42,
     ) -> Runnable:
         """
@@ -542,7 +545,7 @@ class LLMProvider:
             return cast(Runnable, llm.with_structured_output(schema))
 
     @staticmethod
-    def validate_provider_config(provider: Optional[str] = None) -> bool:
+    def validate_provider_config(provider: str | None = None) -> bool:
         """
         Validate that the provider configuration is correct.
         """
@@ -567,7 +570,7 @@ class LLMProvider:
         ]
 
     @staticmethod
-    def get_default_model(provider: Optional[str] = None) -> str:
+    def get_default_model(provider: str | None = None) -> str:
         """
         Get the default model for a provider.
 
@@ -610,7 +613,7 @@ def get_llm(**kwargs) -> BaseChatModel:
     return LLMProvider.get_llm(**kwargs)
 
 
-def get_structured_llm(schema: Type[Any], **kwargs) -> Runnable:
+def get_structured_llm(schema: type[Any], **kwargs) -> Runnable:
     """
     Convenience function to get a structured LLM.
 

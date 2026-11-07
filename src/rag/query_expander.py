@@ -1,44 +1,49 @@
-from typing import List, Optional
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import CommaSeparatedListOutputParser
-from src.llm import LLMProvider
-from src.utils import with_retry
+
+import re
+from typing import Any
+
+from src.utils import setup_logger
+
+logger = setup_logger("QueryExpander")
+
+# Deterministic domain keyword mappings to expand search recall without LLM token cost
+DOMAIN_KEYWORD_MAPPINGS = {
+    "ospf": ["router ospf", "network area", "ip ospf hello-interval", "set protocols ospf area"],
+    "bgp": ["router bgp", "neighbor remote-as", "address-family ipv4", "set protocols bgp group"],
+    "vlan": ["vlan", "switchport access vlan", "switchport mode trunk", "set vlans"],
+    "acl": ["ip access-list extended", "permit ip", "deny ip", "set firewall family inet filter"],
+    "interface": ["interface GigabitEthernet", "ip address", "no shutdown", "set interfaces unit family inet"],
+    "static": ["ip route", "set routing-options static route"],
+    "nat": ["ip nat inside source", "ip nat outside", "set security nat"],
+}
 
 
 class QueryExpander:
     """
     Expands a single user intent into multiple semantic search queries
-    to improve retrieval recall.
+    to improve retrieval recall deterministically without incurring LLM token costs.
     """
 
-    def __init__(self, model_name: Optional[str] = None):
-        # Use a fast model for query expansion
-        self.llm = LLMProvider.get_llm(model=model_name, temperature=0.2)
-        self.output_parser = CommaSeparatedListOutputParser()
+    def __init__(self, model_name: str | None = None):
+        # Deterministic expansion does not require an LLM instance
+        self.model_name = model_name
 
-    @with_retry(max_retries=3)
-    def expand(self, query: str) -> List[str]:
+    def expand(self, query: str) -> list[str]:
         """
-        Generates 3 variations of the input query.
+        Generates deterministic domain variations of the input query based on
+        detected protocol keywords and CLI semantics.
         """
-        prompt = ChatPromptTemplate.from_template(
-            "You are a network engineering search assistant. "
-            "Given the following network intent, generate 3 short, distinct search queries "
-            "that would help find relevant technical documentation for CLI commands. "
-            "Output ONLY the queries separated by commas.\n\n"
-            "Intent: {query}\n"
-            "Queries:"
-        )
+        results = [query]
+        q_lower = query.lower()
 
-        chain = prompt | self.llm | self.output_parser
-        try:
-            expanded = chain.invoke({"query": query})
-            # Clean up and ensure we include the original query
-            results = [query]
-            for q in expanded:
-                q_clean = q.strip()
-                if q_clean and q_clean not in results:
-                    results.append(q_clean)
-            return results[:4]  # Original + 3 expansions
-        except Exception:
-            return [query]
+        # Extract matching domain keywords
+        for key, expansions in DOMAIN_KEYWORD_MAPPINGS.items():
+            if re.search(rf"\b{re.escape(key)}\b", q_lower):
+                for exp in expansions:
+                    candidate = f"{query} {exp}"
+                    if candidate not in results:
+                        results.append(candidate)
+
+        # Cap results to original + 3 expansions
+        return results[:4]
+

@@ -1,8 +1,10 @@
-import chromadb
-from src.config import settings
-from chromadb.config import Settings
 import shutil
 from pathlib import Path
+
+import chromadb
+from chromadb.config import Settings
+
+from src.config import settings
 
 # Initialize ChromaDB client
 persist_dir = Path(settings.chroma_persist_dir)

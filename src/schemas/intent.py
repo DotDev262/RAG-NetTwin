@@ -1,20 +1,21 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, model_validator
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class DeviceIntent(BaseModel):
-    name: Optional[str] = Field(
+    name: str | None = Field(
         description="Name of the device, e.g., Router-A. Default to 'Device' if unknown.",
         default="Device",
     )
-    vendor: Optional[str] = Field(
+    vendor: str | None = Field(
         description="Device vendor, e.g., cisco, juniper", default=None
     )
-    os_type: Optional[str] = Field(
+    os_type: str | None = Field(
         description="Operating system type, e.g., ios-xe, junos", default=None
     )
-    os_version: Optional[str] = Field(
+    os_version: str | None = Field(
         description="OS version, e.g., 17.6, 21.4", default=None
     )
 
@@ -41,10 +42,10 @@ class ActionType(str, Enum):
 
 
 class StructuredIntent(BaseModel):
-    intent_id: Optional[str] = Field(
+    intent_id: str | None = Field(
         description="Unique identifier for the intent", default=None
     )
-    protocol: Optional[str] = Field(
+    protocol: str | None = Field(
         description="Network protocol involved, e.g., OSPF, BGP, Static, ACL, Interface",
         default="Unknown",
     )
@@ -52,19 +53,19 @@ class StructuredIntent(BaseModel):
         description="Specific operation: create, update, delete, enable, disable, configure, apply, add, remove, show, verify, monitor, restrict, block, allow, permit, deny",
         default=ActionType.CONFIGURE,
     )
-    devices: List[DeviceIntent] = Field(
+    devices: list[DeviceIntent] = Field(
         description="List of devices involved in the intent",
         default_factory=list,
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         description="Key-value pairs of parameters, e.g., {'area': '0', 'ip': '192.168.1.1/24'}",
         default_factory=dict,
     )
-    requirements: List[str] = Field(
+    requirements: list[str] = Field(
         description="Specific requirements or goals, e.g., ['establish_adjacency', 'no_downtime', 'validate_only']",
         default_factory=list,
     )
-    original_text: Optional[str] = Field(
+    original_text: str | None = Field(
         description="The original natural language text", default=None
     )
 
@@ -139,4 +140,4 @@ class StructuredIntent(BaseModel):
 
 
 class BatchStructuredIntent(BaseModel):
-    intents: List[StructuredIntent] = Field(description="List of structured intents")
+    intents: list[StructuredIntent] = Field(description="List of structured intents")

@@ -1,13 +1,14 @@
 import json
 import threading
-import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.evaluation.cache_manager import CacheManager
+from src.rag.config_generator import CommandBlock, ConfigGenerator
+from src.schemas.intent import ActionType, DeviceIntent, StructuredIntent
 from src.validation.batfish_validator import BatfishValidator
-from src.rag.config_generator import ConfigGenerator, CommandBlock
-from src.schemas.intent import StructuredIntent, DeviceIntent, ActionType
 
 # --- 1. CacheManager Torture Tests ---
 

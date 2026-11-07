@@ -1,41 +1,41 @@
-import json
-import time
-import os
 import argparse
-import random
 import hashlib
+import json
+import os
+import random
 import threading
-import numpy as np
-from pathlib import Path
-from typing import List, Optional, Dict, Any, cast
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, cast
 
+import numpy as np
 from rich.console import Console
-from rich.table import Table
+from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
-    BarColumn,
     TimeElapsedColumn,
-    MofNCompleteColumn,
 )
-from rich.panel import Panel
+from rich.table import Table
 
-# Add src to path for imports
-
-from src.parser.intent_parser import IntentParser
-from src.rag.config_generator import ConfigGenerator, CONFIG_GENERATOR_VERSION
-from src.rag.parameter_normalizer import ParameterNormalizer
-from src.validation.batfish_validator import BatfishValidator
-from src.validation.gns3_validator import GNS3Validator
-from src.llm import LLMProvider
 from src.config import settings
-from src.evaluation.hallucination_detector import HallucinationDetector
-from src.utils import setup_logger, TokenCounter
 from src.evaluation.cache_manager import CacheManager
 from src.evaluation.cfr_checker import CFRChecker
+from src.evaluation.hallucination_detector import HallucinationDetector
 from src.evaluation.stats_reporter import StatsReporter
+from src.llm import LLMProvider
+
+# Add src to path for imports
+from src.parser.intent_parser import IntentParser
+from src.rag.config_generator import CONFIG_GENERATOR_VERSION, ConfigGenerator
+from src.rag.parameter_normalizer import ParameterNormalizer
+from src.utils import TokenCounter, setup_logger
+from src.validation.batfish_validator import BatfishValidator
+from src.validation.gns3_validator import GNS3Validator
 
 logger = setup_logger("PaperEval")
 
@@ -55,13 +55,13 @@ class PaperQualityEvaluator:
         run_gns3: bool = False,
         re_validate: bool = False,
         interactive: bool = False,
-        parser: Optional[IntentParser] = None,
-        generator: Optional[ConfigGenerator] = None,
-        validator: Optional[BatfishValidator] = None,
-        hallucination_detector: Optional[HallucinationDetector] = None,
-        token_counter: Optional[TokenCounter] = None,
+        parser: IntentParser | None = None,
+        generator: ConfigGenerator | None = None,
+        validator: BatfishValidator | None = None,
+        hallucination_detector: HallucinationDetector | None = None,
+        token_counter: TokenCounter | None = None,
         evaluation_mode: str = "strict",
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ):
         self.console = Console()
         self.limit = limit
@@ -103,7 +103,7 @@ class PaperQualityEvaluator:
     def get_intent_key(self, intent) -> str:
         return intent.original_text if hasattr(intent, "original_text") else str(intent)
 
-    def get_test_intents(self, limit: Optional[int] = None) -> List[str]:
+    def get_test_intents(self, limit: int | None = None) -> list[str]:
         intents = [
             "Configure OSPF area 0 on Gig1/0/1 with IP 10.10.10.1/24",
             "Set up BGP with neighbor 192.168.50.1 remote-as 65000 on Cisco",
@@ -254,7 +254,7 @@ class PaperQualityEvaluator:
         self.stats_reporter.generate_summary_table(all_results, retrieval_mode)
         self._print_final_failure_summary(all_results)
 
-    def _get_authorized_citations(self) -> List[str]:
+    def _get_authorized_citations(self) -> list[str]:
         """
         Scans graph_tmp for actual documentation filenames.
         """
@@ -304,6 +304,12 @@ class PaperQualityEvaluator:
                 if device_configs:
                     try:
                         val_report = self.validator.validate(device_configs, intent)
+
+                        # Tier 1.5 Topology-Aware Validation Pipeline (Pre-Emulation Intermediate Check)
+                        from src.validation.topology_validator import TopologyAwareValidator
+                        topo_validator = TopologyAwareValidator()
+                        topo_report = topo_validator.validate(device_configs, intent)
+                        results["topology_aware_validation"] = topo_report
                         cached_rag["status"] = val_report.get("status")
                         cached_rag["issues"] = val_report.get("issues", [])
                         # Update cache with new validation status
@@ -440,6 +446,12 @@ class PaperQualityEvaluator:
                     raise ValueError("No device configurations generated.")
 
                 val_report = self.validator.validate(device_configs, intent)
+
+                # Tier 1.5 Topology-Aware Validation Pipeline (Pre-Emulation Intermediate Check)
+                from src.validation.topology_validator import TopologyAwareValidator
+                topo_validator = TopologyAwareValidator()
+                topo_report = topo_validator.validate(device_configs, intent)
+                results["topology_aware_validation"] = topo_report
                 # Deep Trace: Aggregate RAG and Functional logs
                 deep_trace = rag_output.pop("_trace", {})
                 master_plan = deep_trace.get("master_plan")
@@ -761,7 +773,7 @@ class PaperQualityEvaluator:
         )
         return cast(str, response.content)
 
-    def _save_deep_trace(self, intent, mode: str, trace_data: Dict[str, Any]) -> str:
+    def _save_deep_trace(self, intent, mode: str, trace_data: dict[str, Any]) -> str:
         """
         Saves detailed execution trace to a timestamped JSON file.
         """
@@ -778,7 +790,7 @@ class PaperQualityEvaluator:
 
         return str(filepath)
 
-    def _print_failure_report(self, idx: int, intent: Any, res: Dict[str, Any]):
+    def _print_failure_report(self, idx: int, intent: Any, res: dict[str, Any]):
         """
         Prints a detailed failure report to the console using rich.
         """
@@ -802,10 +814,10 @@ class PaperQualityEvaluator:
         content.append(f"[bold {color}]Intent:[/bold {color}] {intent_text}")
         content.append(f"[bold {color}]Status:[/bold {color}] {status}")
 
-        if "error" in rag_res and rag_res["error"]:
+        if rag_res.get("error"):
             content.append(f"[bold red]Error:[/bold red] {rag_res['error']}")
 
-        if "issues" in rag_res and rag_res["issues"]:
+        if rag_res.get("issues"):
             content.append("\n[bold]Issues Found (Tier 1):[/bold]")
             for issue in rag_res["issues"]:
                 content.append(
@@ -840,13 +852,13 @@ class PaperQualityEvaluator:
         )
         self.console.print(panel)
 
-    def _print_final_failure_summary(self, results: List[Dict[str, Any]]):
+    def _print_final_failure_summary(self, results: list[dict[str, Any]]):
         """
         Groups and prints all failures from the evaluation run using rich tables.
         """
         batfish_issues = {}  # type: Dict[str, List[str]]
         gns3_issues = []
-        hallucination_issues: Dict[str, List[str]] = {
+        hallucination_issues: dict[str, list[str]] = {
             "Invalid citations": [],
             "Ungrounded commands": [],
             "Placeholders": [],

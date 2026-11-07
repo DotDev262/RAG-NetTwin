@@ -1,7 +1,6 @@
 import pytest
 
 # Add src to path for imports
-
 from src.evaluation.hallucination_detector import HallucinationDetector
 
 # --- BASE TEST DATA ---
@@ -323,3 +322,80 @@ def test_hallucination_detector(detector, case):
     assert (
         report.is_hallucinated == case["expected"]
     ), f"Failed: {case['name']} - Reason: {report.reason}"
+
+
+def test_command_normalization_and_shorthand():
+    from src.utils.text import normalize_cli_command
+    # Multiple whitespace squashing
+    cmd = "  interface    GigabitEthernet0/1   "
+    assert normalize_cli_command(cmd) == "interface gigabitethernet0/1"
+
+    # Alias / abbreviation expansion
+    assert normalize_cli_command("int Gi0/1") == "interface gi0/1"
+    assert normalize_cli_command("ip add 10.1.1.1 255.255.255.0") == "ip address 10.1.1.1 255.255.255.0"
+    assert normalize_cli_command("sh ip bgp") == "show ip bgp"
+
+    # Case preservation for sensitive parameters
+    pwd_cmd = "username admin password SecretPass123"
+    norm_pwd = normalize_cli_command(pwd_cmd)
+    assert "SecretPass123" in norm_pwd
+    assert norm_pwd.startswith("username admin password")
+
+
+def test_flexible_syntax_regex():
+    detector = HallucinationDetector()
+    patterns = [
+        r"^interface\s+\S+",
+        r"^ip\s+address\s+[0-9.]+\s+[0-9.]+",
+        r"^router\s+ospf\s+\d+",
+    ]
+    # Valid dynamic IP substitution
+    matched, err = detector.verify_syntax_regex("ip address 192.168.10.1 255.255.255.0", patterns)
+    assert matched is True
+    assert err is None
+
+    # Shorthand normalized matches pattern
+    matched, err = detector.verify_syntax_regex("ip add 10.0.0.1 255.255.255.252", patterns)
+    assert matched is True
+
+    # Complete mismatch returns diagnostic
+    matched, err = detector.verify_syntax_regex("fabric path compute-route", patterns)
+    assert matched is False
+    assert "REGEX_MISMATCH" in err
+
+
+def test_robust_citation_binding_verification():
+    detector = HallucinationDetector()
+    valid_ids = ["cisco_ios_xe_ospf_chunk_12", "juniper_junos_bgp_guide"]
+
+    # 1. Exact match
+    invalids, diag = detector.citation_binding_verification(
+        citations=["cisco_ios_xe_ospf_chunk_12"],
+        valid_source_ids=valid_ids,
+    )
+    assert len(invalids) == 0
+    assert any(d["type"] == "BOUND_CITATION" for d in diag)
+
+    # 2. Substring / partial ID formatting match
+    invalids, diag = detector.citation_binding_verification(
+        citations=["chunk_12"],
+        valid_source_ids=valid_ids,
+    )
+    assert len(invalids) == 0
+
+    # 3. Metadata tag alignment match
+    invalids, diag = detector.citation_binding_verification(
+        citations=["junos_bgp_reference"],
+        valid_source_ids=valid_ids,
+        metadata_tags={"guide": "junos_bgp_reference_doc"},
+    )
+    assert len(invalids) == 0
+
+    # 4. Completely unbound citation
+    invalids, diag = detector.citation_binding_verification(
+        citations=["completely_fake_source_999"],
+        valid_source_ids=valid_ids,
+    )
+    assert len(invalids) == 1
+    assert any(d["type"] == "UNBOUND_CITATION" for d in diag)
+
