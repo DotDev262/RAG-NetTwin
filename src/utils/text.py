@@ -136,6 +136,11 @@ def _is_cli_command(line: str) -> bool:
         "untrust",
         "line ",
         "access-class ",
+        "permit ",
+        "deny ",
+        "remark ",
+        "match ",
+        "set ",
     )
     lower = line.lower()
     return lower.startswith(valid_starts)

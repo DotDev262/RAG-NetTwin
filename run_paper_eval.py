@@ -2,12 +2,15 @@ import argparse
 import hashlib
 import json
 import os
+import queue
 import random
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import numpy as np
 from rich.console import Console
@@ -62,9 +65,11 @@ class PaperQualityEvaluator:
         token_counter: TokenCounter | None = None,
         evaluation_mode: str = "strict",
         limit: int | None = None,
+        parallel: bool = False,
     ):
         self.console = Console()
         self.limit = limit
+        self.parallel = parallel
         self.parser = parser or IntentParser()
         self.generator = generator or ConfigGenerator()
         self.validator = validator or BatfishValidator()
@@ -157,6 +162,20 @@ class PaperQualityEvaluator:
             "Configure switchport port-security on interface Ethernet0/1 for Cisco switch, setting maximum 2 secure MAC addresses, enable mac-address sticky, and set violation restrict",
             "Configure Spanning-Tree MST configuration on Cisco switch with region name REGION1, revision 1, and map VLANs 10,20 to instance 1",
             "Configure a static blackhole route for subnet 192.0.2.0/24 to Null0 with tag 666 on Cisco, and redistribute tagged static routes into BGP AS 65001",
+            # Complex Multi-Vendor Scenarios (Cisco IOS-XE <-> Juniper JunOS Interoperability)
+            "Set up multi-vendor BGP peering between Cisco IOS-XE (AS 65001) and Juniper JunOS (AS 65002) over link 10.0.0.0/30, advertising prefix 172.16.10.0/24 with MD5 password BGPPass123",
+            "Configure mutual route redistribution between OSPF process 1 and BGP AS 65001 on Cisco router, setting metric 20 for redistributed routes, and peer with Juniper in AS 65002",
+            "Set up multi-vendor OSPF multi-area topology connecting Cisco in Area 0 to Juniper in Area 1 with IP 10.0.12.0/30 and passive interface on Loopback0",
+            "Configure cross-vendor BFD-enabled BGP session between Cisco (AS 65001, IP 10.1.1.1) and Juniper (AS 65002, IP 10.1.1.2) with min-rx 300, min-tx 300, and multiplier 3",
+            "Configure BGP local-preference 300 for routes received from Juniper peer 10.0.0.2 on Cisco AS 65001, and advertise community 65001:200 to Juniper",
+            "Configure cross-vendor BGP peering between Cisco AS 65001 and Juniper AS 65002 on 10.10.10.0/30, where Cisco sets outbound MED to 50 for prefix 192.168.100.0/24 and Juniper accepts routes with local-preference 150",
+            "Configure multi-vendor OSPF NSSA Area 10 between Cisco and Juniper on subnet 10.1.10.0/30 with Cisco acting as NSSA ABR injecting a default route into Area 10",
+            "Set up multi-vendor dual-stack OSPFv3 peering between Cisco and Juniper on link 2001:db8:10::/64 in Area 0 with Cisco link-local fe80::1 and Juniper fe80::2",
+            "Configure eBGP between Cisco AS 65001 and Juniper AS 65002 where Cisco strips community 65001:666 on ingress from Juniper and tags outbound prefixes with standard community 65001:500",
+            "Create a point-to-point GRE tunnel between Cisco (10.0.0.1) and Juniper (10.0.0.2) with tunnel subnet 172.16.99.0/30 and run OSPF Area 0 over the tunnel",
+            "Configure BGP route flap damping on Cisco peering with Juniper AS 65002, setting half-life 15 minutes, reuse threshold 750, and suppress threshold 2000",
+            "Configure BGP session between Cisco AS 65001 and Juniper AS 65002 with strict inbound prefix-list on Juniper permitting only 192.168.0.0/16 and more specifics up to /24",
+            "Configure shared GigabitEthernet link between Cisco and Juniper with MTU 9000 for jumbo frame transport on subnet 10.200.1.0/30 and enable OSPF Area 0 without MTU mismatch ignore",
         ]
         lim = limit if limit is not None else self.limit
         if lim is not None and lim > 0:
@@ -164,6 +183,9 @@ class PaperQualityEvaluator:
         return intents
 
     def run_full_eval(self, retrieval_mode: str = "tiered"):
+        if getattr(self, "parallel", False):
+            return self.run_pipelined_eval(retrieval_mode=retrieval_mode)
+
         logger.info(
             f"Pre-flight check: Verifying Batfish connectivity (Mode: {retrieval_mode})..."
         )
@@ -269,6 +291,378 @@ class PaperQualityEvaluator:
             self.cache_manager.save_cache(RAG_CACHE_FILE, self.rag_cache)
 
         # Partitioned Corpus Comparison Table: Baseline (first 35) vs Stress-Test (remaining) vs Combined
+        baseline_results = all_results[:35]
+        stress_results = all_results[35:]
+        if stress_results:
+            self.console.print("\n[bold cyan]=== BASELINE CORPUS RESULTS (N=35) ===[/bold cyan]")
+            self.stats_reporter.generate_summary_table(baseline_results, retrieval_mode)
+            self.console.print(f"\n[bold yellow]=== ADVANCED STRESS-TEST CORPUS RESULTS (N={len(stress_results)}) ===[/bold yellow]")
+            self.stats_reporter.generate_summary_table(stress_results, retrieval_mode)
+            self.console.print(f"\n[bold green]=== TOTAL COMPREHENSIVE CORPUS RESULTS (N={len(all_results)}) ===[/bold green]")
+        self.stats_reporter.generate_summary_table(all_results, retrieval_mode)
+        self._print_final_failure_summary(all_results)
+
+    def run_pipelined_eval(self, retrieval_mode: str = "tiered"):
+        """
+        Asynchronous multi-stage producer-consumer evaluation pipeline.
+        Stage 1: Multi-worker LLM Synthesis & RAG retrieval.
+        Stage 2: Multi-worker Batfish Static Analysis, Tier 1.5 Topology, CFR & Hallucination audit.
+        Stage 3: Dedicated single consumer for GNS3 dynamic node emulation.
+        """
+        logger.info(f"Pre-flight check: Verifying Batfish connectivity (Pipelined Mode: {retrieval_mode})...")
+        try:
+            if not self.validator.session:
+                raise ConnectionError("Batfish session not initialized.")
+            self.validator.session.list_networks()
+            logger.info("Batfish detected and responsive.")
+        except Exception as e:
+            logger.error(f"Batfish pre-flight failed: {e}")
+            if not self.cache_only:
+                return
+
+        scenarios = self.get_test_intents(limit=self.limit)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        metadata = {
+            "timestamp": timestamp,
+            "llm_provider": settings.llm_provider,
+            "embedding_model": settings.embedding_model_name,
+            "retrieval_mode": retrieval_mode,
+            "run_vanilla": self.run_vanilla,
+            "cache_only": self.cache_only,
+            "execution_engine": "pipelined_queue",
+        }
+
+        logger.info(f"Phase 1: Batch parsing {len(scenarios)} intents...")
+        parsed_intents = self.parser.parse_batch(scenarios)
+
+        total_count = len(parsed_intents)
+        logger.info(f"Phase 2: Launching Pipelined Multi-Stage Queue for {total_count} intents...")
+
+        stage1_queue = queue.Queue()  # (idx, intent)
+        stage2_queue = queue.Queue()  # (idx, intent, stage1_result)
+        stage3_queue = queue.Queue()  # (idx, intent, stage2_result)
+        final_results = {}
+        results_lock = threading.Lock()
+
+        authorized_citations = self._get_authorized_citations()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=self.console,
+        ) as progress:
+            task_gen = progress.add_task("[cyan][1/3] RAG Synthesis", total=total_count)
+            task_static = progress.add_task("[yellow][2/3] Batfish & CFR", total=total_count)
+            task_gns3 = progress.add_task("[green][3/3] GNS3 Emulation", total=total_count)
+
+            # --- STAGE 1: Generation Worker ---
+            def stage1_worker():
+                while True:
+                    item = stage1_queue.get()
+                    if item is None:
+                        stage1_queue.task_done()
+                        break
+                    idx, intent = item
+                    intent_key = self.get_intent_key(intent)
+                    cache_key = f"{CONFIG_GENERATOR_VERSION}:{retrieval_mode}:{intent_key}"
+                    use_live_llm = os.getenv("USE_LIVE_LLM") == "True" or getattr(settings, "use_live_llm", False)
+
+                    cached_rag = None
+                    with self.evaluation_lock:
+                        if not use_live_llm:
+                            cached_rag = self.cache_manager.get(self.rag_cache, cache_key)
+
+                    if cached_rag:
+                        stage1_res = {"is_cached": True, "cached_rag": cached_rag, "cache_key": cache_key}
+                    elif self.cache_only:
+                        stage1_res = {"error": "Not in cache (cache-only mode)"}
+                    else:
+                        try:
+                            start_time = time.time()
+                            rag_output = self.generator.generate(intent, retrieval_mode=retrieval_mode)
+                            latency = time.time() - start_time
+                            stage1_res = {
+                                "is_cached": False,
+                                "rag_output": rag_output,
+                                "latency": latency,
+                                "cache_key": cache_key,
+                            }
+                        except Exception as e:
+                            stage1_res = {"error": str(e)}
+
+                    stage2_queue.put((idx, intent, stage1_res))
+                    progress.update(task_gen, advance=1)
+                    stage1_queue.task_done()
+
+            # --- STAGE 2: Static Verification Worker (Batfish, Topology, Hallucination, CFR) ---
+            def stage2_worker():
+                while True:
+                    item = stage2_queue.get()
+                    if item is None:
+                        stage2_queue.task_done()
+                        break
+                    idx, intent, s1 = item
+                    res = {"scenario": intent.original_text, "parsed_intent": intent.model_dump()}
+
+                    if "error" in s1 and s1.get("error") and not s1.get("cached_rag"):
+                        res["rag_nettwin"] = {"status": "ERROR", "error": s1["error"]}
+                        with results_lock:
+                            final_results[idx] = res
+                        progress.update(task_static, advance=1)
+                        progress.update(task_gns3, advance=1)
+                        stage2_queue.task_done()
+                        continue
+
+                    # Cached branch
+                    if s1.get("is_cached"):
+                        cached_rag = s1["cached_rag"]
+                        cache_key = s1["cache_key"]
+                        if self.re_validate:
+                            device_configs = cached_rag.get("configs", {})
+                            if device_configs:
+                                try:
+                                    val_report = self.validator.validate(device_configs, intent)
+                                    from src.validation.topology_validator import TopologyAwareValidator
+                                    topo_report = TopologyAwareValidator().validate(device_configs, intent)
+                                    res["topology_aware_validation"] = topo_report
+                                    cached_rag["status"] = val_report.get("status")
+                                    cached_rag["issues"] = val_report.get("issues", [])
+                                    with self.evaluation_lock:
+                                        self.cache_manager.set(self.rag_cache, cache_key, cached_rag, mode=retrieval_mode)
+                                except Exception as e:
+                                    logger.error(f"Re-validation failed: {e}")
+
+                        res["rag_nettwin"] = cached_rag
+                        configs = cached_rag.get("configs", {})
+                        all_sources = [s for sl in cached_rag.get("retrieved_sources", []) if isinstance(sl, list) for s in sl]
+                        flat_valid_ids = [v for vl in cached_rag.get("valid_source_ids", []) for v in (vl if isinstance(vl, list) else [vl])]
+                        all_texts = [t for t in cached_rag.get("retrieved_texts", []) if t]
+
+                        all_hal_reports = []
+                        for dev_name, config_text in configs.items():
+                            if dev_name and dev_name.startswith("_"):
+                                continue
+                            hal_rep = self.hallucination_detector.detect(
+                                config_text, all_sources, flat_valid_ids,
+                                retrieved_texts=all_texts, intent_context=intent.original_text,
+                                intent_params=intent.parameters, master_plan=cached_rag.get("master_plan"),
+                                authorized_citations=authorized_citations,
+                            )
+                            all_hal_reports.append(hal_rep.model_dump())
+                        res["rag_nettwin"]["hallucinations"] = all_hal_reports
+                        aggregate_config = "\n".join(configs.values())
+                        res["rag_nettwin"]["cfr_failure"] = self.cfr_checker.check(intent, aggregate_config)
+
+                        # Enqueue for GNS3 or finalize
+                        batfish_failed = cached_rag.get("status") in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]
+                        if self.run_gns3 and self.gns3 and not (batfish_failed and self.evaluation_mode == "strict"):
+                            stage3_queue.put((idx, intent, res, s1))
+                        else:
+                            if batfish_failed and self.evaluation_mode == "strict":
+                                cached_rag["functional_status"] = "SKIPPED_FAIL"
+                                cached_rag["functional_errors"] = ["Skipped GNS3 validation due to Batfish failure in strict mode."]
+                            with results_lock:
+                                final_results[idx] = res
+                            progress.update(task_gns3, advance=1)
+
+                    # Freshly generated branch
+                    else:
+                        rag_output = s1["rag_output"]
+                        latency = s1["latency"]
+                        cache_key = s1["cache_key"]
+                        res["rag_sanity_check"] = rag_output.get("_sanity_check")
+                        device_configs = {k: v["config"] for k, v in rag_output.items() if k is None or not k.startswith("_")}
+
+                        if not device_configs:
+                            res["rag_nettwin"] = {"status": "ERROR", "error": "No device configs generated"}
+                            with results_lock:
+                                final_results[idx] = res
+                            progress.update(task_static, advance=1)
+                            progress.update(task_gns3, advance=1)
+                            stage2_queue.task_done()
+                            continue
+
+                        val_report = self.validator.validate(device_configs, intent)
+                        from src.validation.topology_validator import TopologyAwareValidator
+                        topo_report = TopologyAwareValidator().validate(device_configs, intent)
+                        res["topology_aware_validation"] = topo_report
+
+                        deep_trace = rag_output.pop("_trace", {})
+                        master_plan = deep_trace.get("master_plan")
+
+                        all_hal_reports = []
+                        for dev_name, dev_data in rag_output.items():
+                            if dev_name and dev_name.startswith("_"):
+                                continue
+                            hal_rep = self.hallucination_detector.detect(
+                                dev_data["config"], dev_data.get("retrieved_sources", []),
+                                dev_data.get("valid_source_ids", []),
+                                retrieved_texts=[dev_data.get("grounding_context", "")],
+                                intent_context=intent.original_text,
+                                intent_params=intent.parameters, master_plan=master_plan,
+                                authorized_citations=authorized_citations,
+                            )
+                            all_hal_reports.append(hal_rep.model_dump())
+
+                        aggregate_config = "\n".join(device_configs.values())
+                        cfr_failure = self.cfr_checker.check(intent, aggregate_config)
+
+                        eval_res = {
+                            "scenario": intent.original_text,
+                            "configs": device_configs,
+                            "status": val_report.get("status"),
+                            "error": val_report.get("error") or val_report.get("message"),
+                            "issues": val_report.get("issues", []),
+                            "master_plan": master_plan,
+                            "latency": latency,
+                            "hallucinations": all_hal_reports,
+                            "cfr_failure": cfr_failure,
+                            "retrieved_sources": [v.get("retrieved_sources", []) for k, v in rag_output.items() if not k.startswith("_")],
+                            "valid_source_ids": [v.get("valid_source_ids", []) for k, v in rag_output.items() if not k.startswith("_")],
+                            "retrieved_texts": [v.get("grounding_context", "") for k, v in rag_output.items() if not k.startswith("_")],
+                        }
+                        trace_path = self._save_deep_trace(intent, retrieval_mode, deep_trace)
+                        eval_res["deep_trace_file"] = trace_path
+                        res["rag_nettwin"] = eval_res
+
+                        batfish_failed = val_report.get("status") in ["ERROR", "FAIL", "REJECT_FOR_MANUAL_REVIEW"]
+                        if self.run_gns3 and self.gns3 and not (batfish_failed and self.evaluation_mode == "strict"):
+                            stage3_queue.put((idx, intent, res, {"cache_key": cache_key, "rag_output": rag_output, "device_configs": device_configs, "eval_res": eval_res, "deep_trace": deep_trace}))
+                        else:
+                            eval_res["functional_status"] = "SKIPPED_FAIL" if batfish_failed else "SKIPPED"
+                            eval_res["car"] = 0.0
+                            eval_res["is_multi_vendor"] = False
+                            with self.evaluation_lock:
+                                self.cache_manager.set(self.rag_cache, cache_key, eval_res, mode=retrieval_mode)
+                            with results_lock:
+                                final_results[idx] = res
+                            progress.update(task_gns3, advance=1)
+
+                    progress.update(task_static, advance=1)
+                    stage2_queue.task_done()
+
+            # --- STAGE 3: GNS3 Dedicated Worker ---
+            def stage3_worker():
+                while True:
+                    item = stage3_queue.get()
+                    if item is None:
+                        stage3_queue.task_done()
+                        break
+                    idx, intent, res, meta = item
+                    rag_entry = res["rag_nettwin"]
+                    device_configs = rag_entry.get("configs", {})
+                    processed_configs = {
+                        dev: ParameterNormalizer.post_process_config(cfg, vendor="cisco")
+                        for dev, cfg in device_configs.items()
+                    }
+
+                    functional_status = "SKIPPED"
+                    gns3_car = 0.0
+                    is_multi_vendor = False
+                    functional_errors = []
+
+                    try:
+                        with self.gns3_lock:
+                            g_res = self.gns3.validate(processed_configs, intent)
+                            gns3_car = g_res.get("car", 0.0)
+                            is_multi_vendor = g_res.get("is_multi_vendor", False)
+                            if g_res.get("status") == "PASS":
+                                # Dynamic Protocol-Specific Verification Commands
+                                proto = (getattr(intent, "protocol", "") or "").lower()
+                                v_cmds = {}
+                                for dev_name, cfg in processed_configs.items():
+                                    is_jun = any(cfg.strip().startswith(p) for p in ["set ", "protocols ", "interfaces "])
+                                    if "bgp" in proto:
+                                        v_cmds[dev_name] = ["show bgp summary"] if is_jun else ["show ip bgp summary", "show ip interface brief"]
+                                    elif "ospf" in proto:
+                                        v_cmds[dev_name] = ["show ospf neighbor"] if is_jun else ["show ip ospf neighbor", "show ip interface brief"]
+                                    elif "acl" in proto or "filter" in proto:
+                                        v_cmds[dev_name] = ["show firewall"] if is_jun else ["show ip access-lists"]
+                                    else:
+                                        v_cmds[dev_name] = ["show interfaces terse"] if is_jun else ["show ip interface brief"]
+
+                                v_res = self.gns3.verify_functional(g_res.get("nodes", {}), v_cmds)
+                                has_err = any("ERROR:" in str(out) or "TIMEOUT:" in str(out) or "Invalid input" in str(out)
+                                              for dev in v_res.values() for out in (dev.values() if isinstance(dev, dict) else dev))
+                                functional_status = "PASS" if not has_err else "FAIL"
+                                if has_err:
+                                    functional_errors = [f"Functional verification failed on {dev}" for dev in v_res]
+                            else:
+                                functional_status = g_res.get("status", "FAIL")
+                                functional_errors = [g_res.get("summary") or g_res.get("error") or "GNS3 node failed"]
+                    except Exception as ge:
+                        logger.error(f"GNS3 validation failed for #{idx+1}: {ge}")
+                        functional_status = "ERROR"
+                        functional_errors = [str(ge)]
+
+                    rag_entry["functional_status"] = functional_status
+                    rag_entry["functional_errors"] = functional_errors
+                    rag_entry["car"] = gns3_car
+                    rag_entry["is_multi_vendor"] = is_multi_vendor
+
+                    cache_key = meta.get("cache_key")
+                    if cache_key:
+                        with self.evaluation_lock:
+                            self.cache_manager.set(self.rag_cache, cache_key, rag_entry, mode=retrieval_mode)
+
+                    with results_lock:
+                        final_results[idx] = res
+
+                    progress.update(task_gns3, advance=1)
+                    stage3_queue.task_done()
+
+            # Start worker threads
+            threads = []
+            for _ in range(2):
+                t = threading.Thread(target=stage1_worker, daemon=True)
+                t.start()
+                threads.append(t)
+
+            for _ in range(2):
+                t = threading.Thread(target=stage2_worker, daemon=True)
+                t.start()
+                threads.append(t)
+
+            t3 = threading.Thread(target=stage3_worker, daemon=True)
+            t3.start()
+            threads.append(t3)
+
+            # Feed Stage 1
+            for i, intent in enumerate(parsed_intents):
+                stage1_queue.put((i, intent))
+
+            stage1_queue.join()
+            for _ in range(2):
+                stage1_queue.put(None)
+
+            stage2_queue.join()
+            for _ in range(2):
+                stage2_queue.put(None)
+
+            stage3_queue.join()
+            stage3_queue.put(None)
+            t3.join()
+
+        # Re-sort results
+        all_results = [final_results[i] for i in range(total_count) if i in final_results]
+
+        os.makedirs("results/history", exist_ok=True)
+        report = {"metadata": metadata, "results": all_results}
+        latest_file = f"results/paper_evaluation_{retrieval_mode}_latest.json"
+        with open(latest_file, "w") as f:
+            json.dump(report, f, indent=2)
+
+        history_file = f"results/history/report_{retrieval_mode}_{timestamp}.json"
+        with open(history_file, "w") as f:
+            json.dump(report, f, indent=2)
+
+        if not self.cache_only:
+            self.cache_manager.save_cache(VANILLA_CACHE_FILE, self.vanilla_cache)
+            self.cache_manager.save_cache(RAG_CACHE_FILE, self.rag_cache)
+
         baseline_results = all_results[:35]
         stress_results = all_results[35:]
         if stress_results:
@@ -1008,6 +1402,55 @@ class PaperQualityEvaluator:
             )
 
 
+def preflight_check_services(check_batfish: bool = True, check_gns3: bool = False) -> None:
+    """
+    Instant fail-fast pre-flight connectivity verification for external services.
+    Aborts execution immediately (< 100ms) with clear instructions if required
+    daemons (Batfish or GNS3) are not reachable.
+    """
+    import urllib.request
+    from urllib.error import URLError
+
+    errors = []
+
+    if check_batfish:
+        bf_host = settings.batfish_host if settings.batfish_host != "localhost" else "127.0.0.1"
+        bf_url = f"http://{bf_host}:9996/v2/version"
+        try:
+            req = urllib.request.Request(bf_url, headers={"User-Agent": "RAG-NetTwin-Preflight"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status != 200:
+                    errors.append(f"Batfish service at {bf_url} returned HTTP {resp.status}")
+        except Exception as e:
+            errors.append(
+                f"[FAIL-FAST] Batfish service is NOT reachable at {bf_url} ({e}).\n"
+                f"            Please ensure Batfish container is running (e.g., docker start batfish or WSL)."
+            )
+
+    if check_gns3:
+        gns3_host = settings.gns3_host if settings.gns3_host != "localhost" else "127.0.0.1"
+        gns3_url = f"http://{gns3_host}:{settings.gns3_port}/v2/version"
+        try:
+            req = urllib.request.Request(gns3_url, headers={"User-Agent": "RAG-NetTwin-Preflight"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status != 200:
+                    errors.append(f"GNS3 server at {gns3_url} returned HTTP {resp.status}")
+        except Exception as e:
+            errors.append(
+                f"[FAIL-FAST] GNS3 server is NOT reachable at {gns3_url} ({e}).\n"
+                f"            Please start the GNS3 application/daemon before running with --run-gns3."
+            )
+
+    if errors:
+        print("\n" + "=" * 70)
+        print(" PRE-FLIGHT SERVICE CHECK FAILED ")
+        print("=" * 70)
+        for err in errors:
+            print(f"- {err}")
+        print("=" * 70 + "\n")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     random.seed(42)
     np.random.seed(42)
@@ -1050,12 +1493,25 @@ if __name__ == "__main__":
         help="Evaluation mode: 'strict' (short-circuits GNS3 on Batfish failure) or 'observational' (always runs GNS3)",
     )
     parser.add_argument(
+        "--parallel",
+        "--pipelined",
+        action="store_true",
+        dest="parallel",
+        help="Run evaluation using an asynchronous multi-stage pipelined queue (Stage 1 Synthesis -> Stage 2 Batfish/CFR -> Stage 3 GNS3)",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=1,
         help="Limit number of test prompts/scenarios to evaluate (default: 1)",
     )
     args = parser.parse_args()
+
+    # Instant pre-flight checks: fail fast before loading vector stores or LLM models
+    preflight_check_services(
+        check_batfish=(not args.cache_only),
+        check_gns3=bool(args.run_gns3 and not args.cache_only),
+    )
 
     if args.clear_cache:
         import glob
@@ -1125,6 +1581,7 @@ if __name__ == "__main__":
                 interactive=args.interactive,
                 evaluation_mode=args.evaluation_mode,
                 limit=args.limit,
+                parallel=args.parallel,
             )
             evaluator.run_full_eval(retrieval_mode=mode)
     else:
@@ -1136,5 +1593,6 @@ if __name__ == "__main__":
             interactive=args.interactive,
             evaluation_mode=args.evaluation_mode,
             limit=args.limit,
+            parallel=args.parallel,
         )
         evaluator.run_full_eval()

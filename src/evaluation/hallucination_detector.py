@@ -110,7 +110,7 @@ class HallucinationDetector:
             invalid_citations: list of completely unbound citation strings.
             diagnostics: structured logs explaining binding status or failures.
         """
-        full_authorized = set(valid_source_ids + (authorized_citations or []))
+        full_authorized = set(valid_source_ids or []).union(authorized_citations or [])
         full_authorized.add("BASE_CLI_KNOWLEDGE")
 
         invalid_cites = []
@@ -212,7 +212,7 @@ class HallucinationDetector:
         unauthorized = []
 
         # Authorized list includes provided IDs and general authorized names (guide titles)
-        full_authorized = set(valid_source_ids + (authorized_citations or []))
+        full_authorized = set(valid_source_ids or []).union(authorized_citations or [])
         # Add global safe sources
         full_authorized.add("BASE_CLI_KNOWLEDGE")
 
@@ -345,6 +345,11 @@ class HallucinationDetector:
                         # Also add common "base" addresses if it's a large subnet
                         # e.g. for 172.16.0.0/16, add 172.16.0.0
                         authorized_values.add(val_str.split("/")[0])
+
+                        # Also add all usable host IPs in small point-to-point subnets (/30, /31, /29)
+                        if net.prefixlen >= 28:
+                            for host_ip in net.hosts():
+                                authorized_values.add(str(host_ip))
 
                         # Add netmask
                         if net.netmask:
@@ -573,15 +578,25 @@ class HallucinationDetector:
             if val.isdigit() and int(val) <= 1024:
                 continue
 
-            # Check if it's a substring of an authorized CIDR (e.g. 10.1.1.1 in 10.1.1.0/24)
+            # Check if it's a valid host within an authorized CIDR (e.g. 10.1.10.1 in 10.1.10.0/30)
             is_authorized = False
             for auth in authorized_values:
+                if "/" in auth:
+                    try:
+                        net = ipaddress.ip_network(auth, strict=False)
+                        if ipaddress.ip_address(val) in net:
+                            is_authorized = True
+                            break
+                    except (ValueError, Exception):
+                        pass
                 if val in auth:
                     is_authorized = True
                     break
 
-            if not is_authorized:
-                unauthorized.append(val)
+            if is_authorized:
+                continue
+
+            unauthorized.append(val)
 
         return unauthorized
 
@@ -932,6 +947,22 @@ class HallucinationDetector:
             "key-string",
             "cache",
             "timeout",
+            "bfd",
+            "interval",
+            "min_rx",
+            "multiplier",
+            "minimum-receive-interval",
+            "minimum-transmit-interval",
+            "bfd-liveness-detection",
+            "default-information",
+            "originate",
+            "dampening",
+            "half-life",
+            "reuse",
+            "suppress",
+            "max-suppress-time",
+            "med",
+            "metric-out",
         ]
         LEAF_VERBS = [
             "description",

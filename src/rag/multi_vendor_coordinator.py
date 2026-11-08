@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import re
 from typing import Any, cast
@@ -145,6 +146,37 @@ class MultiVendorCoordinator:
             for k, v in params.items():
                 dev_dict[k] = v
             proposed_params[dev_name] = dev_dict
+
+        # Deterministic Peer IP Disambiguation for Point-to-Point Links/Tunnels
+        if len(devices) > 1:
+            subnet_val = None
+            subnet_key = None
+            for k, v in params.items():
+                if any(s in k.lower() for s in ["subnet", "network", "link", "tunnel_subnet"]):
+                    if isinstance(v, str) and "/" in v and "." in v:
+                        subnet_val = v
+                        subnet_key = k
+                        break
+
+            if subnet_val:
+                try:
+                    net = ipaddress.ip_network(subnet_val, strict=False)
+                    hosts = list(net.hosts())
+                    if len(hosts) >= len(devices):
+                        for d_idx, dev in enumerate(devices):
+                            dev_name = getattr(dev, "name", f"Device{d_idx+1}")
+                            assigned_ip = str(hosts[d_idx])
+                            peer_idx = 1 if d_idx == 0 else 0
+                            peer_ip = str(hosts[peer_idx])
+
+                            proposed_params[dev_name]["assigned_interface_ip"] = (
+                                f"{assigned_ip}/{net.prefixlen}"
+                            )
+                            proposed_params[dev_name]["peer_ip"] = peer_ip
+                            proposed_params[dev_name]["peer_interface_ip"] = peer_ip
+                            proposed_params[dev_name]["interconnect_subnet"] = subnet_val
+                except Exception as e:
+                    logger.warning(f"Could not compute peer IP allocations: {e}")
 
         return NetworkMasterPlan(
             proposed_parameters=proposed_params,

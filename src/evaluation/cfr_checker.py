@@ -133,6 +133,18 @@ class CFRChecker:
                         rf"\b{re.escape(val_str.lower())}\b", config.lower()
                     ):
                         return True
+
+        # Check Negative Constraints (e.g. 'without MTU mismatch ignore')
+        # If intent prohibits a feature, its presence in the config constitutes a CFR failure.
+        original_intent_text = (getattr(intent, "original_text", "") or "").lower()
+        config_lower = config.lower()
+
+        # MTU Mismatch Ignore Negative Constraint
+        if "without mtu" in original_intent_text or "no mtu-ignore" in original_intent_text or "without mtu mismatch" in original_intent_text:
+            if "mtu-ignore" in config_lower or "ignore-mtu" in config_lower:
+                logger.warning("CFR Failure: Prohibited MTU ignore command detected in config despite negative constraint.")
+                return True
+
         return False
 
     def _is_ip_like(self, val: str) -> bool:
@@ -153,6 +165,22 @@ class CFRChecker:
 
         ip_pattern = r"\d+\.\d+\.\d+\.\d+"
         config_ips = re.findall(ip_pattern, config)
+
+        # Subnet checking: If ip_with_prefix is a network (e.g. 10.200.1.0/30),
+        # accept configs that configure valid host IPs within this subnet (e.g. 10.200.1.1).
+        if intent_prefix:
+            try:
+                import ipaddress
+                net = ipaddress.ip_network(ip_with_prefix, strict=False)
+                for cfg_ip in config_ips:
+                    try:
+                        if ipaddress.ip_address(cfg_ip) in net:
+                            return True
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         if ip_base not in config_ips:
             return False
         if not intent_prefix:
