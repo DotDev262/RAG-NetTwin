@@ -253,7 +253,7 @@ def plot_main_results_with_ci(ci_results, output_path):
         ci_results["Hallucination_Free"]["ci_upper"]
     ]
 
-    errors_lower = [m - l for m, l in zip(means, ci_lower)]
+    errors_lower = [mean - lower for mean, lower in zip(means, ci_lower)]
     errors_upper = [u - m for m, u in zip(means, ci_upper)]
 
     x = np.arange(len(metrics))

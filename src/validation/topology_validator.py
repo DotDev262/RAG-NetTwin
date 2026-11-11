@@ -14,7 +14,7 @@ from __future__ import annotations
 import ipaddress
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 from pydantic import BaseModel, Field
 

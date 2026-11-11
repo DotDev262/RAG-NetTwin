@@ -1108,20 +1108,6 @@ class ConfigGenerator:
             ):
                 return 1  # Limited refinement for basic actions
 
-        # Complex intents that benefit from refinement
-        complex_protocols = [
-            "qos",
-            "netflow",
-            "ipfix",
-            "bgp",
-            "vrrp",
-            "vpn",
-            "ospf",
-            "isis",
-            "mpls",
-            "pim",
-        ]
-
         # Default to 1 refinement max across all scenarios to prevent token explosion.
         # Deterministic parameter normalization and state graph invariants handle consistency.
         return 1

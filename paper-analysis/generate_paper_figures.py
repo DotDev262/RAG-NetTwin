@@ -2,7 +2,6 @@
 Generate all figures for RAG-NetTwin IEEE Access Paper
 """
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import seaborn as sns
 from pathlib import Path
@@ -105,7 +104,6 @@ def figure_4_retrieval():
 
     methods = ["Baseline RAG", "GraphRAG"]
     precision = [0.2764, 0.4856]
-    recall = [10, 135]
     tokens = [57533, 3503]
 
     # Left: Precision comparison

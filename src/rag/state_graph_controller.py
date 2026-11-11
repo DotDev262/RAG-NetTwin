@@ -12,11 +12,11 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional
 import networkx as nx
 from pydantic import BaseModel, Field
 
-from src.schemas.intent import StructuredIntent, DeviceIntent
+from src.schemas.intent import StructuredIntent
 from src.utils import setup_logger
 
 logger = setup_logger("StateInvariantGraphController")
@@ -384,10 +384,8 @@ class StateInvariantGraphController:
             bgp_v = state_v.get("bgp", {})
             if bgp_u and bgp_v:
                 # If u has neighbor with v's AS, check match
-                local_as_u = bgp_u.get("local_as")
                 local_as_v = bgp_v.get("local_as")
                 peers_u = bgp_u.get("neighbors", {})  # ip -> remote_as
-                peers_v = bgp_v.get("neighbors", {})
 
                 if local_as_v and peers_u:
                     # check if any neighbor points to local_as_v

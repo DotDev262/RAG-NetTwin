@@ -25,9 +25,6 @@ import os
 import re
 from pathlib import Path
 
-# Add parent to path for imports
-project_root = Path(__file__).parent.parent.parent
-
 from src.data_processing.pdf_extractor import extract_text_from_pdf
 from src.rag.vector_store import VectorStore
 

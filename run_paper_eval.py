@@ -8,9 +8,8 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import numpy as np
 from rich.console import Console
@@ -1409,7 +1408,6 @@ def preflight_check_services(check_batfish: bool = True, check_gns3: bool = Fals
     daemons (Batfish or GNS3) are not reachable.
     """
     import urllib.request
-    from urllib.error import URLError
 
     errors = []
 

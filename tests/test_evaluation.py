@@ -2,18 +2,12 @@ import warnings
 from typing import Any
 
 import pytest
+from run_paper_eval import PaperQualityEvaluator
+from src.schemas.intent import StructuredIntent
 
 # Suppress telnetlib deprecation warning (slated for removal in Python 3.13)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning:telnetlib")
-
-# Add src to path for imports
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent))
-from run_paper_eval import PaperQualityEvaluator
-from src.schemas.intent import StructuredIntent
 
 
 class MockEvaluator(PaperQualityEvaluator):

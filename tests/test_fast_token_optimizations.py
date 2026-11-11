@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 from src.rag.query_expander import QueryExpander
 from src.rag.multi_vendor_coordinator import MultiVendorCoordinator
 from src.schemas.intent import StructuredIntent, DeviceIntent
