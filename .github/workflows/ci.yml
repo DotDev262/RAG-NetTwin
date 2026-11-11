@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Install uv
       uses: astral-sh/setup-uv@v5
@@ -38,7 +40,19 @@ jobs:
       run: uv sync --frozen
     
     - name: Run Linting
-      run: uv run ruff check .
+      run: |
+        set -euo pipefail
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
+          mapfile -t changed_python_files < <(git diff --name-only --diff-filter=ACMRT "origin/${{ github.base_ref }}..HEAD" -- '*.py')
+        else
+          mapfile -t changed_python_files < <(git diff --name-only --diff-filter=ACMRT "${{ github.event.before }}..${{ github.sha }}" -- '*.py' || true)
+        fi
+        if [ "${#changed_python_files[@]}" -eq 0 ]; then
+          echo "No changed Python files to lint."
+          exit 0
+        fi
+        uv run ruff check "${changed_python_files[@]}"
     
     - name: Run Tests
       run: uv run pytest
