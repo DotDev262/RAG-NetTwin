@@ -345,22 +345,22 @@ class GNS3Validator(NetworkValidator):
             # Also detect bare 'vlan <number>' lines (VLAN creation in global config)
             import re as _re
             def _is_l2_line(line: str) -> bool:
-                l = line.lower()
-                if any(sig in l for sig in L2_ONLY_SIGNALS):
+                line_lower = line.lower()
+                if any(sig in line_lower for sig in L2_ONLY_SIGNALS):
                     return True
                 # 'vlan 100' or 'vlan 10,20,30' at start of line = L2 global config
-                if _re.match(r'^vlan\s+[\d,]+\s*$', l):
+                if _re.match(r'^vlan\s+[\d,]+\s*$', line_lower):
                     return True
                 return False
             # Count how many lines look like pure L2 vs total
             cmd_lines = [
-                l.strip() for cfg in configs.values()
-                for l in (cfg.splitlines() if isinstance(cfg, str) else [])
-                if l.strip() and not l.strip().startswith(("!", "#"))
+                line.strip() for cfg in configs.values()
+                for line in (cfg.splitlines() if isinstance(cfg, str) else [])
+                if line.strip() and not line.strip().startswith(("!", "#"))
             ]
             l2_lines = sum(
-                1 for l in cmd_lines
-                if _is_l2_line(l)
+                1 for line in cmd_lines
+                if _is_l2_line(line)
             )
             # Adaptive threshold: short configs (≤10 lines) need only 1 L2 line;
             # longer configs need ≥33% L2 lines to avoid false-positive skips

@@ -315,7 +315,7 @@ def main():
                         else:
                             # 1. Capture Pre-Change Baseline
                             print("      ✓ Capturing Pre-Change Baseline...")
-                            pre_state = gns3.get_network_state(result.get("nodes", {}))
+                            gns3.get_network_state(result.get("nodes", {}))
 
                             # 2. Push Configs
                             print("      ✓ Pushing Configurations...")
@@ -341,7 +341,7 @@ def main():
 
                             # 4. Capture Post-Change State
                             print("      ✓ Capturing Post-Change State...")
-                            post_state = gns3.get_network_state(result.get("nodes", {}))
+                            gns3.get_network_state(result.get("nodes", {}))
 
                             print("\n--- Functional Verification Results ---")
                             for dev, v_list in v_results.items():

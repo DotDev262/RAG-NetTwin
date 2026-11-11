@@ -24,6 +24,7 @@ Typical Usage:
     print(report.suspicious_commands)  # ['<YOUR_IP>']
 """
 
+import ipaddress
 import re
 from typing import Any
 
@@ -218,13 +219,6 @@ class HallucinationDetector:
 
         # Step 1: Remove citation references from config and normalize commands
         config_clean = re.sub(r"\[Ref: [^\]]+\]", "", config)
-        normalized_lines = [
-            normalize_cli_command(line)
-            for line in config_clean.splitlines()
-            if line.strip() and not line.strip().startswith("!")
-        ]
-        config_normalized = "\n".join(normalized_lines)
-
         # Step 2: Check for placeholder patterns
         for pattern in self.HALLUCINATION_PATTERNS:
             matches = re.findall(pattern, config_clean)

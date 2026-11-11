@@ -8,20 +8,17 @@ Tests:
 5. CLI Utility argument parsing and dry-run execution (cli.py)
 """
 
-import json
 import pytest
-from pathlib import Path
 
 from src.rule_encoder.schema import (
-    AlignmentRegistry,
     AlignmentSchemaRule,
     ConstraintType,
     InteroperabilityConstraint,
     ParameterDataType,
     VendorSyntaxMapping,
 )
-from src.rule_encoder.ingest import DocumentChunk, DocumentIngestionEngine
-from src.rule_encoder.validator import RuleRegistryValidator, ValidationIssue
+from src.rule_encoder.ingest import DocumentIngestionEngine
+from src.rule_encoder.validator import RuleRegistryValidator
 from src.rag.state_graph_controller import StateInvariantGraphController
 from src.schemas.intent import StructuredIntent, DeviceIntent
 

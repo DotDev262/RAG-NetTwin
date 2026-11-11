@@ -12,13 +12,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from src.rule_encoder.schema import (
     AlignmentRegistry,
     AlignmentSchemaRule,
-    ConstraintType,
     ParameterDataType,
 )
 from src.utils import setup_logger

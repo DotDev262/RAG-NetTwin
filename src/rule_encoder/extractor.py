@@ -7,19 +7,13 @@ Instructs the model to output formal, machine-readable AlignmentSchemaRules from
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from src.llm import LLMProvider
 from src.rule_encoder.schema import (
-    AlignmentRuleSet,
     AlignmentSchemaRule,
-    ConstraintType,
-    InteroperabilityConstraint,
-    ParameterDataType,
-    VendorSyntaxMapping,
 )
 from src.rule_encoder.ingest import DocumentChunk
 from src.utils import setup_logger

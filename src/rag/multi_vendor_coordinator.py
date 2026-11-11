@@ -1,7 +1,7 @@
 import ipaddress
 import json
 import re
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -150,12 +150,10 @@ class MultiVendorCoordinator:
         # Deterministic Peer IP Disambiguation for Point-to-Point Links/Tunnels
         if len(devices) > 1:
             subnet_val = None
-            subnet_key = None
             for k, v in params.items():
                 if any(s in k.lower() for s in ["subnet", "network", "link", "tunnel_subnet"]):
                     if isinstance(v, str) and "/" in v and "." in v:
                         subnet_val = v
-                        subnet_key = k
                         break
 
             if subnet_val:
